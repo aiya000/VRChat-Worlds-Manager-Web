@@ -6,6 +6,7 @@ import { PopupManager } from './hook/usePopups/popup-manager'
 import { PatreonProvider } from '@/contexts/patreon-context'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { useDriveAutoSync } from '@/hooks/use-drive-auto-sync'
+import { usePulledPreferences } from '@/hooks/use-pulled-preferences'
 import type { CSSProperties } from 'react'
 
 // Central client shell so hooks like useSearchParams live fully inside a client boundary
@@ -19,6 +20,7 @@ export function ListViewClientShell({
   // this device's data should come from is exactly the moment not to have
   // something quietly merging Drive's copy into it.
   useDriveAutoSync()
+  usePulledPreferences()
 
   return (
     <Suspense fallback={null}>

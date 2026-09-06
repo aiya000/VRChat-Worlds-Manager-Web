@@ -120,6 +120,28 @@ export interface SyncedSetting {
   updatedAt: number
 }
 
+/**
+ * One device's demand that its settings replace everyone else's.
+ *
+ * The ordinary rules make this impossible to ask for: a setting a device
+ * classifies as "this device only" is dropped on the way in however new the
+ * incoming value is, so a device that never turns that off can never be
+ * brought into line from somewhere else. This is the way to say "no, mine,
+ * everywhere" -- and because it overrules a promise the other device was given,
+ * it is a single deliberate act rather than a mode.
+ *
+ * It is honoured **once** per device: `at` is remembered where it lands, and an
+ * override that has already been obeyed is ignored ever after. Without that,
+ * the marker sitting in the file would undo every later change made on any
+ * other device, forever.
+ */
+export interface SettingsOverride {
+  /** The `deviceId` that asked. That device does not obey its own demand. */
+  origin: string
+  /** When it was asked for. Also the identity of the demand. */
+  at: number
+}
+
 export const SNAPSHOT_FORMAT_VERSION = 2
 
 export interface Snapshot {
@@ -140,6 +162,11 @@ export interface Snapshot {
    */
   launchedInstances: LaunchedInstanceSyncRecord[]
   settings: Record<string, SyncedSetting>
+  /**
+   * Added after `formatVersion` 2, like `launchedInstances`, and read the same
+   * way: a file without it simply carries no demand.
+   */
+  settingsOverride: SettingsOverride | null
 }
 
 /**

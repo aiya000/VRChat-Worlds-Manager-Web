@@ -8,6 +8,7 @@ import { usePopupStore } from '../../hook/usePopups/store'
 import { toast } from 'sonner'
 import { useLocalization } from '@/hooks/use-localization'
 import { useEffect, useState } from 'react'
+import { subscribeToPreferencesChanged } from '@/lib/services/preferences-changed'
 import { useSelectedWorldsStore } from '../../hook/use-selected-worlds'
 import { useWorlds } from '../../hook/use-worlds'
 import { FolderType, isUserFolder, SpecialFolders } from '@/types/folders'
@@ -64,10 +65,23 @@ export function useWorldGrid(
     }
   }
 
+  // A sync can replace these under the grid, and nothing here watches local
+  // storage, so without the second effect a card size pulled from another
+  // device only showed up after a reload.
+  const [preferencesRevision, setPreferencesRevision] = useState(0)
+
   useEffect(() => {
     loadCardSize()
     loadFieldVisibility()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [preferencesRevision]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(
+    () =>
+      subscribeToPreferencesChanged(() => {
+        setPreferencesRevision((revision) => revision + 1)
+      }),
+    [],
+  )
 
   const selectedWorlds = Array.from(getSelectedWorlds(currentFolder))
 

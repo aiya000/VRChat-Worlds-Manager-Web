@@ -18,6 +18,7 @@ import {
   type DriveSyncResult,
   type SyncProgress,
 } from './services/drive-sync-service'
+import { requestSettingsOverride } from './services/setting-sync'
 import { AppLayer } from '@/lib/services/layers'
 import { PreferencesService } from '@/lib/services/preferences'
 import { FolderService } from '@/lib/services/folder-service'
@@ -947,6 +948,24 @@ export const commands = {
         }),
       ),
     )
+  },
+
+  /**
+   * Hands this device's settings to every other device, once.
+   *
+   * The demand is recorded and then an ordinary sync carries it: there is no
+   * separate upload, and everything else in the snapshot -- worlds, folders,
+   * memos -- is merged exactly as it always is. Nothing is deleted anywhere.
+   *
+   * Must be called from inside a click handler -- see `GoogleAuthService`.
+   */
+  async pushSettingsToAllDevices(
+    onProgress: SyncProgress = () => {},
+  ): Promise<Result<DriveSyncResult, string>> {
+    // Recorded first and without an await: what follows needs the click that
+    // called this to still count as a user gesture.
+    requestSettingsOverride()
+    return commands.syncGoogleDriveNow(onProgress)
   },
 
   /**

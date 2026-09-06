@@ -13,6 +13,8 @@ import { useRouter } from 'next/navigation'
 import { LocalizationContext } from '../../../components/localization-context'
 import { useFolders } from '../hook/use-folders'
 import { useTheme } from 'next-themes'
+import { subscribeToPreferencesChanged } from '@/lib/services/preferences-changed'
+import { normalizeThemeValue } from '@/lib/theme'
 import {
   readSettingSyncOverrides,
   setSettingSyncOverride,
@@ -22,21 +24,6 @@ import {
   type SettingSyncOverrides,
   type SyncableSettingKey,
 } from '@/lib/sync/settings'
-
-const normalizeThemeValue = (theme: string): 'light' | 'dark' | 'system' => {
-  const unwrappedTheme =
-    theme.startsWith('"') && theme.endsWith('"') ? theme.slice(1, -1) : theme
-
-  if (
-    unwrappedTheme === 'light' ||
-    unwrappedTheme === 'dark' ||
-    unwrappedTheme === 'system'
-  ) {
-    return unwrappedTheme
-  }
-
-  return 'system'
-}
 
 export const useSettingsPage = () => {
   const [cardSize, setCardSize] = useState<CardSize>('Normal')
@@ -62,8 +49,9 @@ export const useSettingsPage = () => {
 
   const [syncOverrides, setSyncOverrides] = useState<SettingSyncOverrides>({})
   // Bumped when something outside the settings screen changes what is
-  // stored -- taking in a backup -- so the screen reads the preferences
-  // again instead of going on showing the ones the file replaced.
+  // stored -- a sync taking in another device's settings, or a backup being
+  // restored -- so the screen reads the preferences again instead of going on
+  // showing the ones that were replaced.
   const [preferencesRevision, setPreferencesRevision] = useState(0)
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -172,6 +160,15 @@ export const useSettingsPage = () => {
 
     loadPreferences()
   }, [setTheme, preferencesRevision]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(
+    () =>
+      subscribeToPreferencesChanged(() => {
+        setPreferencesRevision((revision) => revision + 1)
+        setSyncOverrides(readSettingSyncOverrides())
+      }),
+    [],
+  )
 
   const handleBackup = async () => {
     try {

@@ -5,11 +5,18 @@ import {
   PreferencesService,
   PreferencesServiceLive,
 } from '@/lib/services/preferences'
+import { subscribeToLocalChanges } from '@/lib/services/local-changes'
+import { subscribeToPreferencesChanged } from '@/lib/services/preferences-changed'
 import {
+  clearPendingSettingsOverride,
   markSettingUpdated,
+  readPendingSettingsOverrideAt,
   readSettingEntries,
   readSettingSyncOverrides,
+  rememberAppliedSettingsOverride,
+  requestSettingsOverride,
   setSettingSyncOverride,
+  shouldObeySettingsOverride,
   writeSettingEntries,
 } from '@/lib/services/setting-sync'
 
@@ -152,5 +159,111 @@ describe('the per-device sync overrides', () => {
     stored.set('settingSyncOverrides', 'not json')
 
     expect(readSettingSyncOverrides()).toEqual({})
+  })
+})
+
+describe('telling the rest of the app that settings moved', () => {
+  it('raises a local change when a setting is taken out of the sync, or put back', async () => {
+    const raised: string[] = []
+    const unsubscribe = subscribeToLocalChanges(() => raised.push('change'))
+
+    setSettingSyncOverride('cardSize', false)
+    await Promise.resolve()
+
+    unsubscribe()
+    // Without this the new classification waited for the next edit or the
+    // next press, so the toggle read as having done nothing.
+    expect(raised).toHaveLength(1)
+  })
+
+  it('tells the screens to read again when a merge writes a setting', async () => {
+    const raised: string[] = []
+    const unsubscribe = subscribeToPreferencesChanged(() =>
+      raised.push('changed'),
+    )
+
+    writeSettingEntries({ language: { value: '"en-US"', updatedAt: 42 } })
+    await Promise.resolve()
+
+    unsubscribe()
+    expect(raised).toHaveLength(1)
+  })
+
+  it('says nothing when a merge had nothing to write', async () => {
+    const raised: string[] = []
+    const unsubscribe = subscribeToPreferencesChanged(() =>
+      raised.push('changed'),
+    )
+
+    writeSettingEntries({})
+    await Promise.resolve()
+
+    unsubscribe()
+    expect(raised).toEqual([])
+  })
+})
+
+describe("asking that this device's settings replace everyone's", () => {
+  it('records the demand so the next snapshot can carry it', () => {
+    requestSettingsOverride(500)
+
+    expect(readPendingSettingsOverrideAt()).toBe(500)
+  })
+
+  it('has nothing pending until someone asks', () => {
+    expect(readPendingSettingsOverrideAt()).toBeNull()
+  })
+
+  it('forgets the demand once it has reached Drive', () => {
+    requestSettingsOverride(500)
+    clearPendingSettingsOverride()
+
+    expect(readPendingSettingsOverrideAt()).toBeNull()
+  })
+
+  it('never hands the device its own demand back', () => {
+    requestSettingsOverride(500)
+
+    expect(
+      shouldObeySettingsOverride(
+        { origin: 'this-device', at: 500 },
+        'this-device',
+      ),
+    ).toBe(false)
+  })
+
+  it('obeys a demand from another device', () => {
+    expect(
+      shouldObeySettingsOverride(
+        { origin: 'other-device', at: 500 },
+        'this-device',
+      ),
+    ).toBe(true)
+  })
+
+  it('obeys it once and never again', () => {
+    const demand = { origin: 'other-device', at: 500 }
+    expect(shouldObeySettingsOverride(demand, 'this-device')).toBe(true)
+
+    rememberAppliedSettingsOverride(demand.at)
+
+    // The marker stays in the file forever. Obeying it on every later sync
+    // would undo every setting changed here afterwards.
+    expect(shouldObeySettingsOverride(demand, 'this-device')).toBe(false)
+  })
+
+  it('still obeys a newer demand made after the last one', () => {
+    rememberAppliedSettingsOverride(500)
+
+    expect(
+      shouldObeySettingsOverride(
+        { origin: 'other-device', at: 900 },
+        'this-device',
+      ),
+    ).toBe(true)
+  })
+
+  it('has nothing to obey when the file carries no demand', () => {
+    expect(shouldObeySettingsOverride(null, 'this-device')).toBe(false)
   })
 })

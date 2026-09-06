@@ -142,28 +142,69 @@ export function selectSyncedSettings(
 }
 
 /**
+ * Everything this device holds, offered as if all of it had just been changed.
+ *
+ * This is what "push this device's settings to every device" sends, and it
+ * differs from `selectSyncedSettings` in both of the ways it has to: keys this
+ * device keeps to itself are published too, because the point is to hand them
+ * over, and every value is stamped now so that it beats whatever the other
+ * device last wrote. Settings that predate timestamps stop being unwinnable
+ * here as well -- they travel as `0` any other day, and `0` loses to a real
+ * time every time.
+ */
+export function selectSettingsToForce(
+  entries: SettingEntries,
+  at: number,
+): Record<string, SyncedSetting> {
+  const published: Record<string, SyncedSetting> = {}
+
+  for (const key of SYNCABLE_SETTING_KEYS) {
+    const entry = entries[key]
+    if (entry === undefined) {
+      continue
+    }
+    published[key] = {
+      value: canonicalizeSettingValue(key, entry.value),
+      updatedAt: at,
+    }
+  }
+
+  return published
+}
+
+/**
  * Which of an incoming snapshot's settings should actually be written here.
  *
  * A key this device treats as its own is dropped even when the snapshot
  * carries it, because the other device may well classify it as synced -- the
  * classification belongs to the device doing the reading, not to the file.
+ *
+ * `forced` is the one thing that overrules that: a `SettingsOverride` this
+ * device has not obeyed yet takes every key the snapshot carries, whatever
+ * this device thinks each one belongs to and whatever it last wrote. Only
+ * settings are treated that way; nothing else in a snapshot has an equivalent,
+ * and folders and worlds keep being merged exactly as before.
  */
 export function selectSettingsToApply(
   incoming: Record<string, SyncedSetting>,
   local: SettingEntries,
   overrides: SettingSyncOverrides,
+  forced: boolean = false,
 ): SettingEntries {
   const toWrite: SettingEntries = {}
 
   for (const [key, setting] of Object.entries(incoming)) {
-    if (!isSyncableSettingKey(key) || isDeviceOnlySetting(key, overrides)) {
+    if (!isSyncableSettingKey(key)) {
+      continue
+    }
+    if (!forced && isDeviceOnlySetting(key, overrides)) {
       continue
     }
 
     const value = canonicalizeSettingValue(key, setting.value)
     const current = local[key]
     if (current !== undefined) {
-      if (setting.updatedAt < current.updatedAt) {
+      if (!forced && setting.updatedAt < current.updatedAt) {
         continue
       }
       if (canonicalizeSettingValue(key, current.value) === value) {

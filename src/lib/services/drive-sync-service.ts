@@ -21,6 +21,7 @@ import {
   writeFile,
 } from './google-drive'
 import { asRemoteWrite } from './local-changes'
+import { clearPendingSettingsOverride } from './setting-sync'
 import { applySnapshot, parseBackupFile, readSnapshot } from './snapshot'
 import { deviceId } from './sync-meta'
 
@@ -167,6 +168,7 @@ async function attemptSync(
     const syncedAt = Date.now()
     await rememberRemote(created)
     await rememberSyncedAt(syncedAt)
+    clearPendingSettingsOverride()
     return { syncedAt, memoConflicts: 0 }
   }
 
@@ -200,6 +202,10 @@ async function attemptSync(
   const syncedAt = Date.now()
   await rememberRemote(written)
   await rememberSyncedAt(syncedAt)
+  // Only now: the demand is one press, and it has to stay pending through a
+  // retry rather than being dropped by a sync that lost the race and never
+  // reached the file.
+  clearPendingSettingsOverride()
   return { syncedAt, memoConflicts: memoConflicts.length }
 }
 

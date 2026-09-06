@@ -1,8 +1,18 @@
 'use client'
 
-import { Cloud, RefreshCw, Unlink } from 'lucide-react'
+import { ArrowUpFromLine, Cloud, RefreshCw, Unlink } from 'lucide-react'
 import { useEffect, useState, type FC } from 'react'
 import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -71,6 +81,8 @@ export const GoogleDriveSection: FC = () => {
   const [unreadable, setUnreadable] = useState<string | null>(null)
   const [installed, setInstalled] = useState(false)
   const [autoSyncing, setAutoSyncing] = useState(false)
+  const [pushingSettings, setPushingSettings] = useState(false)
+  const [confirmingPush, setConfirmingPush] = useState(false)
 
   useEffect(() => {
     // Loaded ahead of the click that needs it: Google requires the token
@@ -151,18 +163,32 @@ export const GoogleDriveSection: FC = () => {
     }
   }
 
-  const syncNow = async () => {
+  /**
+   * One press of either button.
+   *
+   * Both are the same sync -- the "push" one only sends a demand along with it
+   * -- so everything from here on is shared: which failures are worth a
+   * sentence, and which of them are not failures at all.
+   */
+  const sync = async (mode: 'sync' | 'push') => {
     // Refused rather than queued: an automatic sync is already doing exactly
     // this, and a second one would only merge against a file the first is
     // about to replace.
     if (!tryBeginSync()) {
       return
     }
-    setSyncing(true)
+    if (mode === 'push') {
+      setPushingSettings(true)
+    } else {
+      setSyncing(true)
+    }
     setStep('authorizing')
     let syncedAt: number | null = null
     try {
-      const result = await commands.syncGoogleDriveNow(setStep)
+      const result =
+        mode === 'push'
+          ? await commands.pushSettingsToAllDevices(setStep)
+          : await commands.syncGoogleDriveNow(setStep)
       if (result.status === 'error') {
         toast(t('general:error-title'), { description: result.error })
         return
@@ -187,16 +213,19 @@ export const GoogleDriveSection: FC = () => {
       setLastSyncedAt(syncedAt)
       toast(t('general:success-title'), {
         description:
-          result.data.memoConflicts === 0
-            ? t('settings-page:google-drive-sync-success')
-            : t(
+          result.data.memoConflicts > 0
+            ? t(
                 'settings-page:google-drive-sync-conflicts',
                 result.data.memoConflicts,
-              ),
+              )
+            : mode === 'push'
+              ? t('settings-page:push-settings-success')
+              : t('settings-page:google-drive-sync-success'),
       })
     } finally {
       endSync(syncedAt)
       setSyncing(false)
+      setPushingSettings(false)
       setStep(null)
     }
   }
@@ -228,7 +257,7 @@ export const GoogleDriveSection: FC = () => {
           <Button
             variant="outline"
             className="gap-2"
-            disabled={busy || syncing || autoSyncing}
+            disabled={busy || syncing || pushingSettings || autoSyncing}
             onClick={disconnect}
           >
             <Unlink className="h-4 w-4" />
@@ -283,8 +312,8 @@ export const GoogleDriveSection: FC = () => {
               once the hour-long token runs out. */}
           <Button
             className="h-12 w-full gap-2 text-base"
-            disabled={busy || syncing || autoSyncing}
-            onClick={syncNow}
+            disabled={busy || syncing || pushingSettings || autoSyncing}
+            onClick={() => sync('sync')}
           >
             <RefreshCw
               className={`h-5 w-5 ${syncing || autoSyncing ? 'animate-spin' : ''}`}
@@ -294,7 +323,7 @@ export const GoogleDriveSection: FC = () => {
               ? t('settings-page:google-drive-syncing')
               : t('settings-page:google-drive-sync-now')}
           </Button>
-          {syncing && (
+          {(syncing || pushingSettings) && (
             <div className="space-y-1 text-sm text-muted-foreground">
               {/* A percentage rather than a spinner alone: a sync that has
                   stopped and a sync that is slow look identical otherwise,
@@ -312,6 +341,48 @@ export const GoogleDriveSection: FC = () => {
               </div>
             </div>
           )}
+
+          {/* Its own block rather than a second line under the sync button:
+              this is the one control here that overrules a promise another
+              device was given, and it has to be read before it is pressed. */}
+          <div className="flex flex-col gap-2 border-t pt-4">
+            <Label className="text-base font-medium">
+              {t('settings-page:push-settings-title')}
+            </Label>
+            <div className="whitespace-pre-line text-sm text-muted-foreground">
+              {t('settings-page:push-settings-description')}
+            </div>
+            <Button
+              variant="outline"
+              className="h-12 w-full gap-2 text-base"
+              disabled={busy || syncing || pushingSettings || autoSyncing}
+              onClick={() => setConfirmingPush(true)}
+            >
+              <ArrowUpFromLine className="h-5 w-5" aria-hidden />
+              {pushingSettings
+                ? t('settings-page:google-drive-syncing')
+                : t('settings-page:push-settings-button')}
+            </Button>
+          </div>
+
+          <AlertDialog open={confirmingPush} onOpenChange={setConfirmingPush}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t('settings-page:push-settings-confirm-title')}
+                </AlertDialogTitle>
+                <AlertDialogDescription className="whitespace-pre-line">
+                  {t('settings-page:push-settings-confirm-description')}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('general:cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={() => sync('push')}>
+                  {t('settings-page:push-settings-confirm-action')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
     </Card>
