@@ -18,6 +18,10 @@ import {
   subscribeToSyncActivity,
   tryBeginSync,
 } from '@/lib/services/sync-activity'
+import {
+  msUntilRelativeTimeChanges,
+  relativeTime,
+} from '@/lib/sync/relative-time'
 
 /**
  * Whether the app was opened from the home screen rather than in a browser tab.
@@ -54,6 +58,11 @@ function isRunningInstalled(): boolean {
  */
 export const GoogleDriveSection: FC = () => {
   const { t } = useLocalization()
+  /**
+   * Moved on whenever "3 minutes ago" would stop being true, so the line ages
+   * while it is being looked at rather than only when the screen is reopened.
+   */
+  const [now, setNow] = useState(() => Date.now())
   const [connected, setConnected] = useState<boolean | null>(null)
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
@@ -95,6 +104,24 @@ export const GoogleDriveSection: FC = () => {
       }),
     [],
   )
+
+  useEffect(() => {
+    if (lastSyncedAt === null) {
+      return
+    }
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      msUntilRelativeTimeChanges(lastSyncedAt, now),
+    )
+    return () => clearTimeout(timer)
+  }, [lastSyncedAt, now])
+
+  const describeAgo = (at: number): string => {
+    const { unit, count } = relativeTime(at, now)
+    return unit === 'now'
+      ? t('settings-page:relative-time-now')
+      : t(`settings-page:relative-time-${unit}`, count)
+  }
 
   const connect = async () => {
     setBusy(true)
@@ -226,12 +253,21 @@ export const GoogleDriveSection: FC = () => {
 
       {connected === true && (
         <div className="flex flex-col gap-3 border-t pt-4">
-          <div className="text-sm text-muted-foreground">
+          <div
+            className="text-sm text-muted-foreground"
+            // The exact moment is still available, just not in the way of the
+            // answer someone actually wants.
+            title={
+              lastSyncedAt === null
+                ? undefined
+                : new Date(lastSyncedAt).toLocaleString()
+            }
+          >
             {lastSyncedAt === null
               ? t('settings-page:google-drive-never-synced')
               : t(
                   'settings-page:google-drive-last-synced',
-                  new Date(lastSyncedAt).toLocaleString(),
+                  describeAgo(lastSyncedAt),
                 )}
           </div>
           {/* Said plainly because the alternative is someone pressing the
