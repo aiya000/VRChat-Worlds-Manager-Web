@@ -22,7 +22,10 @@ import { AppLayer } from '@/lib/services/layers'
 import { PreferencesService } from '@/lib/services/preferences'
 import { FolderService } from '@/lib/services/folder-service'
 import { WorldService } from '@/lib/services/world-service'
-import { MemoService } from '@/lib/services/memo-service'
+import {
+  MemoService,
+  type MemoConflictEntry,
+} from '@/lib/services/memo-service'
 import { CustomTagsService } from '@/lib/services/custom-tags-service'
 import { AuthService } from '@/lib/services/auth-service'
 import { BackupService, type RestoreMode } from '@/lib/services/backup-service'
@@ -1168,6 +1171,33 @@ export const commands = {
       Effect.gen(function* () {
         const svc = yield* MemoService
         yield* svc.setMemoAndSave(worldId, memo)
+      }),
+    )
+  },
+
+  async listMemoConflicts(): Promise<Result<MemoConflictEntry[], string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* MemoService
+        return yield* svc.listMemoConflicts()
+      }),
+    )
+  },
+
+  async discardMemoBackup(worldId: string): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* MemoService
+        yield* svc.discardMemoBackup(worldId)
+      }),
+    )
+  },
+
+  async restoreMemoBackup(worldId: string): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* MemoService
+        yield* svc.restoreMemoBackup(worldId)
       }),
     )
   },
