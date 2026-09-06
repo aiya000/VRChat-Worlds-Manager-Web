@@ -22,12 +22,19 @@ import {
 type SyncTrigger = 'startup' | 'local-change' | 'visible' | 'remote-change'
 
 /**
- * Syncs with Drive without being asked to: on opening the app, a while after
- * an edit, on coming back to the tab, and when another device has written.
+ * Syncs with Drive without being asked to: a while after an edit, on coming
+ * back to the tab, and when another device has written.
  *
- * A device that has never connected to Drive still runs all of this; every
- * attempt stops at "no token" after one read of the local database, which is
- * cheaper than working out whether to have started.
+ * **None of it can open Google's window.** Every trigger here runs on the
+ * token a press already obtained and stops quietly when there is none -- see
+ * `getAccessTokenIfHeld` for what happened when one of them was allowed to
+ * ask. The practical shape is: press "sync now" once, and the rest of that
+ * hour looks after itself; reload, and the first sync is a press again.
+ *
+ * The startup attempt is kept because it costs nothing -- it succeeds only in
+ * the rare case where a token is already in hand, and is otherwise a no-op --
+ * and because it is the one place a token obtained on the settings screen gets
+ * used before anything else happens.
  */
 export function useDriveAutoSync(): void {
   const { t } = useLocalization()

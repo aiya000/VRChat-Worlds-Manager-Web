@@ -70,34 +70,11 @@ declare global {
 const TOKEN_REQUEST_TIMEOUT_MS = 120_000
 
 /**
- * The same bound, for a request nobody made.
- *
- * An automatic sync has no one watching it, so waiting two minutes buys
- * nothing: either Google answers from an existing grant straight away, or the
- * answer needed a window and there is no gesture to open one with.
- */
-const BACKGROUND_TOKEN_TIMEOUT_MS = 15_000
-
-/**
- * How long to leave background token requests alone after one failed.
- *
- * `prompt: ''` is meant to answer from the grant the user already gave,
- * without any UI. When it cannot -- the Google session is gone, the grant was
- * revoked -- it falls back to wanting a window, and a window opened outside a
- * click is refused by the browser. Retrying that on every poll would put a
- * blocked-popup indicator in front of someone once a minute for nothing.
- */
-const BACKGROUND_RETRY_AFTER_MS = 600_000
-
-/**
  * The access token itself, kept only in memory. It is good for about an hour
  * and nothing here is meant to outlive a reload -- reconnecting always asks
  * Google for a fresh one, so there is nothing worth persisting.
  */
 let currentAccessToken: string | null = null
-
-/** When a background request may next be made. See `BACKGROUND_RETRY_AFTER_MS`. */
-let backgroundRetryAt = 0
 
 let scriptLoadPromise: Promise<void> | null = null
 
@@ -163,9 +140,7 @@ export class GoogleAuthUnansweredError extends Error {}
  * reaches this without the script already loaded gets an error rather than a
  * popup Google would block.
  */
-function requestAccessToken(
-  options: { prompt?: string; timeoutMs?: number } = {},
-): Promise<string> {
+function requestAccessToken(): Promise<string> {
   if (window.google?.accounts.oauth2 === undefined) {
     return Promise.reject(
       new Error('Google Identity Services has not finished loading'),
@@ -191,7 +166,7 @@ function requestAccessToken(
           ),
         ),
       )
-    }, options.timeoutMs ?? TOKEN_REQUEST_TIMEOUT_MS)
+    }, TOKEN_REQUEST_TIMEOUT_MS)
 
     const client = window.google!.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
@@ -220,9 +195,7 @@ function requestAccessToken(
         )
       },
     })
-    client.requestAccessToken(
-      options.prompt === undefined ? undefined : { prompt: options.prompt },
-    )
+    client.requestAccessToken()
   })
 }
 
@@ -249,14 +222,21 @@ export class GoogleAuthService extends Context.Tag('GoogleAuthService')<
     /** Must be reached from inside a click, for the same reason `connect` must. */
     readonly getAccessToken: () => Effect.Effect<string, Error>
     /**
-     * A token for a sync nobody pressed a button for.
+     * The token already in hand, for a sync nobody pressed a button for.
      *
-     * Fails with `GoogleAuthExpiredError` for every way of not getting one --
-     * not connected, no longer signed in to Google, the grant withdrawn --
-     * because the caller does the same thing in all of them: nothing, and
-     * quietly. The button remains the way back.
+     * **This never asks Google for one.** The name says "if held" because an
+     * earlier version did ask, using `prompt: ''`, on the understanding that
+     * Google would answer from the grant already given without showing
+     * anything. On a real device it did not: it opened a full sign-in window,
+     * at startup and again on every sixty-second poll. An installed PWA opens
+     * that window in a separate context with no Google session of its own,
+     * which is the same root cause as #104.
+     *
+     * So the rule is now one line: **only a press may open Google's window.**
+     * Everything automatic runs on the token that press left behind, and stops
+     * quietly when there is none.
      */
-    readonly getAccessTokenInBackground: () => Effect.Effect<string, Error>
+    readonly getAccessTokenIfHeld: () => Effect.Effect<string, Error>
   }
 >() {}
 
@@ -275,7 +255,6 @@ export const GoogleAuthServiceLive = Layer.succeed(GoogleAuthService, {
       try: async () => {
         await loadGisScript()
         currentAccessToken = await requestAccessToken()
-        backgroundRetryAt = 0
         await db.googleAuthState.put({ key: CONNECTED_KEY, value: 'true' })
       },
       catch: (e) => new Error(`Failed to connect to Google Drive: ${e}`),
@@ -289,9 +268,6 @@ export const GoogleAuthServiceLive = Layer.succeed(GoogleAuthService, {
         }
         await loadGisScript()
         currentAccessToken = await requestAccessToken()
-        // A press that worked says the grant is alive after all, so the
-        // background path may start asking again straight away.
-        backgroundRetryAt = 0
         return currentAccessToken
       },
       // Wrapping these would throw away the distinction the caller needs: the
@@ -304,48 +280,14 @@ export const GoogleAuthServiceLive = Layer.succeed(GoogleAuthService, {
           : new Error(`Failed to obtain a Google access token: ${e}`),
     }),
 
-  getAccessTokenInBackground: () =>
-    Effect.tryPromise({
-      try: async () => {
-        if (currentAccessToken !== null) {
-          return currentAccessToken
-        }
-
-        const row = await db.googleAuthState.get(CONNECTED_KEY)
-        if (row?.value !== 'true') {
-          throw new GoogleAuthExpiredError(
-            'This device is not connected to Google Drive',
-          )
-        }
-        if (Date.now() < backgroundRetryAt) {
-          throw new GoogleAuthExpiredError(
-            'A background token request failed recently; waiting before asking again',
-          )
-        }
-
-        await loadGisScript()
-        try {
-          // `prompt: ''` is the whole of automatic syncing: it answers from the
-          // grant already given, without a window. When it cannot, it wants
-          // one, and a window outside a click is refused -- which arrives here
-          // as an error rather than as a popup someone has to dismiss.
-          currentAccessToken = await requestAccessToken({
-            prompt: '',
-            timeoutMs: BACKGROUND_TOKEN_TIMEOUT_MS,
-          })
-        } catch (e) {
-          backgroundRetryAt = Date.now() + BACKGROUND_RETRY_AFTER_MS
-          throw e
-        }
-        return currentAccessToken
-      },
-      catch: (e) =>
-        e instanceof GoogleAuthExpiredError
-          ? e
-          : new GoogleAuthExpiredError(
-              `No Google access token could be had without asking: ${e}`,
-            ),
-    }),
+  getAccessTokenIfHeld: () =>
+    currentAccessToken === null
+      ? Effect.fail(
+          new GoogleAuthExpiredError(
+            'No Google access token is held; only a press can obtain one',
+          ),
+        )
+      : Effect.succeed(currentAccessToken),
 
   /**
    * Clears this device's own record of being connected. It does not reach
@@ -359,7 +301,6 @@ export const GoogleAuthServiceLive = Layer.succeed(GoogleAuthService, {
       try: async () => {
         const token = currentAccessToken
         currentAccessToken = null
-        backgroundRetryAt = 0
         await db.googleAuthState.delete(CONNECTED_KEY)
 
         if (token !== null && window.google !== undefined) {

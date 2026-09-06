@@ -585,7 +585,7 @@
   "settings-page:memo-conflicts-empty": "(empty)",
   "settings-page:memo-conflicts-restore": "Use the one set aside",
   "settings-page:memo-conflicts-discard": "Keep the one shown",
-  "settings-page:google-drive-auto-sync-note": "While connected, syncing happens on its own: when the app opens, a short while after a change, and when another device has written. Google's permission lapses after about an hour, after which one press of \"Sync now\" brings it back.",
+  "settings-page:google-drive-auto-sync-note": "Press \"Sync now\" once and the rest looks after itself: a short while after a change, when another device has written, and on coming back to the tab. Reloading the page, or about an hour passing, means pressing it once more. Google's window only ever opens from that button.",
   "settings-page:google-drive-sync-success": "Synced with Google Drive.",
   "settings-page:google-drive-sync-conflicts": "Synced. {0} memo(s) differed between devices, so one version was set aside.",
   "settings-page:google-drive-reauth-needed": "The Google connection expired. Press \"Sync now\" once more.",

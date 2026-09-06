@@ -948,9 +948,9 @@ export const commands = {
   /**
    * The same sync, started by the app rather than by a press.
    *
-   * The only difference is where the token comes from: there is no gesture to
-   * open a Google window with, so this either uses the grant already given or
-   * reports `reauth-needed` and leaves the button to it.
+   * The only difference is where the token comes from: this runs on the one a
+   * press already obtained, and reports `reauth-needed` when there is none.
+   * It never opens Google's window -- see `getAccessTokenIfHeld`.
    */
   async syncGoogleDriveInBackground(): Promise<
     Result<DriveSyncResult, string>
@@ -960,7 +960,7 @@ export const commands = {
         const auth = yield* GoogleAuthService
         const sync = yield* DriveSyncService
 
-        const token = yield* auth.getAccessTokenInBackground()
+        const token = yield* auth.getAccessTokenIfHeld()
 
         return yield* sync
           .syncNow(token, () => {})
@@ -982,9 +982,11 @@ export const commands = {
   /**
    * Whether another device has written to Drive since this one last did.
    *
-   * `false` rather than an error when there is no usable token: a poll that
+   * `false` rather than an error when there is no token in hand: a poll that
    * cannot ask has nothing to report, and there is no press behind it to
-   * explain the failure to.
+   * explain the failure to. It must never obtain one of its own -- a window
+   * opening sixty seconds after someone last touched the app is the bug this
+   * whole path was rewritten for.
    */
   async googleDriveRemoteChanged(): Promise<Result<boolean, string>> {
     return run(
@@ -992,7 +994,7 @@ export const commands = {
         const auth = yield* GoogleAuthService
         const sync = yield* DriveSyncService
 
-        const token = yield* auth.getAccessTokenInBackground()
+        const token = yield* auth.getAccessTokenIfHeld()
         return yield* sync.remoteChanged(token)
       }).pipe(
         Effect.catchAll((e) =>
