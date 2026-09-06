@@ -152,6 +152,29 @@ test.describe('where the setup gets its data from', () => {
     ).toBeVisible()
   })
 
+  // Someone choosing Drive here is deciding whether to hand this app their
+  // Google account, and how the syncing afterwards behaves -- one press, then
+  // an hour that looks after itself -- is part of that decision. It has to be
+  // readable before connecting, not only after.
+  test('says how the syncing will work before anything is connected', async ({
+    page,
+  }) => {
+    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleDrive(page)
+
+    await openTheRestoreStep(page)
+    await choice(page, 'setup-page:restore-source-drive-title').click()
+
+    await expect(
+      page.getByText(jaJP['settings-page:google-drive-auto-sync-note']),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', {
+        name: jaJP['settings-page:google-drive-connect'],
+      }),
+    ).toBeVisible()
+  })
+
   // Appearance settings travel with a restore -- and which ones travel is the
   // user's to change, so the setup stops asking rather than asking and then
   // writing over what was just brought in.

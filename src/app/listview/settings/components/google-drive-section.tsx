@@ -251,6 +251,14 @@ export const GoogleDriveSection: FC = () => {
         )}
       </div>
 
+      {/* Outside the connected block on purpose. It describes what connecting
+          gets you -- one press, then an hour that looks after itself -- which
+          is what someone deciding whether to connect at all needs to read,
+          and this card is also the Google Drive step of the first-run setup. */}
+      <div className="text-sm text-muted-foreground">
+        {t('settings-page:google-drive-auto-sync-note')}
+      </div>
+
       {connected === true && (
         <div className="flex flex-col gap-3 border-t pt-4">
           <div
@@ -269,11 +277,6 @@ export const GoogleDriveSection: FC = () => {
                   'settings-page:google-drive-last-synced',
                   describeAgo(lastSyncedAt),
                 )}
-          </div>
-          {/* Said plainly because the alternative is someone pressing the
-              button every few minutes to be sure. */}
-          <div className="text-sm text-muted-foreground">
-            {t('settings-page:google-drive-auto-sync-note')}
           </div>
           {/* Deliberately full width and tall: a VR controller aims a laser,
               and this is the button that also stands in for signing back in
