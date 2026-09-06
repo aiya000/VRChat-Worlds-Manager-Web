@@ -69,7 +69,16 @@ async function stubVRChatApi(
       return
     }
     if (path === '/auth/user') {
-      await json({ id: 'usr_other', displayName: SOURCE_ACCOUNT })
+      // The Worker hands the session over as a header rather than a cookie,
+      // and the app keeps it to send back. A fake that answers a login
+      // without one leaves the app holding no session at all, which is not
+      // what signing in looks like.
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'X-VRC-Auth': 'authcookie_other' },
+        body: JSON.stringify({ id: 'usr_other', displayName: SOURCE_ACCOUNT }),
+      })
       return
     }
     if (path === '/worlds/favorites') {
@@ -107,6 +116,49 @@ async function openImportDialog(page: Page) {
   await page
     .getByRole('button', { name: jaJP['import-favorites:continue-button'] })
     .click()
+}
+
+/**
+ * Signs the device in as its own account, which is the state anyone reaching
+ * the settings screen is already in -- the app sends them to the login page
+ * otherwise. Without it there is no session for the dialog to put aside
+ * before it signs in as somebody else.
+ */
+async function seedOwnSession(page: Page) {
+  await expect(
+    page.getByRole('tab', {
+      name: jaJP['settings-page:section-data-management'],
+    }),
+  ).toBeVisible()
+
+  await page.evaluate(async () => {
+    const openWithAuthState = async (): Promise<IDBDatabase> => {
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open('VRChatWorldsManager')
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+        if (db.objectStoreNames.contains('authState')) {
+          return db
+        }
+        db.close()
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      throw new Error('the auth store never appeared')
+    }
+
+    const db = await openWithAuthState()
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction('authState', 'readwrite')
+      transaction
+        .objectStore('authState')
+        .put({ key: 'auth_cookie', value: 'authcookie_mine' })
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+    })
+    db.close()
+  })
 }
 
 async function signIn(page: Page) {
@@ -170,6 +222,8 @@ test.describe('reading favorites out of another account', () => {
   }) => {
     const api = await stubVRChatApi(page, 3)
 
+    await page.goto(SETTINGS)
+    await seedOwnSession(page)
     await openImportDialog(page)
     await signIn(page)
     api.releaseFavorites()
