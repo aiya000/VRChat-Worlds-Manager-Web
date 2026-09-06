@@ -35,7 +35,7 @@ import { ExternalDataService } from '@/lib/services/external-data-service'
 import { ShareService } from '@/lib/services/share-service'
 import { TaskService } from '@/lib/services/task-service'
 import { VRChatApiService } from '@/lib/services/vrchat-api'
-import type { LaunchTarget } from '@/lib/launch-target'
+import type { LaunchOutcome } from '@/lib/launch-target'
 import type {
   Result,
   BackupMetaData,
@@ -768,17 +768,13 @@ export const commands = {
 
   async createWorldInstance(
     worldId: string,
-    instanceTypeStr: string,
-    regionStr: string,
+    instanceType: Exclude<InstanceType, 'group'>,
+    region: InstanceRegion,
   ): Promise<Result<InstanceInfo, string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* VRChatApiService
-        return yield* svc.createWorldInstance(
-          worldId,
-          instanceTypeStr,
-          regionStr,
-        )
+        return yield* svc.createWorldInstance(worldId, instanceType, region)
       }),
     )
   },
@@ -835,7 +831,7 @@ export const commands = {
     worldId: string,
     instanceId: string,
     platforms: Platform[] | null,
-  ): Promise<Result<LaunchTarget, string>> {
+  ): Promise<Result<LaunchOutcome, string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* VRChatApiService

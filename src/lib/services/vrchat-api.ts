@@ -1,11 +1,14 @@
 import { Context, Effect, Layer } from 'effect'
-import { launchTargetFor, type LaunchTarget } from '@/lib/launch-target'
+import { launchTargetFor, type LaunchOutcome } from '@/lib/launch-target'
+import { instanceRequestBody, parseInstanceInfo } from '@/lib/vrchat-instances'
+import type { InstanceType } from '@/types/instances'
 import { db } from './db'
 import { parseVRChatWorld, toWorldDisplayData } from './vrchat-world'
 import type {
   WorldDetails,
   WorldDisplayData,
   InstanceInfo,
+  InstanceRegion,
   UserGroup,
   GroupInstancePermissionInfo,
   Platform,
@@ -243,8 +246,8 @@ export class VRChatApiService extends Context.Tag('VRChatApiService')<
     ) => Effect.Effect<WorldDisplayData[], Error>
     readonly createWorldInstance: (
       worldId: string,
-      instanceTypeStr: string,
-      regionStr: string,
+      instanceType: Exclude<InstanceType, 'group'>,
+      region: InstanceRegion,
     ) => Effect.Effect<InstanceInfo, Error>
     readonly getUserGroups: () => Effect.Effect<UserGroup[], Error>
     readonly getPermissionForCreateGroupInstance: (
@@ -262,7 +265,7 @@ export class VRChatApiService extends Context.Tag('VRChatApiService')<
       worldId: string,
       instanceId: string,
       platforms: Platform[] | null,
-    ) => Effect.Effect<LaunchTarget, Error>
+    ) => Effect.Effect<LaunchOutcome, Error>
   }
 >() {}
 
@@ -482,18 +485,19 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
       catch: (e) => new Error(`Failed to search worlds: ${e}`),
     }),
 
-  createWorldInstance: (worldId, instanceTypeStr, regionStr) =>
+  createWorldInstance: (worldId, instanceType, region) =>
     Effect.tryPromise({
       try: async () => {
+        // Every type but public is owned by someone, and the API asks who.
+        const userRes = await apiFetch('/auth/user')
+        const user = (await userRes.json()) as { id: string }
         const res = await apiFetch('/instances', {
           method: 'POST',
-          body: JSON.stringify({
-            worldId,
-            type: instanceTypeStr,
-            region: regionStr,
-          }),
+          body: JSON.stringify(
+            instanceRequestBody(worldId, instanceType, region, user.id),
+          ),
         })
-        return (await res.json()) as InstanceInfo
+        return parseInstanceInfo(await res.json())
       },
       catch: (e) => new Error(`Failed to create instance: ${e}`),
     }),
@@ -540,7 +544,7 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
             queueEnabled,
           }),
         })
-        return (await res.json()) as InstanceInfo
+        return parseInstanceInfo(await res.json())
       },
       catch: (e) => new Error(`Failed to create group instance: ${e}`),
     }),
@@ -557,18 +561,31 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
         switch (target.kind) {
           case 'client':
             window.open(target.url, '_blank')
-            break
-          case 'android-app':
+            return { kind: 'client' }
+          case 'android-app': {
             // In place, not a new tab: the intent has to be navigated to from
             // the document that was pressed, or Chrome has no gesture to open
             // an app with. `_self` rather than `location.assign` so a test can
             // stand in for it the same way it does for the case above.
             window.open(target.url, '_self')
-            break
+            // The same invite the website's "Invite Me" sends. The app shows
+            // it as a notification, which is a way in that does not depend on
+            // the intent above having been taken.
+            const invited = await apiFetch(
+              `/invite/myself/to/${worldId}:${instanceId}`,
+              { method: 'POST' },
+            ).then(
+              () => true,
+              (e) => {
+                console.error(`Failed to invite myself: ${e}`)
+                return false
+              },
+            )
+            return { kind: 'android-app', invited }
+          }
           case 'not-on-android':
-            break
+            return target
         }
-        return target
       },
       catch: (e) => new Error(`Failed to open instance: ${e}`),
     }),
