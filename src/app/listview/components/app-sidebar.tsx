@@ -41,12 +41,7 @@ const SIDEBAR_CLASS = 'app-sidebar'
 
 export function AppSidebar() {
   const { t } = useLocalization()
-  const {
-    folders,
-    createFolder: _createFolder,
-    deleteFolder,
-    renameFolder,
-  } = useFolders()
+  const { folders, createFolder: _createFolder, renameFolder } = useFolders()
   const setPopup = usePopupStore((state) => state.setPopup)
 
   const [editingFolder, setEditingFolder] = useState<string | null>(null)
@@ -370,7 +365,7 @@ export function AppSidebar() {
                     </ContextMenuItem>
                     <ContextMenuItem
                       className="text-destructive"
-                      onClick={() => deleteFolder(folder.name)}
+                      onClick={() => setPopup('showDeleteFolder', folder.name)}
                     >
                       {t('general:delete')}
                     </ContextMenuItem>
