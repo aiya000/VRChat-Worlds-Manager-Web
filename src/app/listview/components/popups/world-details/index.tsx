@@ -37,6 +37,7 @@ import MemoRenderer from '@/components/memo-renderer'
 import { useFolders } from '@/app/listview/hook/use-folders'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useWorldDetailsActions } from './hook'
+import { LaunchedInstances } from './launched-instances'
 import { useWorlds } from '@/app/listview/hook/use-worlds'
 import { FolderType } from '@/types/folders'
 import { usePatreonContext } from '@/contexts/patreon-context'
@@ -98,11 +99,16 @@ export function WorldDetailPopup({
     deleteWorld,
     selectAuthor,
     selectTag,
-  } = useWorldDetailsActions(onOpenChange)
+  } = useWorldDetailsActions(onOpenChange, () =>
+    setInstanceReloadKey((key) => key + 1),
+  )
   const { t, language } = useLocalization()
   const { folders } = useFolders()
   const { supporters } = usePatreonContext()
   const [isLoading, setIsLoading] = useState(false)
+  // Bumped when an instance has just been made, so the list below the button
+  // shows it without the popup having to be closed and opened again.
+  const [instanceReloadKey, setInstanceReloadKey] = useState(0)
   const [worldDetails, setWorldDetails] = useState<WorldDetails | null>(null)
   const [errorState, setErrorState] = useState<string | null>(null)
   const [detailFields, setDetailFields] = useState<WorldDetailFieldVisibility>({
@@ -805,6 +811,9 @@ export function WorldDetailPopup({
                       </div>
                     </div>
                     {!isWorldBlacklisted && (
+                      <LaunchedInstances worldId={cachedWorldData.worldId} />
+                    )}
+                    {!isWorldBlacklisted && (
                       <div className="mt-4 pt-4 border-t border-border">
                         <div className="text-sm text-muted-foreground">
                           <p className="font-medium mb-2">
@@ -987,6 +996,10 @@ export function WorldDetailPopup({
                               : t('general:create-instance')}
                           </Button>
                         </div>
+                        <LaunchedInstances
+                          worldId={worldId}
+                          reloadKey={instanceReloadKey}
+                        />
                       </div>
                     </div>
                   </div>

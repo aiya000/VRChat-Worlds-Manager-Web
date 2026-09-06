@@ -6,11 +6,20 @@ import {
 } from '@/lib/sync/legacy-backup'
 import { emptySnapshot } from '@/lib/sync/merge'
 import {
+  selectSettingsToApply,
+  selectSyncedSettings,
+} from '@/lib/sync/settings'
+import {
   SNAPSHOT_FORMAT_VERSION,
   type Snapshot,
   type WorldSyncRecord,
 } from '@/lib/sync/types'
 import { db, FOLDER_ORDER_KEY, type WorldRecord } from './db'
+import {
+  readSettingEntries,
+  readSettingSyncOverrides,
+  writeSettingEntries,
+} from './setting-sync'
 import { deviceId } from './sync-meta'
 
 /**
@@ -21,15 +30,23 @@ import { deviceId } from './sync-meta'
  * is drawing a world it has never seen.
  */
 export async function readSnapshot(): Promise<Snapshot> {
-  const [worlds, folders, folderOrder, hiddenWorlds, memos, customTags] =
-    await Promise.all([
-      db.worlds.toArray(),
-      db.foldersById.toArray(),
-      db.folderOrder.get(FOLDER_ORDER_KEY),
-      db.hiddenWorlds.toArray(),
-      db.memos.toArray(),
-      db.customTags.toArray(),
-    ])
+  const [
+    worlds,
+    folders,
+    folderOrder,
+    hiddenWorlds,
+    memos,
+    customTags,
+    launchedInstances,
+  ] = await Promise.all([
+    db.worlds.toArray(),
+    db.foldersById.toArray(),
+    db.folderOrder.get(FOLDER_ORDER_KEY),
+    db.hiddenWorlds.toArray(),
+    db.memos.toArray(),
+    db.customTags.toArray(),
+    db.launchedInstances.toArray(),
+  ])
 
   return {
     formatVersion: SNAPSHOT_FORMAT_VERSION,
@@ -68,7 +85,11 @@ export async function readSnapshot(): Promise<Snapshot> {
     hiddenWorlds,
     memos,
     customTags,
-    settings: {},
+    launchedInstances,
+    settings: selectSyncedSettings(
+      readSettingEntries(),
+      readSettingSyncOverrides(),
+    ),
   }
 }
 
@@ -127,6 +148,7 @@ export async function applySnapshot(snapshot: Snapshot): Promise<void> {
       db.hiddenWorlds,
       db.memos,
       db.customTags,
+      db.launchedInstances,
     ],
     async () => {
       for (const folder of snapshot.folders) {
@@ -152,7 +174,24 @@ export async function applySnapshot(snapshot: Snapshot): Promise<void> {
       for (const record of snapshot.customTags) {
         await db.customTags.put(record)
       }
+      // A file written before this field existed carries none, which is not the
+      // same as carrying an empty list: `parseBackupFile` fills it in, and the
+      // merge unions, so nothing here is ever removed by an older backup.
+      for (const instance of snapshot.launchedInstances) {
+        await db.launchedInstances.put(instance)
+      }
     },
+  )
+
+  // Settings live in local storage rather than in Dexie, so they are written
+  // after the transaction commits: there is nothing to roll them back with,
+  // and writing them first would leave them describing data that never landed.
+  writeSettingEntries(
+    selectSettingsToApply(
+      snapshot.settings,
+      readSettingEntries(),
+      readSettingSyncOverrides(),
+    ),
   )
 }
 

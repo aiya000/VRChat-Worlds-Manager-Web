@@ -427,6 +427,26 @@ export function AppSidebar() {
               </div>
               <span>{t('general:settings')}</span>
             </div>
+            {/* Quieter than the entries above it, but deliberately here rather
+                than only on the About page: a privacy policy that takes
+                looking for reads as one someone would rather you did not find.
+                The text is small; the row is not, so a VR laser can still hit
+                it. */}
+            <div
+              className={`
+              mt-3 px-3 py-2 cursor-pointer text-xs rounded-lg overflow-hidden text-ellipsis whitespace-nowrap
+              ${
+                pathname === `/privacy`
+                  ? sidebarStyles.activeLink
+                  : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+              }
+            `}
+              onClick={() => {
+                navigate('/privacy')
+              }}
+            >
+              {t('privacy-policy:link-label')}
+            </div>
           </SidebarGroup>
         </footer>
       </aside>

@@ -2,13 +2,8 @@ import { Context, Effect, Layer } from 'effect'
 import type { BackupMetaData } from '@/lib/types'
 import { mergeSnapshot } from '@/lib/sync/merge'
 import type { Snapshot } from '@/lib/sync/types'
-import { db, isActive, type SyncMeta } from './db'
-import {
-  activeFolders,
-  deviceId,
-  folderNamesById,
-  folderNamesOf,
-} from './sync-meta'
+import { db, type SyncMeta } from './db'
+import { deviceId } from './sync-meta'
 import {
   applySnapshot,
   parseBackupFile,
@@ -37,11 +32,6 @@ export class BackupService extends Context.Tag('BackupService')<
     readonly getBackupMetadataFromFile: (
       file: File,
     ) => Effect.Effect<BackupMetaData, Error>
-    readonly exportToPortalLibrarySystem: (
-      folders: string[],
-      sortField: string,
-      sortDirection: string,
-    ) => Effect.Effect<void, Error>
   }
 >() {}
 
@@ -76,6 +66,18 @@ function restamped(snapshot: Snapshot, at: number, origin: string): Snapshot {
     })),
     memos: snapshot.memos.map((row) => ({ ...row, ...meta(row) })),
     customTags: snapshot.customTags.map((row) => ({ ...row, ...meta(row) })),
+    launchedInstances: snapshot.launchedInstances.map((row) => ({
+      ...row,
+      ...meta(row),
+    })),
+    // Settings are restamped too, or "replace with this file" would quietly
+    // keep the settings already here whenever they happened to be newer.
+    settings: Object.fromEntries(
+      Object.entries(snapshot.settings).map(([key, setting]) => [
+        key,
+        { ...setting, updatedAt: at },
+      ]),
+    ),
   }
 }
 
@@ -148,51 +150,5 @@ export const BackupServiceLive = Layer.succeed(BackupService, {
         e instanceof UnreadableBackupError
           ? e
           : new Error(`Failed to read backup metadata: ${e}`),
-    }),
-
-  exportToPortalLibrarySystem: (folders, sortField, sortDirection) =>
-    Effect.tryPromise({
-      try: async () => {
-        const nameById = folderNamesById(await activeFolders())
-        const allWorlds = (await db.worlds.toArray()).filter(isActive)
-
-        const categories = []
-        for (const folderName of folders) {
-          const worlds = allWorlds
-            .filter((w) => folderNamesOf(w, nameById).includes(folderName))
-            .sort((a, b) => {
-              const dir = sortDirection === 'asc' ? 1 : -1
-              switch (sortField) {
-                case 'name':
-                  return dir * a.name.localeCompare(b.name)
-                case 'visits':
-                  return dir * (a.visits - b.visits)
-                default:
-                  return (
-                    dir *
-                    (new Date(a.dateAdded).getTime() -
-                      new Date(b.dateAdded).getTime())
-                  )
-              }
-            })
-
-          categories.push({
-            Category: folderName,
-            Worlds: worlds.map((w) => ({
-              ID: w.worldId,
-              Name: w.name,
-              Author: w.authorName,
-              Platform: {
-                PC: w.platform.includes('standalonewindows'),
-                Android: w.platform.includes('android'),
-                iOS: w.platform.includes('ios'),
-              },
-            })),
-          })
-        }
-
-        download({ Categorys: categories }, 'pls-export.json')
-      },
-      catch: (e) => new Error(`Failed to export: ${e}`),
     }),
 })

@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from 'effect'
+import { markSettingUpdated } from './setting-sync'
 import type {
   CardSize,
   FilterItemSelectorStarredType,
@@ -87,6 +88,10 @@ function setItem(key: string, value: unknown): void {
     return
   }
   localStorage.setItem(key, JSON.stringify(value))
+  // Every preference write goes through here, which is the only place a
+  // timestamp can be recorded without callers having to remember to. A setting
+  // with no timestamp reads as unknown-age and loses every merge.
+  markSettingUpdated(key)
 }
 
 export const PreferencesServiceLive = Layer.succeed(PreferencesService, {

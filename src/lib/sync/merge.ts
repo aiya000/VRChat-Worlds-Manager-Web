@@ -7,6 +7,7 @@ import {
   type FolderRef,
   type FolderSyncRecord,
   type HiddenWorldSyncRecord,
+  type LaunchedInstanceSyncRecord,
   type MemoConflict,
   type MemoSyncRecord,
   type MergeResult,
@@ -185,6 +186,32 @@ export function mergeHiddenWorld(
   b: HiddenWorldSyncRecord,
 ): HiddenWorldSyncRecord {
   return { ...mergedMeta(a, b), worldId: a.worldId }
+}
+
+/**
+ * An instance never changes after it is made -- the world, the id, the region
+ * and the moment are all fixed -- so there is nothing here to disagree about.
+ * Only the tombstone matters, which is what `mergedMeta` settles: pruning it on
+ * one device prunes it everywhere rather than the row coming back on the next
+ * merge.
+ */
+export function mergeLaunchedInstance(
+  a: LaunchedInstanceSyncRecord,
+  b: LaunchedInstanceSyncRecord,
+): LaunchedInstanceSyncRecord {
+  const winner = wins(a, b) ? a : b
+  return {
+    ...mergedMeta(a, b),
+    id: a.id,
+    worldId: a.worldId,
+    instanceId: a.instanceId,
+    shortName: winner.shortName,
+    instanceType: winner.instanceType,
+    region: winner.region,
+    // The earlier of the two: it records when the instance was made, which is
+    // a fact about the instance rather than something either device edited.
+    launchedAt: Math.min(a.launchedAt, b.launchedAt),
+  }
 }
 
 export function mergeCustomTag(
@@ -405,6 +432,7 @@ export function emptySnapshot(deviceId: string): Snapshot {
     hiddenWorlds: [],
     memos: [],
     customTags: [],
+    launchedInstances: [],
     settings: {},
   }
 }
@@ -491,6 +519,13 @@ export function mergeSnapshot(
     },
   )
 
+  const launchedInstances = mergeRecords(
+    local.launchedInstances,
+    remote.launchedInstances,
+    (instance) => instance.id,
+    mergeLaunchedInstance,
+  )
+
   const liveFolderIds = folders
     .filter((folder) => folder.deletedAt === null)
     .map((folder) => folder.id)
@@ -521,6 +556,7 @@ export function mergeSnapshot(
       hiddenWorlds,
       memos,
       customTags,
+      launchedInstances,
       settings: mergeSettings(
         local.settings,
         remote.settings,

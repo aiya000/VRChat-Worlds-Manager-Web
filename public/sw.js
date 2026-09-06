@@ -102,6 +102,15 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  // Anything else cross-origin (a third-party script, for instance) is left to
+  // the browser's own fetch entirely. Caching an opaque cross-origin response
+  // here would tell us nothing about whether it even succeeded, and a request
+  // this worker proxies itself cannot be intercepted by test tooling that only
+  // watches what the page asks for directly.
+  if (url.origin !== self.location.origin) {
+    return
+  }
+
   // Cache-first for static assets
   event.respondWith(
     caches.match(request).then((cached) => {

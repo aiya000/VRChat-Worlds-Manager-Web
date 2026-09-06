@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -148,6 +149,17 @@ export default function Login() {
               {t('login-page:terms-text')}
             </p>
           </div>
+
+          {/* This is the screen where a VRChat password gets typed, so what
+              happens to it is worth being one tap away. */}
+          <p className="text-center">
+            <Link
+              href="/privacy"
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              {t('privacy-policy:link-label')}
+            </Link>
+          </p>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from 'effect'
+import { launchUrlFor } from '@/lib/sync/launched-instances'
 import { db } from './db'
 import { parseVRChatWorld, toWorldDisplayData } from './vrchat-world'
 import type {
@@ -148,6 +149,22 @@ function apiUrl(path: string): string {
   return `${CF_WORKER_URL}/api/1${path}`
 }
 
+/**
+ * The `Basic` credential VRChat expects: each half percent-encoded first, then
+ * the pair base64-encoded.
+ *
+ * VRChat's API documents the percent-encoding, and it is also what makes this
+ * work at all for a name outside Latin-1 -- `btoa` throws
+ * `InvalidCharacterError` on such a string, so a Japanese username failed
+ * before the request was ever sent.
+ */
+export function basicAuthCredential(
+  username: string,
+  password: string,
+): string {
+  return btoa(`${encodeURIComponent(username)}:${encodeURIComponent(password)}`)
+}
+
 async function apiFetch(
   path: string,
   options?: RequestInit,
@@ -198,11 +215,12 @@ export class VRChatApiService extends Context.Tag('VRChatApiService')<
       twoFactorType: string,
     ) => Effect.Effect<void, Error>
     readonly logout: () => Effect.Effect<void, Error>
-    readonly getFavoriteWorlds: () => Effect.Effect<WorldDisplayData[], Error>
+    readonly getFavoriteWorlds: (
+      onProgress?: (fetched: number) => void,
+    ) => Effect.Effect<WorldDisplayData[], Error>
     readonly purgeAllFavoriteWorlds: (
       onProgress?: (done: number, total: number) => void,
     ) => Effect.Effect<{ deleted: number; failed: number }, Error>
-    readonly getFavoriteWorldIds: () => Effect.Effect<string[], Error>
     readonly getCurrentUser: () => Effect.Effect<
       { id: string; displayName: string },
       Error
@@ -266,7 +284,7 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
         await clearTokens()
         const res = await apiFetch('/auth/user', {
           headers: {
-            Authorization: `Basic ${btoa(`${username}:${password}`)}`,
+            Authorization: `Basic ${basicAuthCredential(username, password)}`,
           },
         })
         const requirement = twoFactorRequirementOf(await res.json())
@@ -322,7 +340,7 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
   // per page is enough. Walking `/favorites` and fetching each world instead
   // would cost one request per favorite and quickly hit the Worker's hourly
   // per-IP limit for anyone with a few hundred favorites.
-  getFavoriteWorlds: () =>
+  getFavoriteWorlds: (onProgress) =>
     Effect.tryPromise({
       try: async () => {
         const PAGE_SIZE = 100
@@ -339,6 +357,7 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
               toWorldDisplayData(parseVRChatWorld(raw), fetchedAt, []),
             )
           }
+          onProgress?.(worlds.length)
           if (page.length < PAGE_SIZE) {
             break
           }
@@ -388,28 +407,6 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
         return { deleted, failed }
       },
       catch: (e) => new Error(`Failed to purge favorites: ${e}`),
-    }),
-
-  getFavoriteWorldIds: () =>
-    Effect.tryPromise({
-      try: async () => {
-        const PAGE_SIZE = 100
-        const favoriteIds: string[] = []
-        let offset = 0
-        for (;;) {
-          const res = await apiFetch(
-            `/favorites?type=world&n=${PAGE_SIZE}&offset=${offset}`,
-          )
-          const page = (await res.json()) as Array<{ favoriteId: string }>
-          favoriteIds.push(...page.map((f) => f.favoriteId))
-          if (page.length < PAGE_SIZE) {
-            break
-          }
-          offset += PAGE_SIZE
-        }
-        return favoriteIds
-      },
-      catch: (e) => new Error(`Failed to get favorite world IDs: ${e}`),
     }),
 
   getCurrentUser: () =>
@@ -549,7 +546,7 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
   openInstanceInClient: (worldId, instanceId) =>
     Effect.tryPromise({
       try: async () => {
-        const launchUrl = `vrchat://launch?ref=vrchat.com&id=${worldId}:${instanceId}`
+        const launchUrl = launchUrlFor(worldId, instanceId)
         window.open(launchUrl, '_blank')
         return launchUrl
       },

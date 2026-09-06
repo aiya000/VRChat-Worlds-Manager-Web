@@ -2,6 +2,10 @@ import { defineConfig, devices } from '@playwright/test'
 
 // Not 3000: that port is commonly taken by something else on a dev machine,
 // and `next dev` silently moves to the next free one when it is.
+//
+// The `dev` script in `package.json` pins the same port, and the two have to
+// stay in step: an OAuth client registers one origin per port, so a dev server
+// that quietly landed somewhere else fails to sign in for no visible reason.
 const PORT = 3456
 const baseURL = `http://127.0.0.1:${PORT}`
 

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocalization } from '@/hooks/use-localization'
-import { AlertCircle, Loader2, Users } from 'lucide-react'
+import { Loader2, Users } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -16,8 +16,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { commands, WorldDetails } from '@/lib/commands'
+import { commands } from '@/lib/commands'
+import type { WorldDisplayData } from '@/lib/types'
 import { INVALID_TWO_FACTOR_CODE_ERROR } from '@/lib/services/vrchat-api'
+import {
+  fetchStepPercentage,
+  importProgressPercentage,
+  type FetchStep,
+} from './import-favorites-progress'
 
 interface ImportFavoritesFromAccountDialogProps {
   open: boolean
@@ -49,8 +55,9 @@ export function ImportFavoritesFromAccountDialog({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const [sourceDisplayName, setSourceDisplayName] = useState('')
-  const [fetchedWorlds, setFetchedWorlds] = useState<WorldDetails[]>([])
-  const [fetchFailedCount, setFetchFailedCount] = useState(0)
+  const [fetchStep, setFetchStep] = useState<FetchStep>('reading-account')
+  const [fetchedCount, setFetchedCount] = useState(0)
+  const [fetchedWorlds, setFetchedWorlds] = useState<WorldDisplayData[]>([])
   const [selectedWorldIds, setSelectedWorldIds] = useState<Set<string>>(
     new Set(),
   )
@@ -65,8 +72,9 @@ export function ImportFavoritesFromAccountDialog({
     setLoading(false)
     setErrorMessage(null)
     setSourceDisplayName('')
+    setFetchStep('reading-account')
+    setFetchedCount(0)
     setFetchedWorlds([])
-    setFetchFailedCount(0)
     setSelectedWorldIds(new Set())
     setImportProgress({ done: 0, total: 0 })
     setImportedCount(0)
@@ -81,6 +89,8 @@ export function ImportFavoritesFromAccountDialog({
 
   const fetchFavorites = async () => {
     setStep('fetching')
+    setFetchStep('reading-account')
+    setFetchedCount(0)
     setErrorMessage(null)
     try {
       const userResult = await commands.getCurrentUser()
@@ -91,29 +101,21 @@ export function ImportFavoritesFromAccountDialog({
       }
       setSourceDisplayName(userResult.data.displayName)
 
-      const idsResult = await commands.getFavoriteWorldIds()
-      if (idsResult.status === 'error') {
-        setErrorMessage(idsResult.error)
+      setFetchStep('fetching-favorites')
+      // `/worlds/favorites` hands back the worlds themselves, one request per
+      // page of 100. Listing the favorite IDs and fetching each world instead
+      // costs one request per favorite, and an account with a few hundred of
+      // them runs into the Worker's hourly per-IP limit long before the list
+      // is complete -- which looked, from this screen, like a hang.
+      const worldsResult = await commands.fetchFavoriteWorlds(setFetchedCount)
+      if (worldsResult.status === 'error') {
+        setErrorMessage(worldsResult.error)
         setStep('credentials')
         return
       }
 
-      const worlds: WorldDetails[] = []
-      let failed = 0
-      for (const worldId of idsResult.data) {
-        const worldResult = await commands.checkWorldInfo(worldId)
-        if (worldResult.status === 'ok') {
-          worlds.push(worldResult.data)
-        } else {
-          console.error(
-            `[ImportFavorites] Failed to fetch world ${worldId}: ${worldResult.error}`,
-          )
-          failed += 1
-        }
-      }
-      setFetchedWorlds(worlds)
-      setFetchFailedCount(failed)
-      setSelectedWorldIds(new Set(worlds.map((w) => w.worldId)))
+      setFetchedWorlds(worldsResult.data)
+      setSelectedWorldIds(new Set(worldsResult.data.map((w) => w.worldId)))
       setStep('select')
     } catch (e) {
       setErrorMessage(e instanceof Error ? e.message : String(e))
@@ -191,22 +193,28 @@ export function ImportFavoritesFromAccountDialog({
     const targets = fetchedWorlds.filter((w) => selectedWorldIds.has(w.worldId))
     setImportProgress({ done: 0, total: targets.length })
 
+    // A world that is already here was filed into folders by hand; importing
+    // the same world from another account must not empty them.
+    const storedResult = await commands.getAllWorlds()
+    const storedByWorldId = new Map(
+      (storedResult.status === 'ok' ? storedResult.data : []).map((world) => [
+        world.worldId,
+        world,
+      ]),
+    )
+
     let imported = 0
     for (const world of targets) {
-      const result = await commands.putWorld({
-        worldId: world.worldId,
-        name: world.name,
-        thumbnailUrl: world.thumbnailUrl,
-        authorName: world.authorName,
-        favorites: world.favorites,
-        lastUpdated: world.lastUpdated,
-        visits: world.visits,
-        dateAdded: new Date().toISOString(),
-        platform: world.platform,
-        folders: [],
-        tags: world.tags,
-        capacity: world.capacity,
-      })
+      const existing = storedByWorldId.get(world.worldId)
+      const result = await commands.putWorld(
+        existing === undefined
+          ? world
+          : {
+              ...world,
+              dateAdded: existing.dateAdded,
+              folders: existing.folders,
+            },
+      )
       if (result.status === 'ok') {
         imported += 1
       }
@@ -354,6 +362,24 @@ export function ImportFavoritesFromAccountDialog({
             <div className="flex justify-center py-6">
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
+            {/* A percentage and a running count rather than a spinner alone:
+                a fetch that has stopped and a fetch that is slow look
+                identical otherwise. */}
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <div>
+                {`${fetchStepPercentage(fetchStep)}% — ${t(
+                  `import-favorites:step-${fetchStep}`,
+                )}`}
+              </div>
+              {fetchStep === 'fetching-favorites' && (
+                <div className="text-xs">
+                  {t('import-favorites:fetched-count', fetchedCount)}
+                </div>
+              )}
+              <div className="text-xs">
+                {t('import-favorites:do-not-close')}
+              </div>
+            </div>
           </>
         )}
 
@@ -367,12 +393,6 @@ export function ImportFavoritesFromAccountDialog({
                 {t('import-favorites:select-description', fetchedWorlds.length)}
               </DialogDescription>
             </DialogHeader>
-            {fetchFailedCount > 0 && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <AlertCircle className="h-4 w-4" />
-                {t('import-favorites:fetch-partial-failure', fetchFailedCount)}
-              </div>
-            )}
             <div className="max-h-[300px] overflow-y-auto space-y-2">
               {fetchedWorlds.map((world) => (
                 <div key={world.worldId} className="flex items-center gap-2">
@@ -412,15 +432,21 @@ export function ImportFavoritesFromAccountDialog({
             <DialogHeader>
               <DialogTitle>{t('import-favorites:importing-title')}</DialogTitle>
               <DialogDescription>
-                {t(
+                {`${importProgressPercentage(
+                  importProgress.done,
+                  importProgress.total,
+                )}% — ${t(
                   'import-favorites:importing-progress',
                   importProgress.done,
                   importProgress.total,
-                )}
+                )}`}
               </DialogDescription>
             </DialogHeader>
             <div className="flex justify-center py-6">
               <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {t('import-favorites:do-not-close')}
             </div>
           </>
         )}

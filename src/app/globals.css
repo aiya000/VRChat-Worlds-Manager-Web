@@ -168,6 +168,28 @@
   }
 }
 
+/* The icon on the loading screen. Slow and shallow on purpose: it is there to
+   make the wait feel alive, not to compete with the spinner beneath it. */
+.app-breathe {
+  animation: app-breathe 3s ease-in-out infinite;
+}
+
+@keyframes app-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-breathe {
+    animation: none;
+  }
+}
+
 .theme-icon {
   filter: invert(var(--theme-icon-invert));
 }

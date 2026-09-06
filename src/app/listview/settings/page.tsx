@@ -10,21 +10,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { DeviceOnlySettingToggle } from '@/components/device-only-setting-toggle'
+import { GoogleDriveSection } from './components/google-drive-section'
 import { WorldCardPreview } from '@/components/world-card'
 import { WorldCardFieldToggles } from '@/components/world-card-field-toggles'
 import { WorldDetailFieldToggles } from '@/components/world-detail-field-toggles'
 import { WorldDetailPreview } from '@/components/world-detail-preview'
 
 import { FolderRemovalPreference } from '@/lib/commands'
-import {
-  LogOut,
-  Trash2,
-  Upload,
-  FolderOpen,
-  Save,
-  FolderUp,
-  Users,
-} from 'lucide-react'
+import { LogOut, Trash2, Upload, FolderOpen, Save, Users } from 'lucide-react'
 import { useState } from 'react'
 import { Card } from '../../../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -33,7 +27,6 @@ import { MigrationPopup } from '@/app/listview/settings/components/popups/migrat
 import { DeleteDataConfirmationDialog } from '@/app/listview/settings/components/popups/delete-data-confirmation'
 import { PurgeVrchatFavoritesDialog } from '@/app/listview/settings/components/popups/purge-vrchat-favorites-dialog'
 import { ImportFavoritesFromAccountDialog } from '@/app/listview/settings/components/popups/import-favorites-from-account-dialog'
-import { ExportPopup } from './components/popups/export'
 import { useSettingsPage } from './hook'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 
@@ -52,11 +45,8 @@ export default function SettingsPage() {
     setShowMigrateDialog,
     showRestoreDialog,
     setShowRestoreDialog,
-    showExportDialog,
-    setShowExportDialog,
     showPurgeFavoritesDialog,
     setShowPurgeFavoritesDialog,
-    handleExportConfirm,
     handleBackup,
     handleRestoreConfirm,
     handleMigrationConfirm,
@@ -68,6 +58,8 @@ export default function SettingsPage() {
     handleFieldVisibilityChange,
     handleDetailFieldVisibilityChange,
     handleFolderRemovalPreferenceChange,
+    isDeviceOnly,
+    handleDeviceOnlyChange,
     openHiddenFolder,
     t,
   } = useSettingsPage()
@@ -81,9 +73,12 @@ export default function SettingsPage() {
       </div>
       <Tabs defaultValue="preferences" className="w-full">
         <div className="sticky top-0 z-10 bg-background pt-2 pb-2">
-          <TabsList className="grid grid-cols-3">
+          <TabsList className="grid grid-cols-4">
             <TabsTrigger value="preferences">
               {t('settings-page:section-preferences')}
+            </TabsTrigger>
+            <TabsTrigger value="sync">
+              {t('settings-page:section-sync')}
             </TabsTrigger>
             <TabsTrigger value="data-management">
               {t('settings-page:section-data-management')}
@@ -95,51 +90,73 @@ export default function SettingsPage() {
         </div>
 
         <TabsContent value="preferences" className="space-y-4">
-          <Card className="flex flex-row items-center justify-between p-4 rounded-lg border">
-            <div className="flex flex-col space-y-1.5">
-              <Label className="text-base font-medium">
-                {t('general:theme-label')}
-              </Label>
-              <div className="text-sm text-muted-foreground">
-                {t('general:theme-description')}
+          <Card className="flex flex-col gap-3 p-4 rounded-lg border">
+            <div className="flex w-full flex-row items-center justify-between gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label className="text-base font-medium">
+                  {t('general:theme-label')}
+                </Label>
+                <div className="text-sm text-muted-foreground">
+                  {t('general:theme-description')}
+                </div>
               </div>
+              <Select
+                value={useTheme().theme || 'system'}
+                onValueChange={(value) => handleThemeChange(value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="light">{t('general:light')}</SelectItem>
+                  <SelectItem value="dark">{t('general:dark')}</SelectItem>
+                  <SelectItem value="system">{t('general:system')}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select
-              value={useTheme().theme || 'system'}
-              onValueChange={(value) => handleThemeChange(value)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Theme" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="light">{t('general:light')}</SelectItem>
-                <SelectItem value="dark">{t('general:dark')}</SelectItem>
-                <SelectItem value="system">{t('general:system')}</SelectItem>
-              </SelectContent>
-            </Select>
+            <DeviceOnlySettingToggle
+              settingKey="theme"
+              label={t('settings-page:device-only-label')}
+              description={t('settings-page:device-only-description')}
+              checked={isDeviceOnly('theme')}
+              onCheckedChange={(deviceOnly) =>
+                handleDeviceOnlyChange('theme', deviceOnly)
+              }
+            />
           </Card>
 
-          <Card className="flex flex-row items-center justify-between p-4 rounded-lg border">
-            <div className="flex flex-col space-y-1.5">
-              <Label className="text-base font-medium">
-                {t('general:language-label')}
-              </Label>
-              <div className="text-sm text-muted-foreground">
-                {t('general:language-description')}
+          <Card className="flex flex-col gap-3 p-4 rounded-lg border">
+            <div className="flex w-full flex-row items-center justify-between gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label className="text-base font-medium">
+                  {t('general:language-label')}
+                </Label>
+                <div className="text-sm text-muted-foreground">
+                  {t('general:language-description')}
+                </div>
               </div>
+              <Select
+                value={language || 'en-US'}
+                onValueChange={(value) => handleLanguageChange(value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ja-JP">日本語</SelectItem>
+                  <SelectItem value="en-US">English</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select
-              value={language || 'en-US'}
-              onValueChange={(value) => handleLanguageChange(value)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Language" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ja-JP">日本語</SelectItem>
-                <SelectItem value="en-US">English</SelectItem>
-              </SelectContent>
-            </Select>
+            <DeviceOnlySettingToggle
+              settingKey="language"
+              label={t('settings-page:device-only-label')}
+              description={t('settings-page:device-only-description')}
+              checked={isDeviceOnly('language')}
+              onCheckedChange={(deviceOnly) =>
+                handleDeviceOnlyChange('language', deviceOnly)
+              }
+            />
           </Card>
 
           <Card className="flex flex-col items-start justify-between space-y-3 p-4 rounded-lg border">
@@ -191,6 +208,15 @@ export default function SettingsPage() {
                 capacity: 16,
               }}
             />
+            <DeviceOnlySettingToggle
+              settingKey="cardSize"
+              label={t('settings-page:device-only-label')}
+              description={t('settings-page:device-only-description')}
+              checked={isDeviceOnly('cardSize')}
+              onCheckedChange={(deviceOnly) =>
+                handleDeviceOnlyChange('cardSize', deviceOnly)
+              }
+            />
           </Card>
 
           <Card className="flex flex-col items-start justify-between space-y-3 p-4 rounded-lg border">
@@ -208,6 +234,15 @@ export default function SettingsPage() {
                 onChange={handleFieldVisibilityChange}
               />
             </div>
+            <DeviceOnlySettingToggle
+              settingKey="worldCardFieldVisibility"
+              label={t('settings-page:device-only-label')}
+              description={t('settings-page:device-only-description')}
+              checked={isDeviceOnly('worldCardFieldVisibility')}
+              onCheckedChange={(deviceOnly) =>
+                handleDeviceOnlyChange('worldCardFieldVisibility', deviceOnly)
+              }
+            />
           </Card>
 
           <Card className="flex flex-col items-start justify-between space-y-3 p-4 rounded-lg border">
@@ -226,7 +261,20 @@ export default function SettingsPage() {
               />
             </div>
             <WorldDetailPreview fieldVisibility={detailFieldVisibility} />
+            <DeviceOnlySettingToggle
+              settingKey="worldDetailFieldVisibility"
+              label={t('settings-page:device-only-label')}
+              description={t('settings-page:device-only-description')}
+              checked={isDeviceOnly('worldDetailFieldVisibility')}
+              onCheckedChange={(deviceOnly) =>
+                handleDeviceOnlyChange('worldDetailFieldVisibility', deviceOnly)
+              }
+            />
           </Card>
+        </TabsContent>
+
+        <TabsContent value="sync" className="space-y-4">
+          <GoogleDriveSection />
         </TabsContent>
 
         <TabsContent value="data-management" className="space-y-4">
@@ -281,25 +329,6 @@ export default function SettingsPage() {
               </Button>
             </div>
           </Card>
-          <Card className="flex flex-row items-center justify-between p-4 rounded-lg border">
-            <div className="flex flex-col space-y-1.5">
-              <Label className="text-base font-medium">
-                {t('settings-page:export-title')}
-              </Label>
-              <div className="text-sm text-muted-foreground">
-                {t('settings-page:export-description')}
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => setShowExportDialog(true)}
-              className="gap-2"
-            >
-              <FolderUp className="h-4 w-4" />
-              <span className="text-sm">{t('settings-page:export-data')}</span>
-            </Button>
-          </Card>
-
           <Card className="flex flex-row items-center justify-between p-4 rounded-lg border">
             <div className="flex flex-col space-y-1.5">
               <Label className="text-base font-medium">
@@ -383,38 +412,49 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="others" className="space-y-4">
-          <Card className="flex flex-row items-center justify-between p-4 rounded-lg border">
-            <div className="flex flex-col space-y-1.5">
-              <Label className="text-base font-medium">
-                {t('settings-page:folder-removal-title')}
-              </Label>
-              <div className="text-sm text-muted-foreground">
-                {t('settings-page:folder-removal-description')}
+          <Card className="flex flex-col gap-3 p-4 rounded-lg border">
+            <div className="flex w-full flex-row items-center justify-between gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label className="text-base font-medium">
+                  {t('settings-page:folder-removal-title')}
+                </Label>
+                <div className="text-sm text-muted-foreground">
+                  {t('settings-page:folder-removal-description')}
+                </div>
               </div>
+              <Select
+                value={folderRemovalPreference ?? 'ask'}
+                onValueChange={(value) =>
+                  handleFolderRemovalPreferenceChange(
+                    value as FolderRemovalPreference,
+                  )
+                }
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Folder Removal Preference" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ask">
+                    {t('settings-page:folder-removal-ask')}
+                  </SelectItem>
+                  <SelectItem value="neverRemove">
+                    {t('settings-page:folder-removal-keep')}
+                  </SelectItem>
+                  <SelectItem value="alwaysRemove">
+                    {t('settings-page:folder-removal-remove')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select
-              value={folderRemovalPreference ?? 'ask'}
-              onValueChange={(value) =>
-                handleFolderRemovalPreferenceChange(
-                  value as FolderRemovalPreference,
-                )
+            <DeviceOnlySettingToggle
+              settingKey="folderRemovalPreference"
+              label={t('settings-page:device-only-label')}
+              description={t('settings-page:device-only-description')}
+              checked={isDeviceOnly('folderRemovalPreference')}
+              onCheckedChange={(deviceOnly) =>
+                handleDeviceOnlyChange('folderRemovalPreference', deviceOnly)
               }
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Folder Removal Preference" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ask">
-                  {t('settings-page:folder-removal-ask')}
-                </SelectItem>
-                <SelectItem value="neverRemove">
-                  {t('settings-page:folder-removal-keep')}
-                </SelectItem>
-                <SelectItem value="alwaysRemove">
-                  {t('settings-page:folder-removal-remove')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            />
           </Card>
 
           <Card className="flex flex-row items-center justify-between p-4 rounded-lg border">
@@ -438,11 +478,6 @@ export default function SettingsPage() {
         open={showRestoreDialog}
         onOpenChange={setShowRestoreDialog}
         onConfirm={handleRestoreConfirm}
-      />
-      <ExportPopup
-        open={showExportDialog}
-        onOpenChange={setShowExportDialog}
-        onConfirm={handleExportConfirm}
       />
       <MigrationPopup
         open={showMigrateDialog}

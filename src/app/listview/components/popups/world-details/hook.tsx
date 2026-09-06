@@ -6,7 +6,10 @@ import { toast } from 'sonner'
 import { useWorldFiltersStore } from '@/app/listview/hook/use-filters'
 import { UserGroup, GroupInstancePermissionInfo } from '@/lib/commands'
 
-export function useWorldDetailsActions(onOpenChange: (open: boolean) => void) {
+export function useWorldDetailsActions(
+  onOpenChange: (open: boolean) => void,
+  onInstanceRecorded?: () => void,
+) {
   const { t } = useLocalization()
   const { setAuthorFilter, setTagFilters } = useWorldFiltersStore()
 
@@ -25,8 +28,21 @@ export function useWorldDetailsActions(onOpenChange: (open: boolean) => void) {
         toast(t('general:error-title'), { description: result.error })
         return
       }
-      // result.data contains InstanceInfo with world_id, instance_id, short_name
       const info = result.data
+      // Remembering it here rather than when the toast's button is pressed:
+      // the toast goes away on its own, and it used to be the only place a
+      // launch URL existed.
+      const remembered = await commands.recordLaunchedInstance({
+        worldId: info.world_id,
+        instanceId: info.instance_id,
+        shortName: info.short_name,
+        instanceType,
+        region,
+      })
+      if (remembered.status === 'error') {
+        console.error(`Failed to remember instance: ${remembered.error}`)
+      }
+      onInstanceRecorded?.()
       toast(t('general:success-title'), {
         description: t('listview-page:created-instance', instanceType),
         action: {
@@ -76,6 +92,20 @@ export function useWorldDetailsActions(onOpenChange: (open: boolean) => void) {
         return
       }
       const info = result.data
+      // Remembering it here rather than when the toast's button is pressed:
+      // the toast goes away on its own, and it used to be the only place a
+      // launch URL existed.
+      const remembered = await commands.recordLaunchedInstance({
+        worldId: info.world_id,
+        instanceId: info.instance_id,
+        shortName: info.short_name,
+        instanceType,
+        region,
+      })
+      if (remembered.status === 'error') {
+        console.error(`Failed to remember instance: ${remembered.error}`)
+      }
+      onInstanceRecorded?.()
       toast(t('general:success-title'), {
         description: t('listview-page:created-instance', instanceType),
         action: {

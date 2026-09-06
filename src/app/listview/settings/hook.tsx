@@ -9,11 +9,19 @@ import {
 } from '@/lib/commands'
 import { useContext, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { ExportType } from './components/popups/export'
 import { useRouter } from 'next/navigation'
 import { LocalizationContext } from '../../../components/localization-context'
 import { useFolders } from '../hook/use-folders'
 import { useTheme } from 'next-themes'
+import {
+  readSettingSyncOverrides,
+  setSettingSyncOverride,
+} from '@/lib/services/setting-sync'
+import {
+  isDeviceOnlySetting,
+  type SettingSyncOverrides,
+  type SyncableSettingKey,
+} from '@/lib/sync/settings'
 
 const normalizeThemeValue = (theme: string): 'light' | 'dark' | 'system' => {
   const unwrappedTheme =
@@ -52,10 +60,15 @@ export const useSettingsPage = () => {
       lastUpdated: true,
     })
 
+  const [syncOverrides, setSyncOverrides] = useState<SettingSyncOverrides>({})
+  // Bumped when something outside the settings screen changes what is
+  // stored -- taking in a backup -- so the screen reads the preferences
+  // again instead of going on showing the ones the file replaced.
+  const [preferencesRevision, setPreferencesRevision] = useState(0)
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showMigrateDialog, setShowMigrateDialog] = useState(false)
   const [showRestoreDialog, setShowRestoreDialog] = useState(false)
-  const [showExportDialog, setShowExportDialog] = useState(false)
   const [showPurgeFavoritesDialog, setShowPurgeFavoritesDialog] =
     useState(false)
 
@@ -68,50 +81,6 @@ export const useSettingsPage = () => {
   const { setTheme } = useTheme()
 
   const { t } = useLocalization()
-
-  // Add missing export confirm handler
-  const handleExportConfirm = async (
-    folders: string[],
-    exportType: ExportType,
-    sortField: string,
-    sortDirection: string,
-  ) => {
-    try {
-      let result
-      switch (exportType) {
-        case ExportType.PLS:
-          console.info('Exporting to Portal Library System...')
-          result = await commands.exportToPortalLibrarySystem(
-            folders,
-            sortField,
-            sortDirection,
-          )
-          break
-        default:
-          console.error(`Unknown export type: ${exportType}`)
-          toast(t('general:error-title'), {
-            description: t('settings-page:error-unknown-export-type'),
-          })
-          return
-      }
-      if (result.status === 'error') {
-        console.error(`Export failed: ${result.error}`)
-        toast(t('general:error-title'), {
-          description: t('settings-page:error-export-data'),
-        })
-        return
-      }
-      console.info('Export completed successfully')
-      toast(t('settings-page:export-success-title'), {
-        description: t('settings-page:export-success-description'),
-      })
-    } catch (e) {
-      console.error(`Export error: ${e}`)
-      toast(t('general:error-title'), {
-        description: t('settings-page:error-export-data'),
-      })
-    }
-  }
 
   useEffect(() => {
     const loadPreferences = async () => {
@@ -160,7 +129,9 @@ export const useSettingsPage = () => {
               }
         setTheme(theme)
         setLanguage(language)
+        changeLanguage(language)
         setCardSize(cardSize)
+        setSyncOverrides(readSettingSyncOverrides())
         setFolderRemovalPreference(folderRemovalPreference)
         setFieldVisibility(fieldVisibility)
         setDetailFieldVisibility(detailFieldVisibility)
@@ -200,7 +171,7 @@ export const useSettingsPage = () => {
     }
 
     loadPreferences()
-  }, [setTheme]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [setTheme, preferencesRevision]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBackup = async () => {
     try {
@@ -247,6 +218,7 @@ export const useSettingsPage = () => {
             ? t('settings-page:merge-success-description')
             : t('settings-page:restore-success-description'),
       })
+      setPreferencesRevision((revision) => revision + 1)
       onDataChange()
     } catch (e) {
       console.error(`Restore error: ${e}`)
@@ -487,6 +459,17 @@ export const useSettingsPage = () => {
     }
   }
 
+  const isDeviceOnly = (key: SyncableSettingKey): boolean =>
+    isDeviceOnlySetting(key, syncOverrides)
+
+  const handleDeviceOnlyChange = (
+    key: SyncableSettingKey,
+    deviceOnly: boolean,
+  ) => {
+    setSettingSyncOverride(key, deviceOnly)
+    setSyncOverrides(readSettingSyncOverrides())
+  }
+
   const openHiddenFolder = () => {
     router.push('/listview/folders/hidden')
   }
@@ -503,11 +486,8 @@ export const useSettingsPage = () => {
     setShowMigrateDialog,
     showRestoreDialog,
     setShowRestoreDialog,
-    showExportDialog,
-    setShowExportDialog,
     showPurgeFavoritesDialog,
     setShowPurgeFavoritesDialog,
-    handleExportConfirm,
     handleBackup,
     handleRestoreConfirm,
     handleMigrationConfirm,
@@ -519,6 +499,8 @@ export const useSettingsPage = () => {
     handleFieldVisibilityChange,
     handleDetailFieldVisibilityChange,
     handleFolderRemovalPreferenceChange,
+    isDeviceOnly,
+    handleDeviceOnlyChange,
     openHiddenFolder,
     t,
   }

@@ -2,6 +2,22 @@ import { Effect } from 'effect'
 // Shadows TypeScript's built-in `InstanceType<T>` utility on purpose: within
 // this file the app's own instance type is the one that is meant.
 import type { InstanceType } from '@/types/instances'
+import {
+  LaunchedInstanceService,
+  type LaunchedInstanceInput,
+} from './services/launched-instance-service'
+import type { LaunchedInstanceRecord } from './services/db'
+import {
+  GoogleAuthDismissedError,
+  GoogleAuthExpiredError,
+  GoogleAuthService,
+  GoogleAuthUnansweredError,
+} from './services/google-auth-service'
+import {
+  DriveSyncService,
+  type DriveSyncResult,
+  type SyncProgress,
+} from './services/drive-sync-service'
 import { AppLayer } from '@/lib/services/layers'
 import { PreferencesService } from '@/lib/services/preferences'
 import { FolderService } from '@/lib/services/folder-service'
@@ -642,11 +658,21 @@ export const commands = {
     )
   },
 
-  async getFavoriteWorldIds(): Promise<Result<string[], string>> {
+  /**
+   * Reads the signed-in account's favorites without touching the local
+   * database, for the caller to show and let the user pick from.
+   *
+   * `getFavoriteWorlds` above stores what it reads, which is right when
+   * refreshing your own list and wrong when the account signed in is somebody
+   * else's.
+   */
+  async fetchFavoriteWorlds(
+    onProgress?: (fetched: number) => void,
+  ): Promise<Result<WorldDisplayData[], string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* VRChatApiService
-        return yield* svc.getFavoriteWorldIds()
+        return yield* svc.getFavoriteWorlds(onProgress)
       }),
     )
   },
@@ -807,6 +833,183 @@ export const commands = {
     )
   },
 
+  /**
+   * Remembers an instance so it can be entered again later.
+   *
+   * The only place a launch URL used to exist was the toast shown the moment
+   * an instance was made, so closing it lost the instance for good -- and a
+   * world that stops being public can only be entered through one.
+   */
+  async recordLaunchedInstance(
+    input: LaunchedInstanceInput,
+  ): Promise<Result<null, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* LaunchedInstanceService
+        yield* svc.recordLaunchedInstance(input)
+        return null
+      }),
+    )
+  },
+
+  async getLaunchedInstances(
+    worldId: string,
+  ): Promise<Result<LaunchedInstanceRecord[], string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* LaunchedInstanceService
+        return yield* svc.getLaunchedInstances(worldId)
+      }),
+    )
+  },
+
+  async forgetLaunchedInstance(id: string): Promise<Result<null, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* LaunchedInstanceService
+        yield* svc.forgetLaunchedInstance(id)
+        return null
+      }),
+    )
+  },
+
+  async isGoogleDriveConnected(): Promise<Result<boolean, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* GoogleAuthService
+        return yield* svc.isConnected()
+      }),
+    )
+  },
+
+  /** Must be called from inside a click handler -- see `GoogleAuthService`. */
+  async connectGoogleDrive(): Promise<Result<null, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* GoogleAuthService
+        yield* svc.connect()
+        return null
+      }),
+    )
+  },
+
+  async disconnectGoogleDrive(): Promise<Result<null, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* GoogleAuthService
+        yield* svc.disconnect()
+        return null
+      }),
+    )
+  },
+
+  /** Must be called from inside a click handler -- see `GoogleAuthService`. */
+  async syncGoogleDriveNow(
+    onProgress: SyncProgress = () => {},
+  ): Promise<Result<DriveSyncResult, string>> {
+    return run(
+      Effect.gen(function* () {
+        const auth = yield* GoogleAuthService
+        const sync = yield* DriveSyncService
+
+        onProgress('authorizing')
+        const token = yield* auth.getAccessToken()
+
+        return yield* sync
+          .syncNow(token, onProgress)
+          .pipe(
+            Effect.map(
+              (outcome): DriveSyncResult => ({ kind: 'synced', ...outcome }),
+            ),
+          )
+      }).pipe(
+        // Three ways of not getting a token that are worth telling apart on
+        // screen: the hour ran out, the window was closed, and the window
+        // never answered.
+        Effect.catchAll((e) => {
+          if (e instanceof GoogleAuthExpiredError) {
+            return Effect.succeed<DriveSyncResult>({ kind: 'reauth-needed' })
+          }
+          if (e instanceof GoogleAuthDismissedError) {
+            return Effect.succeed<DriveSyncResult>({ kind: 'dismissed' })
+          }
+          if (e instanceof GoogleAuthUnansweredError) {
+            return Effect.succeed<DriveSyncResult>({ kind: 'unanswered' })
+          }
+          return Effect.fail(e)
+        }),
+      ),
+    )
+  },
+
+  /**
+   * The same sync, started by the app rather than by a press.
+   *
+   * The only difference is where the token comes from: there is no gesture to
+   * open a Google window with, so this either uses the grant already given or
+   * reports `reauth-needed` and leaves the button to it.
+   */
+  async syncGoogleDriveInBackground(): Promise<
+    Result<DriveSyncResult, string>
+  > {
+    return run(
+      Effect.gen(function* () {
+        const auth = yield* GoogleAuthService
+        const sync = yield* DriveSyncService
+
+        const token = yield* auth.getAccessTokenInBackground()
+
+        return yield* sync
+          .syncNow(token, () => {})
+          .pipe(
+            Effect.map(
+              (outcome): DriveSyncResult => ({ kind: 'synced', ...outcome }),
+            ),
+          )
+      }).pipe(
+        Effect.catchAll((e) =>
+          e instanceof GoogleAuthExpiredError
+            ? Effect.succeed<DriveSyncResult>({ kind: 'reauth-needed' })
+            : Effect.fail(e),
+        ),
+      ),
+    )
+  },
+
+  /**
+   * Whether another device has written to Drive since this one last did.
+   *
+   * `false` rather than an error when there is no usable token: a poll that
+   * cannot ask has nothing to report, and there is no press behind it to
+   * explain the failure to.
+   */
+  async googleDriveRemoteChanged(): Promise<Result<boolean, string>> {
+    return run(
+      Effect.gen(function* () {
+        const auth = yield* GoogleAuthService
+        const sync = yield* DriveSyncService
+
+        const token = yield* auth.getAccessTokenInBackground()
+        return yield* sync.remoteChanged(token)
+      }).pipe(
+        Effect.catchAll((e) =>
+          e instanceof GoogleAuthExpiredError
+            ? Effect.succeed(false)
+            : Effect.fail(e),
+        ),
+      ),
+    )
+  },
+
+  async googleDriveLastSyncedAt(): Promise<Result<number | null, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* DriveSyncService
+        return yield* svc.lastSyncedAt()
+      }),
+    )
+  },
+
   async openLogsDirectory(): Promise<Result<null, string>> {
     return { status: 'ok', data: null }
   },
@@ -923,23 +1126,6 @@ export const commands = {
       Effect.gen(function* () {
         const svc = yield* BackupService
         yield* svc.restoreFromBackup(file, mode)
-      }),
-    )
-  },
-
-  async exportToPortalLibrarySystem(
-    folders: string[],
-    sortField: string,
-    sortDirection: string,
-  ): Promise<Result<null, string>> {
-    return runVoid(
-      Effect.gen(function* () {
-        const svc = yield* BackupService
-        yield* svc.exportToPortalLibrarySystem(
-          folders,
-          sortField,
-          sortDirection,
-        )
       }),
     )
   },

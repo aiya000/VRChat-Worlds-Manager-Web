@@ -129,6 +129,7 @@ export function fromLegacyBackup(
         removedAt: null,
       })),
     })),
+    launchedInstances: [],
     settings: {},
   }
 }

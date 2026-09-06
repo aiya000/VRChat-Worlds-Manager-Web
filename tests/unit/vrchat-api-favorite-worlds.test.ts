@@ -20,12 +20,12 @@ function vrchatWorld(index: number) {
   }
 }
 
-function runGetFavoriteWorlds() {
+function runGetFavoriteWorlds(onProgress?: (fetched: number) => void) {
   return Effect.runPromise(
     Effect.provide(
       Effect.gen(function* () {
         const svc = yield* VRChatApiService
-        return yield* svc.getFavoriteWorlds()
+        return yield* svc.getFavoriteWorlds(onProgress)
       }),
       VRChatApiServiceLive,
     ),
@@ -82,6 +82,27 @@ describe('VRChatApiService.getFavoriteWorlds', () => {
     expect(worlds).toHaveLength(101)
     expect(urls).toHaveLength(2)
     expect(urls[1]).toContain('offset=100')
+  })
+
+  it('reports the running total after every page', async () => {
+    const pageOne = Array.from({ length: 100 }, (_, i) => vrchatWorld(i))
+    const pageTwo = [vrchatWorld(100), vrchatWorld(101)]
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        return new Response(
+          JSON.stringify(url.includes('offset=100') ? pageTwo : pageOne),
+          { status: 200 },
+        )
+      }),
+    )
+
+    const reported: number[] = []
+    await runGetFavoriteWorlds((fetched) => reported.push(fetched))
+
+    expect(reported).toEqual([100, 102])
   })
 
   it('never reaches the VRChat API directly', async () => {
