@@ -166,6 +166,45 @@ test.describe('pushing this device’s settings to every device', () => {
     expect(uploaded.settingsOverride.at).toBeGreaterThan(0)
   })
 
+  test('shows how far along it is under the button that was pressed', async ({
+    page,
+  }) => {
+    await stubGoogleDrive(page)
+
+    // Held open on the first Drive call so the in-progress state can be read;
+    // without it the whole sync is over before an assertion can run.
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let firstCall = true
+    await page.route('https://www.googleapis.com/**', async (route) => {
+      if (firstCall) {
+        firstCall = false
+        await held
+      }
+      await route.fallback()
+    })
+
+    await openPreferences(page)
+    await writeJapaneseLanguage(page)
+    await connect(page)
+    await pushSettingsToAllDevices(page)
+
+    // Beside this button rather than the ordinary sync one above it: under
+    // that one it reads as that button having been the one that ran. The
+    // block is reached by its test id because the button renames itself to
+    // "syncing" while it runs.
+    await expect(
+      page.getByTestId('push-settings-block').getByText(/^\d+% — /),
+    ).toBeVisible()
+
+    release()
+    await expect(
+      page.getByText(jaJP['settings-page:push-settings-success']),
+    ).toBeVisible()
+  })
+
   test('leaves the worlds and folders of the file exactly as they were', async ({
     page,
   }) => {

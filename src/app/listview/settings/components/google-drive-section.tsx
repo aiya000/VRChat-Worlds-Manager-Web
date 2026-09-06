@@ -230,6 +230,32 @@ export const GoogleDriveSection: FC = () => {
     }
   }
 
+  /**
+   * How far along a sync is.
+   *
+   * A percentage rather than a spinner alone: a sync that has stopped and a
+   * sync that is slow look identical otherwise, and the first one that went
+   * wrong sat on "syncing" with nothing to say whether anything was still
+   * happening.
+   *
+   * Rendered under whichever button was pressed. Under the other one it reads
+   * as that button having been the one that ran.
+   */
+  const progress = (
+    <div className="space-y-1 text-sm text-muted-foreground">
+      <div>
+        {step === null
+          ? t('settings-page:google-drive-syncing')
+          : `${syncStepPercentage(step)}% — ${t(
+              `settings-page:google-drive-step-${step}`,
+            )}`}
+      </div>
+      <div className="text-xs">
+        {t('settings-page:google-drive-do-not-reload')}
+      </div>
+    </div>
+  )
+
   return (
     <Card className="flex flex-col gap-4 rounded-lg border p-4">
       {installed && (
@@ -323,29 +349,15 @@ export const GoogleDriveSection: FC = () => {
               ? t('settings-page:google-drive-syncing')
               : t('settings-page:google-drive-sync-now')}
           </Button>
-          {(syncing || pushingSettings) && (
-            <div className="space-y-1 text-sm text-muted-foreground">
-              {/* A percentage rather than a spinner alone: a sync that has
-                  stopped and a sync that is slow look identical otherwise,
-                  and the first one that went wrong sat on "syncing" with
-                  nothing to say whether anything was still happening. */}
-              <div>
-                {step === null
-                  ? t('settings-page:google-drive-syncing')
-                  : `${syncStepPercentage(step)}% — ${t(
-                      `settings-page:google-drive-step-${step}`,
-                    )}`}
-              </div>
-              <div className="text-xs">
-                {t('settings-page:google-drive-do-not-reload')}
-              </div>
-            </div>
-          )}
+          {syncing && progress}
 
           {/* Its own block rather than a second line under the sync button:
               this is the one control here that overrules a promise another
               device was given, and it has to be read before it is pressed. */}
-          <div className="flex flex-col gap-2 border-t pt-4">
+          <div
+            className="flex flex-col gap-2 border-t pt-4"
+            data-testid="push-settings-block"
+          >
             <Label className="text-base font-medium">
               {t('settings-page:push-settings-title')}
             </Label>
@@ -358,11 +370,16 @@ export const GoogleDriveSection: FC = () => {
               disabled={busy || syncing || pushingSettings || autoSyncing}
               onClick={() => setConfirmingPush(true)}
             >
-              <ArrowUpFromLine className="h-5 w-5" aria-hidden />
+              {pushingSettings ? (
+                <RefreshCw className="h-5 w-5 animate-spin" aria-hidden />
+              ) : (
+                <ArrowUpFromLine className="h-5 w-5" aria-hidden />
+              )}
               {pushingSettings
                 ? t('settings-page:google-drive-syncing')
                 : t('settings-page:push-settings-button')}
             </Button>
+            {pushingSettings && progress}
           </div>
 
           <AlertDialog open={confirmingPush} onOpenChange={setConfirmingPush}>
