@@ -38,11 +38,14 @@ const ALLOWED_ROUTES: AllowedRoute[] = [
   { method: 'GET', pattern: /^\/worlds$/ },
   { method: 'GET', pattern: /^\/worlds\/[^/]+$/ },
   { method: 'POST', pattern: /^\/instances$/ },
+  // The "Invite Me" the website sends. An instance id carries `~`, `(`, `)`
+  // and `:`, none of which is a slash.
+  { method: 'POST', pattern: /^\/invite\/myself\/to\/[^/]+$/ },
   { method: 'GET', pattern: /^\/users\/[^/]+\/groups$/ },
   { method: 'GET', pattern: /^\/groups\/[^/]+\/instances\/permissions$/ },
 ]
 
-function isRouteAllowed(method: string, apiPath: string): boolean {
+export function isRouteAllowed(method: string, apiPath: string): boolean {
   return ALLOWED_ROUTES.some(
     (route) => route.method === method && route.pattern.test(apiPath),
   )

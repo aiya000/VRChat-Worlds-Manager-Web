@@ -140,9 +140,19 @@ test.describe('entering an instance from an Android phone', () => {
     hasTouch: true,
   })
 
-  test('hands the VRChat app an intent, in this tab, when the world runs there', async ({
+  test('hands the VRChat app an intent, in this tab, and invites the person in', async ({
     page,
   }) => {
+    let invited: string | null = null
+    await page.route('**/api/1/invite/myself/to/**', async (route) => {
+      invited = new URL(route.request().url()).pathname
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 'not_1', type: 'invite' }),
+      })
+    })
+
     await page.goto(LIST_VIEW)
     await seedWorldWithInstances(page, {
       platform: ['standalonewindows', 'android'],
@@ -160,11 +170,46 @@ test.describe('entering an instance from an Android phone', () => {
 
     const { url, target } = await opened
     expect(target).toBe('_self')
-    expect(url).toMatch(/^intent:\/\/vrchat\.com\/home\/launch\?/)
-    expect(url).toContain(`worldId=${WORLD_ID}`)
-    expect(url).toContain('instanceId=22222')
-    expect(url).toContain('package=com.vrchat.mobile.playstore;')
-    expect(url).toContain('S.browser_fallback_url=')
+    expect(url).toBe(
+      `intent://launch?ref=vrchat.com&id=${WORLD_ID}:22222#Intent;scheme=vrchat;package=com.vrchat.mobile.playstore;end`,
+    )
+
+    // The invite is the way in that does not depend on the intent being
+    // taken, and the person is told it went.
+    await expect(
+      page.getByText(jaJP['world-detail:android-invite-sent']),
+    ).toBeVisible()
+    expect(invited).toBe(`/api/1/invite/myself/to/${WORLD_ID}:22222`)
+  })
+
+  test('says when the invite could not be sent', async ({ page }) => {
+    await page.route('**/api/1/invite/myself/to/**', (route) =>
+      route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: { message: 'Missing Credentials', status_code: 401 },
+        }),
+      }),
+    )
+
+    await page.goto(LIST_VIEW)
+    await seedWorldWithInstances(page, {
+      platform: ['standalonewindows', 'android'],
+    })
+    await openTheWorld(page)
+    await page.evaluate(() => {
+      window.open = () => null
+    })
+
+    await savedInstances(page)
+      .locator('button', { hasText: jaJP['world-detail:friends'] })
+      .first()
+      .click()
+
+    await expect(
+      page.getByText(jaJP['world-detail:android-invite-failed']),
+    ).toBeVisible()
   })
 
   test('says so, and opens nothing, when the world has no Android build', async ({

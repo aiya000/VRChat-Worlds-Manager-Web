@@ -227,6 +227,8 @@
   "world-detail:saved-instances-description": "Enter one of these again",
   "world-detail:forget-instance": "Forget this instance",
   "world-detail:not-on-android": "This world has no Android build, so VRChat on this device cannot open it.",
+  "world-detail:android-invite-sent": "Sent yourself an invite. You can enter the instance from the notification in the VRChat app.",
+  "world-detail:android-invite-failed": "Could not send yourself an invite. If the VRChat app does not open, check that you are signed in to VRChat.",
   "world-detail:author-removal-title": "Are you the author of this world?",
   "world-detail:author-removal-description": "If you are the world creator and wish to request removal of your world's data from our service, please use the form below.",
   "world-detail:request-removal": "Request Data Removal",

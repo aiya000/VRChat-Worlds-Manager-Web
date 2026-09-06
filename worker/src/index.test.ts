@@ -3,8 +3,32 @@ import { describe, expect, it } from 'vitest'
 import {
   buildVRChatCookieHeader,
   isOriginAllowed,
+  isRouteAllowed,
   parseSetCookieValue,
 } from './index'
+
+describe('isRouteAllowed', () => {
+  it('lets a self-invite through, instance id and all', () => {
+    expect(
+      isRouteAllowed(
+        'POST',
+        '/invite/myself/to/wrld_1234:12345~private(usr_me)~region(jp)',
+      ),
+    ).toBe(true)
+  })
+
+  it('does not let the self-invite path reach anything further down', () => {
+    expect(isRouteAllowed('POST', '/invite/myself/to/wrld_1:1/response')).toBe(
+      false,
+    )
+    expect(isRouteAllowed('GET', '/invite/myself/to/wrld_1:1')).toBe(false)
+  })
+
+  it('still refuses what the app never asks for', () => {
+    expect(isRouteAllowed('POST', '/invite/usr_someone')).toBe(false)
+    expect(isRouteAllowed('DELETE', '/instances')).toBe(false)
+  })
+})
 
 describe('isOriginAllowed', () => {
   it('allows the exact configured origin', () => {

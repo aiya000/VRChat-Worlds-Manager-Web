@@ -5,8 +5,8 @@ import {
   isAndroidBrowser,
   launchTargetFor,
   VRCHAT_ANDROID_PACKAGE,
-  webLaunchUrlFor,
 } from '@/lib/launch-target'
+import { launchUrlFor } from '@/lib/sync/launched-instances'
 
 const WORLD = 'wrld_1234'
 const INSTANCE = '12345~region(jp)'
@@ -35,38 +35,24 @@ describe('telling an Android browser apart', () => {
   })
 })
 
-describe('the launch page on the web', () => {
-  it('is the one VRChat itself hands out when an instance is shared', () => {
-    expect(webLaunchUrlFor(WORLD, '99')).toBe(
-      'https://vrchat.com/home/launch?worldId=wrld_1234&instanceId=99',
-    )
-  })
-
-  it('escapes what an instance id carries', () => {
-    const url = new URL(webLaunchUrlFor(WORLD, INSTANCE))
-    expect(url.searchParams.get('instanceId')).toBe(INSTANCE)
-  })
-})
-
 describe('the Android intent URL', () => {
   const url = androidLaunchUrlFor(WORLD, INSTANCE)
 
   it('names the app rather than leaving the scheme to be resolved', () => {
     expect(url).toContain(`package=${VRCHAT_ANDROID_PACKAGE};`)
-    expect(url).toMatch(/^intent:\/\/vrchat\.com\/home\/launch\?/)
-    expect(url).toContain('#Intent;scheme=https;')
+    expect(url).toContain('#Intent;scheme=vrchat;')
     expect(url).toMatch(/;end$/)
   })
 
-  it('carries the same two ids as the web page', () => {
-    const data = url.replace(/^intent:/, 'https:').split('#Intent')[0]
-    expect(data).toBe(webLaunchUrlFor(WORLD, INSTANCE))
+  it('carries the very link the desktop client takes', () => {
+    const data = url.replace(/^intent:/, 'vrchat:').split('#Intent')[0]
+    expect(data).toBe(launchUrlFor(WORLD, INSTANCE))
   })
 
-  it('falls back to the web page when the app is not there', () => {
-    const fallback = url.match(/S\.browser_fallback_url=([^;]+);/)?.[1]
-    expect(fallback).toBeDefined()
-    expect(decodeURIComponent(fallback!)).toBe(webLaunchUrlFor(WORLD, INSTANCE))
+  it('has no fallback page to mistake for an answer from the app', () => {
+    // `vrchat.com/home/launch` as the fallback opened a page saying the
+    // instance did not exist, which looked like the app had spoken.
+    expect(url).not.toContain('browser_fallback_url')
   })
 })
 
