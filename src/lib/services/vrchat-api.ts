@@ -329,11 +329,30 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
       },
     }),
 
+  /**
+   * Ends the VRChat session, and treats "there was none" as done.
+   *
+   * Logging out asks for a state rather than an action, so a device that is
+   * already in that state has succeeded. Reporting a failure instead is a trap
+   * with no way out: the tokens are dropped below whatever happens, so every
+   * later press asks VRChat with the same nothing and is told off again, while
+   * the screen still looks signed in.
+   */
   logout: () =>
     Effect.tryPromise({
       try: async () => {
         try {
+          const held = await loadToken(AUTH_TOKEN_KEY)
+          if (held === null || held === '') {
+            return
+          }
           await apiFetch('/logout', { method: 'PUT' })
+        } catch (e) {
+          // A session VRChat has already forgotten answers `401 Missing
+          // Credentials`, which is the state this was trying to reach.
+          if (!(e instanceof VRChatApiError) || e.status !== 401) {
+            throw e
+          }
         } finally {
           await clearTokens()
         }
