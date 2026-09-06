@@ -9,11 +9,13 @@
  * - Navigation: Network-first
  */
 
-// Registration passes the app version as `?v=`, so a release gets its own cache
-// and the `activate` handler below throws the previous one away. A fixed name
-// would keep serving the previous release's precached `/` to an offline user
-// forever, which matters once a release changes the IndexedDB schema: the old
-// bundle cannot open the upgraded database at all.
+// Registration passes the build as `?v=`, so every deploy gets its own cache
+// and the `activate` handler below throws the previous one away. A name that
+// outlives a build keeps serving that build's precached `/` afterwards, which
+// matters once the IndexedDB schema changes: the old bundle cannot open the
+// upgraded database at all, and the app can only say so and ask for a reload.
+// The release version is not enough of a name -- `develop` ships many builds
+// under one version.
 const VERSION = new URL(self.location.href).searchParams.get('v') ?? 'dev'
 const CACHE_NAME = `vrcww-${VERSION}`
 
@@ -73,9 +75,14 @@ self.addEventListener('fetch', (event) => {
   // Network-first for navigations
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(
-        () => caches.match('/') || new Response('Offline', { status: 503 }),
-      ),
+      fetch(request).catch(async () => {
+        // `caches.match` answers with a promise, and a promise is always
+        // truthy, so `|| new Response(...)` never ran: a navigation with
+        // nothing precached resolved to `undefined` and the browser showed a
+        // network error rather than this.
+        const cached = await caches.match('/')
+        return cached ?? new Response('Offline', { status: 503 })
+      }),
     )
     return
   }

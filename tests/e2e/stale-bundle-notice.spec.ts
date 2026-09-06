@@ -73,6 +73,36 @@ test('asks for a reload when the database is newer than the bundle', async ({
   ).toBeVisible()
 })
 
+test('throws away what was serving the old bundle before reloading', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await upgradeDatabaseBeyondThisBuild(page)
+  await page.reload()
+
+  // A cache left by an earlier build. This is what hands the old bundle back
+  // on the next load, so a reload that leaves it there is not an escape: the
+  // notice returns and the button is scenery.
+  await page.evaluate(async () => {
+    const cache = await caches.open('vrcww-an-earlier-build')
+    await cache.put('/', new Response('<!doctype html>an older shell'))
+  })
+  expect(await page.evaluate(() => caches.keys())).toContain(
+    'vrcww-an-earlier-build',
+  )
+
+  await page
+    .locator('[role="alertdialog"]')
+    .getByRole('button', { name: jaJP['stale-bundle:reload'] })
+    .click()
+
+  // The button clears up before it reloads, so what is being waited for is
+  // the clearing, not the navigation.
+  await expect
+    .poll(() => page.evaluate(() => caches.keys()))
+    .not.toContain('vrcww-an-earlier-build')
+})
+
 test('keeps the notice reachable on a narrow VR panel', async ({ page }) => {
   await page.setViewportSize({ width: 400, height: 800 })
   await page.goto('/')

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useLocalization } from '@/hooks/use-localization'
 import { APP_DB_NAME, APP_IDB_VERSION } from '@/lib/services/db'
+import { discardCachedBundle } from '@/lib/stale-bundle'
 
 /**
  * Reads the schema version already on disk without opening the database.
@@ -67,7 +68,12 @@ export function StaleBundleNotice() {
         </p>
         <Button
           className="h-12 w-full text-base"
-          onClick={() => window.location.reload()}
+          onClick={async () => {
+            // Not a plain reload: whatever served this bundle would serve it
+            // again, and the button would be scenery.
+            await discardCachedBundle()
+            window.location.reload()
+          }}
         >
           {t('stale-bundle:reload')}
         </Button>
