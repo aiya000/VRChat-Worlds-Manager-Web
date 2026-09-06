@@ -768,17 +768,13 @@ export const commands = {
 
   async createWorldInstance(
     worldId: string,
-    instanceTypeStr: string,
-    regionStr: string,
+    instanceType: Exclude<InstanceType, 'group'>,
+    region: InstanceRegion,
   ): Promise<Result<InstanceInfo, string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* VRChatApiService
-        return yield* svc.createWorldInstance(
-          worldId,
-          instanceTypeStr,
-          regionStr,
-        )
+        return yield* svc.createWorldInstance(worldId, instanceType, region)
       }),
     )
   },
