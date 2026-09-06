@@ -39,6 +39,10 @@ test.use({ viewport: { width: 1440, height: 900 } })
 test('a folder another device made appears without a reload', async ({
   page,
 }) => {
+  // The poll runs once a minute and nothing here shortens it, so the wait
+  // is well past the default a test gets.
+  test.setTimeout(150_000)
+
   await stubGoogleIdentityServices(page, { token: 'test-access-token' })
   const drive = await stubGoogleDrive(page)
 
@@ -67,7 +71,6 @@ test('a folder another device made appears without a reload', async ({
   }
   drive.writeFrom(SYNC_FILE, JSON.stringify(uploaded))
 
-  // The poll runs once a minute, and nothing here shortens it.
   await expect(
     page.getByText(jaJP['settings-page:google-drive-pulled-changes']),
   ).toBeVisible({ timeout: 90_000 })
