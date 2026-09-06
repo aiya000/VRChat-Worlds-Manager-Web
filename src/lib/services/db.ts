@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable, type Transaction } from 'dexie'
 import type { Platform } from '@/lib/types'
 import { SEED_TIMESTAMP } from '@/lib/sync/types'
+import { notifyLocalChange } from './local-changes'
 
 /**
  * Sync bookkeeping carried by every row a user can change.
@@ -309,3 +310,38 @@ export class AppDatabase extends Dexie {
 }
 
 export const db = new AppDatabase()
+
+/**
+ * The tables a snapshot is made of. Everything else -- `worldDetails`, which
+ * is a cache of VRChat's own answers, and the two `*State` tables -- is
+ * deliberately absent: nothing in them is ever sent to Drive, so a write to
+ * one is not a reason to sync.
+ */
+const SYNCED_TABLES = [
+  db.worlds,
+  db.foldersById,
+  db.folderOrder,
+  db.hiddenWorlds,
+  db.memos,
+  db.customTags,
+  db.launchedInstances,
+]
+
+// Installed here, next to the schema, rather than by whoever wants the signal:
+// a hook added later would miss every write made before it, and there is no
+// moment in this app's life when the answer to "did anything change?" is
+// allowed to be wrong.
+for (const table of SYNCED_TABLES) {
+  // Returning nothing from any of these leaves Dexie's own behaviour alone;
+  // `updating` in particular treats a returned object as a modification.
+  table.hook('creating', () => {
+    notifyLocalChange()
+  })
+  table.hook('updating', () => {
+    notifyLocalChange()
+    return undefined
+  })
+  table.hook('deleting', () => {
+    notifyLocalChange()
+  })
+}

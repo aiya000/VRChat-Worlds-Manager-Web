@@ -942,6 +942,65 @@ export const commands = {
     )
   },
 
+  /**
+   * The same sync, started by the app rather than by a press.
+   *
+   * The only difference is where the token comes from: there is no gesture to
+   * open a Google window with, so this either uses the grant already given or
+   * reports `reauth-needed` and leaves the button to it.
+   */
+  async syncGoogleDriveInBackground(): Promise<
+    Result<DriveSyncResult, string>
+  > {
+    return run(
+      Effect.gen(function* () {
+        const auth = yield* GoogleAuthService
+        const sync = yield* DriveSyncService
+
+        const token = yield* auth.getAccessTokenInBackground()
+
+        return yield* sync
+          .syncNow(token, () => {})
+          .pipe(
+            Effect.map(
+              (outcome): DriveSyncResult => ({ kind: 'synced', ...outcome }),
+            ),
+          )
+      }).pipe(
+        Effect.catchAll((e) =>
+          e instanceof GoogleAuthExpiredError
+            ? Effect.succeed<DriveSyncResult>({ kind: 'reauth-needed' })
+            : Effect.fail(e),
+        ),
+      ),
+    )
+  },
+
+  /**
+   * Whether another device has written to Drive since this one last did.
+   *
+   * `false` rather than an error when there is no usable token: a poll that
+   * cannot ask has nothing to report, and there is no press behind it to
+   * explain the failure to.
+   */
+  async googleDriveRemoteChanged(): Promise<Result<boolean, string>> {
+    return run(
+      Effect.gen(function* () {
+        const auth = yield* GoogleAuthService
+        const sync = yield* DriveSyncService
+
+        const token = yield* auth.getAccessTokenInBackground()
+        return yield* sync.remoteChanged(token)
+      }).pipe(
+        Effect.catchAll((e) =>
+          e instanceof GoogleAuthExpiredError
+            ? Effect.succeed(false)
+            : Effect.fail(e),
+        ),
+      ),
+    )
+  },
+
   async googleDriveLastSyncedAt(): Promise<Result<number | null, string>> {
     return run(
       Effect.gen(function* () {

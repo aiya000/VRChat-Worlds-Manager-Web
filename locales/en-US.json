@@ -573,6 +573,7 @@
   "settings-page:google-drive-syncing": "Syncing...",
   "settings-page:google-drive-last-synced": "Last synced: {0}",
   "settings-page:google-drive-never-synced": "Not synced yet",
+  "settings-page:google-drive-auto-sync-note": "While connected, syncing happens on its own: when the app opens, a short while after a change, and when another device has written. Google's permission lapses after about an hour, after which one press of \"Sync now\" brings it back.",
   "settings-page:google-drive-sync-success": "Synced with Google Drive.",
   "settings-page:google-drive-sync-conflicts": "Synced. {0} memo(s) differed between devices, so one version was set aside.",
   "settings-page:google-drive-reauth-needed": "The Google connection expired. Press \"Sync now\" once more.",

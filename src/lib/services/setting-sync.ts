@@ -1,3 +1,4 @@
+import { notifyLocalChange } from './local-changes'
 import {
   isSyncableSettingKey,
   SYNCABLE_SETTING_KEYS,
@@ -67,6 +68,9 @@ export function markSettingUpdated(key: string, at: number = Date.now()): void {
     return
   }
   writeUpdatedAt(key, at)
+  // Settings live in local storage rather than in Dexie, so the change signal
+  // the automatic sync watches has to be raised by hand here.
+  notifyLocalChange()
 }
 
 export function readSettingEntries(): SettingEntries {
