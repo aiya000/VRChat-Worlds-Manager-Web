@@ -13,6 +13,11 @@ import {
   syncStepPercentage,
   type SyncStep,
 } from '@/lib/services/drive-sync-service'
+import {
+  endSync,
+  subscribeToSyncActivity,
+  tryBeginSync,
+} from '@/lib/services/sync-activity'
 
 /**
  * Whether the app was opened from the home screen rather than in a browser tab.
@@ -36,9 +41,16 @@ function isRunningInstalled(): boolean {
 }
 
 /**
- * Connect, disconnect, and one button that syncs. Everything that decides
- * *when* to sync on its own -- startup, edits, coming back to the tab -- is a
- * later PR; this screen only ever syncs because someone asked it to.
+ * Connect, disconnect, and one button that syncs.
+ *
+ * The app also syncs on its own now (`useDriveAutoSync`), which this screen
+ * has to keep out of the way of: the button is the one place a sync reports
+ * what it did, so it must not start a second one on top of an automatic sync
+ * already running, and it has to notice when one of those moves the "last
+ * synced" line underneath it.
+ *
+ * The button remains the only way back from an expired hour: a token cannot
+ * be renewed without a gesture, and this is the gesture.
  */
 export const GoogleDriveSection: FC = () => {
   const { t } = useLocalization()
@@ -49,6 +61,7 @@ export const GoogleDriveSection: FC = () => {
   const [step, setStep] = useState<SyncStep | null>(null)
   const [unreadable, setUnreadable] = useState<string | null>(null)
   const [installed, setInstalled] = useState(false)
+  const [autoSyncing, setAutoSyncing] = useState(false)
 
   useEffect(() => {
     // Loaded ahead of the click that needs it: Google requires the token
@@ -71,6 +84,17 @@ export const GoogleDriveSection: FC = () => {
       setLastSyncedAt(result.status === 'ok' ? result.data : null)
     })
   }, [])
+
+  useEffect(
+    () =>
+      subscribeToSyncActivity((activity) => {
+        setAutoSyncing(activity.running)
+        if (activity.lastSyncedAt !== null) {
+          setLastSyncedAt(activity.lastSyncedAt)
+        }
+      }),
+    [],
+  )
 
   const connect = async () => {
     setBusy(true)
@@ -101,8 +125,15 @@ export const GoogleDriveSection: FC = () => {
   }
 
   const syncNow = async () => {
+    // Refused rather than queued: an automatic sync is already doing exactly
+    // this, and a second one would only merge against a file the first is
+    // about to replace.
+    if (!tryBeginSync()) {
+      return
+    }
     setSyncing(true)
     setStep('authorizing')
+    let syncedAt: number | null = null
     try {
       const result = await commands.syncGoogleDriveNow(setStep)
       if (result.status === 'error') {
@@ -125,7 +156,8 @@ export const GoogleDriveSection: FC = () => {
         return
       }
 
-      setLastSyncedAt(result.data.syncedAt)
+      syncedAt = result.data.syncedAt
+      setLastSyncedAt(syncedAt)
       toast(t('general:success-title'), {
         description:
           result.data.memoConflicts === 0
@@ -136,6 +168,7 @@ export const GoogleDriveSection: FC = () => {
               ),
       })
     } finally {
+      endSync(syncedAt)
       setSyncing(false)
       setStep(null)
     }
@@ -168,7 +201,7 @@ export const GoogleDriveSection: FC = () => {
           <Button
             variant="outline"
             className="gap-2"
-            disabled={busy || syncing}
+            disabled={busy || syncing || autoSyncing}
             onClick={disconnect}
           >
             <Unlink className="h-4 w-4" />
@@ -201,19 +234,24 @@ export const GoogleDriveSection: FC = () => {
                   new Date(lastSyncedAt).toLocaleString(),
                 )}
           </div>
+          {/* Said plainly because the alternative is someone pressing the
+              button every few minutes to be sure. */}
+          <div className="text-sm text-muted-foreground">
+            {t('settings-page:google-drive-auto-sync-note')}
+          </div>
           {/* Deliberately full width and tall: a VR controller aims a laser,
               and this is the button that also stands in for signing back in
               once the hour-long token runs out. */}
           <Button
             className="h-12 w-full gap-2 text-base"
-            disabled={busy || syncing}
+            disabled={busy || syncing || autoSyncing}
             onClick={syncNow}
           >
             <RefreshCw
-              className={`h-5 w-5 ${syncing ? 'animate-spin' : ''}`}
+              className={`h-5 w-5 ${syncing || autoSyncing ? 'animate-spin' : ''}`}
               aria-hidden
             />
-            {syncing
+            {syncing || autoSyncing
               ? t('settings-page:google-drive-syncing')
               : t('settings-page:google-drive-sync-now')}
           </Button>

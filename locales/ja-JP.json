@@ -573,6 +573,7 @@
   "settings-page:google-drive-syncing": "同期中...",
   "settings-page:google-drive-last-synced": "最終同期: {0}",
   "settings-page:google-drive-never-synced": "まだ同期していません",
+  "settings-page:google-drive-auto-sync-note": "接続中は自動で同期します。アプリを開いたとき、変更してしばらく経ったとき、他の端末が書き込んだときです。Google の許可は1時間ほどで切れるので、切れたあとは「今すぐ同期」を一度押してください。",
   "settings-page:google-drive-sync-success": "Google Drive と同期しました。",
   "settings-page:google-drive-sync-conflicts": "同期しました。{0} 件のメモが端末どうしで食い違ったため、片方を退避しました。",
   "settings-page:google-drive-reauth-needed": "Google の接続の期限が切れました。もう一度「今すぐ同期」を押してください。",

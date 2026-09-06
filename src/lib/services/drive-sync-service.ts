@@ -9,6 +9,7 @@ import {
 import {
   createFile,
   DriveApiError,
+  type DriveFile,
   findFile,
   findOrCreateFolder,
   fileVersion,
@@ -19,10 +20,19 @@ import {
   updateFile,
   writeFile,
 } from './google-drive'
+import { asRemoteWrite } from './local-changes'
 import { applySnapshot, parseBackupFile, readSnapshot } from './snapshot'
 import { deviceId } from './sync-meta'
 
 const LAST_SYNCED_AT_KEY = 'driveLastSyncedAt'
+
+/**
+ * The file this device last agreed with, and the `version` it was at when it
+ * did. Kept so the poll can ask "has anyone written since?" with one small
+ * request, rather than downloading a snapshot a minute to find out.
+ */
+const REMOTE_FILE_ID_KEY = 'driveRemoteFileId'
+const REMOTE_VERSION_KEY = 'driveRemoteVersion'
 
 /**
  * How many times to redo the merge when another device wrote to the file
@@ -92,6 +102,15 @@ export class DriveSyncService extends Context.Tag('DriveSyncService')<
       onProgress: SyncProgress,
     ) => Effect.Effect<SyncOutcome, Error>
     readonly lastSyncedAt: () => Effect.Effect<number | null, Error>
+    /**
+     * Whether the file on Drive has moved on since this device last wrote it.
+     *
+     * `false` when there is nothing to compare against -- a device that has
+     * never synced has nothing another one could have changed under it.
+     */
+    readonly remoteChanged: (
+      accessToken: string,
+    ) => Effect.Effect<boolean, Error>
   }
 >() {}
 
@@ -101,6 +120,22 @@ function serialize(snapshot: Snapshot): string {
 
 async function rememberSyncedAt(at: number): Promise<void> {
   await db.syncState.put({ key: LAST_SYNCED_AT_KEY, value: String(at) })
+}
+
+async function rememberRemote(file: DriveFile): Promise<void> {
+  await db.syncState.put({ key: REMOTE_FILE_ID_KEY, value: file.id })
+  await db.syncState.put({ key: REMOTE_VERSION_KEY, value: file.version })
+}
+
+async function lastKnownRemote(): Promise<DriveFile | null> {
+  const [id, version] = await Promise.all([
+    db.syncState.get(REMOTE_FILE_ID_KEY),
+    db.syncState.get(REMOTE_VERSION_KEY),
+  ])
+  if (id === undefined || version === undefined) {
+    return null
+  }
+  return { id: id.value, version: version.value }
 }
 
 /**
@@ -123,13 +158,14 @@ async function attemptSync(
   // merge against or to keep a previous generation of.
   if (remote === null) {
     onProgress('uploading')
-    await createFile(
+    const created = await createFile(
       token,
       folderId,
       SYNC_FILE_NAME,
       serialize(await readSnapshot()),
     )
     const syncedAt = Date.now()
+    await rememberRemote(created)
     await rememberSyncedAt(syncedAt)
     return { syncedAt, memoConflicts: 0 }
   }
@@ -154,12 +190,15 @@ async function attemptSync(
   await writeFile(token, folderId, SYNC_BACKUP_FILE_NAME, remoteText)
 
   onProgress('uploading')
-  await updateFile(token, remote.id, serialize(snapshot))
+  const written = await updateFile(token, remote.id, serialize(snapshot))
 
+  // Not a local change: without this, writing the merge back would look like
+  // an edit and schedule a push of what was just pulled, over and over.
   onProgress('applying')
-  await applySnapshot(snapshot)
+  await asRemoteWrite(() => applySnapshot(snapshot))
 
   const syncedAt = Date.now()
+  await rememberRemote(written)
   await rememberSyncedAt(syncedAt)
   return { syncedAt, memoConflicts: memoConflicts.length }
 }
@@ -199,6 +238,27 @@ export const DriveSyncServiceLive = Layer.succeed(DriveSyncService, {
         return e instanceof SyncRaceLostError
           ? e
           : new Error(`Failed to sync with Google Drive: ${e}`)
+      },
+    }),
+
+  remoteChanged: (accessToken) =>
+    Effect.tryPromise({
+      try: async () => {
+        const known = await lastKnownRemote()
+        if (known === null) {
+          return false
+        }
+        const current = await fileVersion(accessToken, known.id)
+        // Gone means someone deleted or replaced the file, which a sync has to
+        // find out about rather than keep polling a file that is not there.
+        return current !== known.version
+      },
+      catch: (e) => {
+        if (e instanceof DriveApiError && e.status === 401) {
+          forgetAccessToken()
+          return new GoogleAuthExpiredError('The Google access token expired')
+        }
+        return new Error(`Failed to check Google Drive for changes: ${e}`)
       },
     }),
 
