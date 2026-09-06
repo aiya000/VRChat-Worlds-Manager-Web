@@ -3,8 +3,7 @@ import type { Platform } from '@/lib/types'
 
 /**
  * The Play Store build of VRChat. `https://vrchat.com/.well-known/assetlinks.json`
- * names it as the app that handles `vrchat.com` links on Android, which is
- * what makes handing it a launch link worth trying.
+ * names it as an app that handles `vrchat.com` links on Android.
  */
 export const VRCHAT_ANDROID_PACKAGE = 'com.vrchat.mobile.playstore'
 
@@ -12,33 +11,28 @@ export function isAndroidBrowser(userAgent: string): boolean {
   return /\bAndroid\b/.test(userAgent)
 }
 
-/** The launch page on VRChat's own site: what its "share instance" produces. */
-export function webLaunchUrlFor(worldId: string, instanceId: string): string {
-  const params = new URLSearchParams({ worldId, instanceId })
-  return `https://vrchat.com/home/launch?${params.toString()}`
-}
-
 /**
- * An Android intent URL that names the app outright.
+ * An Android intent URL that names the app outright and carries the same
+ * `vrchat://launch` link the desktop client takes.
  *
  * Handing Chrome the plain `vrchat://` URL in a new tab is what used to
  * happen, and on a phone it left a blank tab: a custom scheme opened from a
  * tab that was itself just opened has no user gesture to launch anything
- * with. This form is navigated to in place instead, and says which package
- * to open and where to go when it is not installed -- the same page on the
- * web -- so there is no blank tab either way.
+ * with. This is navigated to in place instead.
+ *
+ * There is deliberately no fallback URL. `https://vrchat.com/home/launch` was
+ * tried as the link and as the fallback, and the app did not claim it -- its
+ * universal-link declaration covers `/home/device` alone -- so the fallback
+ * page opened, said the instance did not exist, and looked like the app had
+ * answered. With no fallback, an app that does not take this scheme does
+ * nothing visible, and the invite sent alongside is what gets the person in.
  */
 export function androidLaunchUrlFor(
   worldId: string,
   instanceId: string,
 ): string {
-  const web = new URL(webLaunchUrlFor(worldId, instanceId))
-  const fallback = encodeURIComponent(web.toString())
-  return (
-    `intent://${web.host}${web.pathname}${web.search}` +
-    `#Intent;scheme=https;package=${VRCHAT_ANDROID_PACKAGE};` +
-    `S.browser_fallback_url=${fallback};end`
-  )
+  const data = launchUrlFor(worldId, instanceId).replace(/^vrchat:\/\//, '')
+  return `intent://${data}#Intent;scheme=vrchat;package=${VRCHAT_ANDROID_PACKAGE};end`
 }
 
 export type LaunchTarget =
@@ -47,6 +41,18 @@ export type LaunchTarget =
   /** The Android app, by navigating this document to an intent URL. */
   | { kind: 'android-app'; url: string }
   /** Nothing to open: the world has no Android build to open it in. */
+  | { kind: 'not-on-android' }
+
+/**
+ * What happened when the button was pressed, for the screen to report.
+ *
+ * On Android the app is asked two ways -- the intent, and an invite to the
+ * person's own account, which the app shows as a notification whether or not
+ * it took the intent -- so the outcome says whether the invite went.
+ */
+export type LaunchOutcome =
+  | { kind: 'client' }
+  | { kind: 'android-app'; invited: boolean }
   | { kind: 'not-on-android' }
 
 /**
