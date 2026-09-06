@@ -11,12 +11,16 @@ import {
   instanceTypeLabelKey,
   regionLabel,
 } from '@/lib/sync/launched-instances'
+import type { Platform } from '@/lib/types'
 import { formatDateTime } from '@/lib/utils'
+import { openInClient } from './open-in-client'
 
 type Props = {
   worldId: string
   /** Bumped by the caller when an instance has just been made. */
   reloadKey?: number
+  /** What the world was built for, when known. A row here does not carry it. */
+  platforms?: Platform[] | null
 }
 
 /**
@@ -26,7 +30,11 @@ type Props = {
  * The launch URL is built from the ids alone and asks VRChat's API for nothing,
  * so a row here keeps working on its own.
  */
-export const LaunchedInstances: FC<Props> = ({ worldId, reloadKey = 0 }) => {
+export const LaunchedInstances: FC<Props> = ({
+  worldId,
+  reloadKey = 0,
+  platforms = null,
+}) => {
   const { t, language } = useLocalization()
   const [instances, setInstances] = useState<LaunchedInstanceRecord[]>([])
 
@@ -43,15 +51,8 @@ export const LaunchedInstances: FC<Props> = ({ worldId, reloadKey = 0 }) => {
     load()
   }, [worldId, reloadKey])
 
-  const open = async (instance: LaunchedInstanceRecord) => {
-    const result = await commands.openInstanceInClient(
-      instance.worldId,
-      instance.instanceId,
-    )
-    if (result.status === 'error') {
-      toast(t('general:error-title'), { description: result.error })
-    }
-  }
+  const open = (instance: LaunchedInstanceRecord) =>
+    openInClient(instance.worldId, instance.instanceId, platforms, t)
 
   const forget = async (instance: LaunchedInstanceRecord) => {
     const result = await commands.forgetLaunchedInstance(instance.id)

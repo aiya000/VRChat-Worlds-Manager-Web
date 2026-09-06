@@ -35,6 +35,7 @@ import { ExternalDataService } from '@/lib/services/external-data-service'
 import { ShareService } from '@/lib/services/share-service'
 import { TaskService } from '@/lib/services/task-service'
 import { VRChatApiService } from '@/lib/services/vrchat-api'
+import type { LaunchTarget } from '@/lib/launch-target'
 import type {
   Result,
   BackupMetaData,
@@ -47,6 +48,7 @@ import type {
   InstanceRegion,
   PatreonData,
   PatreonVRChatNames,
+  Platform,
   PreviousMetadata,
   TaskStatus,
   UserGroup,
@@ -824,14 +826,20 @@ export const commands = {
     )
   },
 
+  /**
+   * `platforms` is what the world was built for, when the caller knows; it
+   * decides whether an Android phone is handed the app or told there is no
+   * Android build to open.
+   */
   async openInstanceInClient(
     worldId: string,
     instanceId: string,
-  ): Promise<Result<string, string>> {
+    platforms: Platform[] | null,
+  ): Promise<Result<LaunchTarget, string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* VRChatApiService
-        return yield* svc.openInstanceInClient(worldId, instanceId)
+        return yield* svc.openInstanceInClient(worldId, instanceId, platforms)
       }),
     )
   },

@@ -118,3 +118,81 @@ test.describe('instances kept so a world can be entered again', () => {
     ])
   })
 })
+
+/** What `window.open` was handed: the URL, and which window it was for. */
+function watchWindowOpen(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<{ url: string; target: string | undefined }>((resolve) => {
+        window.open = (url, target) => {
+          resolve({ url: String(url), target })
+          return null
+        }
+      }),
+  )
+}
+
+test.describe('entering an instance from an Android phone', () => {
+  test.use({
+    userAgent:
+      'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36',
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+  })
+
+  test('hands the VRChat app an intent, in this tab, when the world runs there', async ({
+    page,
+  }) => {
+    await page.goto(LIST_VIEW)
+    await seedWorldWithInstances(page, {
+      platform: ['standalonewindows', 'android'],
+    })
+    await openTheWorld(page)
+
+    // A `vrchat://` URL in a fresh tab is what left a blank page on a real
+    // phone. An intent URL that names the app, navigated to from the tab that
+    // was pressed, is what Chrome will actually act on.
+    const opened = watchWindowOpen(page)
+    await savedInstances(page)
+      .locator('button', { hasText: jaJP['world-detail:friends'] })
+      .first()
+      .click()
+
+    const { url, target } = await opened
+    expect(target).toBe('_self')
+    expect(url).toMatch(/^intent:\/\/vrchat\.com\/home\/launch\?/)
+    expect(url).toContain(`worldId=${WORLD_ID}`)
+    expect(url).toContain('instanceId=22222')
+    expect(url).toContain('package=com.vrchat.mobile.playstore;')
+    expect(url).toContain('S.browser_fallback_url=')
+  })
+
+  test('says so, and opens nothing, when the world has no Android build', async ({
+    page,
+  }) => {
+    await page.goto(LIST_VIEW)
+    await seedWorldWithInstances(page, { platform: ['standalonewindows'] })
+    await openTheWorld(page)
+
+    let opened = false
+    await page.evaluate(() => {
+      window.open = () => {
+        ;(window as Window & { __opened?: boolean }).__opened = true
+        return null
+      }
+    })
+
+    await savedInstances(page)
+      .locator('button', { hasText: jaJP['world-detail:friends'] })
+      .first()
+      .click()
+
+    await expect(
+      page.getByText(jaJP['world-detail:not-on-android']),
+    ).toBeVisible()
+    opened = await page.evaluate(
+      () => (window as Window & { __opened?: boolean }).__opened === true,
+    )
+    expect(opened).toBe(false)
+  })
+})

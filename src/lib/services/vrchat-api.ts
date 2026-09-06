@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from 'effect'
-import { launchUrlFor } from '@/lib/sync/launched-instances'
+import { launchTargetFor, type LaunchTarget } from '@/lib/launch-target'
 import { db } from './db'
 import { parseVRChatWorld, toWorldDisplayData } from './vrchat-world'
 import type {
@@ -8,6 +8,7 @@ import type {
   InstanceInfo,
   UserGroup,
   GroupInstancePermissionInfo,
+  Platform,
 } from '@/lib/types'
 
 // `localStorage` override lets a developer point the app at a locally-run
@@ -260,7 +261,8 @@ export class VRChatApiService extends Context.Tag('VRChatApiService')<
     readonly openInstanceInClient: (
       worldId: string,
       instanceId: string,
-    ) => Effect.Effect<string, Error>
+      platforms: Platform[] | null,
+    ) => Effect.Effect<LaunchTarget, Error>
   }
 >() {}
 
@@ -543,12 +545,30 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
       catch: (e) => new Error(`Failed to create group instance: ${e}`),
     }),
 
-  openInstanceInClient: (worldId, instanceId) =>
+  openInstanceInClient: (worldId, instanceId, platforms) =>
     Effect.tryPromise({
       try: async () => {
-        const launchUrl = launchUrlFor(worldId, instanceId)
-        window.open(launchUrl, '_blank')
-        return launchUrl
+        const target = launchTargetFor({
+          worldId,
+          instanceId,
+          userAgent: navigator.userAgent,
+          platforms,
+        })
+        switch (target.kind) {
+          case 'client':
+            window.open(target.url, '_blank')
+            break
+          case 'android-app':
+            // In place, not a new tab: the intent has to be navigated to from
+            // the document that was pressed, or Chrome has no gesture to open
+            // an app with. `_self` rather than `location.assign` so a test can
+            // stand in for it the same way it does for the case above.
+            window.open(target.url, '_self')
+            break
+          case 'not-on-android':
+            break
+        }
+        return target
       },
       catch: (e) => new Error(`Failed to open instance: ${e}`),
     }),

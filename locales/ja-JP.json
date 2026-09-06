@@ -226,6 +226,7 @@
   "world-detail:saved-instances": "作ったインスタンス",
   "world-detail:saved-instances-description": "ここからもう一度入れます",
   "world-detail:forget-instance": "このインスタンスを忘れる",
+  "world-detail:not-on-android": "このワールドには Android 版がないため、この端末の VRChat では開けません。",
   "world-detail:author-removal-title": "あなたはこのワールドの作者ですか？",
   "world-detail:author-removal-description": "もしあなたがこのワールドの作成者で、当サービスからワールドデータの削除を希望される場合は、下記のフォームをご利用ください。",
   "world-detail:request-removal": "データ削除を申請する",
