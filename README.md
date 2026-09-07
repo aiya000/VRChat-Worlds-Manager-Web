@@ -18,6 +18,8 @@
   - Runs in any modern web browser on PC, smartphones, and VR overlays (XSOverlay, SteamVR browser, Quest browser, etc.).
   - Responsive layout with a collapsible sidebar and touch/laser-friendly controls.
   - Can be installed to your home screen or desktop as a Progressive Web App (PWA).
+  - Usable as a desktop application, just as the original VRC Worlds Manager v2 is.
+  - What you edit on the desktop -- adding favourites, sorting them into folders -- syncs to your phone and your other PCs. The same data everywhere, with no export or import step.
 
 - **Add & Preserve Favourite Worlds**
   - Automatically fetch worlds marked as Favourites in VRChat via the API and store them in the app.
@@ -39,14 +41,14 @@
   - Search public VRChat worlds using tags, text queries, and exclusion filters.
 
 - **Create Instances**
-  - Launch instances directly from the app (including group instances). An invite will be sent to your VRChat client.
+  - Launch instances directly from the app (including group instances). An invite arrives in your running VRChat client, as it does from the official VRChat website.
 
 - **Share Folders**
   - Share folders via public links (generating a UUID valid for 30 days).
   - Shared folders can be viewed directly on the web.
 
 - **Client-Side Privacy**
-  - World data and credentials are stored locally in your browser's IndexedDB (Dexie.js).
+  - World data and your login session are stored locally in your browser's IndexedDB (Dexie.js).
   - Secure Cloudflare Worker CORS proxy handles communication with the VRChat API.
 
 ---
@@ -112,4 +114,5 @@ Some components are licensed under [CC-BY-NC-4.0](https://creativecommons.org/li
 - Original application: [VRC Worlds Manager v2](https://github.com/Raifa21/VRC-Worlds-Manager-v2) by Raifa and siloneco
 - Special thanks to VRChat and the VRChat API Community for providing API documentation.
 - VRChat-like sidebar icons provided by 黒音キト, licensed under CC-BY-NC-4.0.
-- Application icon uses Ciel-chan, with thanks to ArmoireLepus for approval to use.
+- The former application icon used Ciel-chan, with ArmoireLepus's permission. It is no longer in use; the credit is kept here as a special thanks.
+- Thank you all.
