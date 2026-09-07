@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from 'effect'
-import { launchTargetFor, type LaunchTarget } from '@/lib/launch-target'
+import { launchTargetFor, type LaunchOutcome } from '@/lib/launch-target'
 import { instanceRequestBody, parseInstanceInfo } from '@/lib/vrchat-instances'
 import type { InstanceType } from '@/types/instances'
 import { db } from './db'
@@ -265,7 +265,7 @@ export class VRChatApiService extends Context.Tag('VRChatApiService')<
       worldId: string,
       instanceId: string,
       platforms: Platform[] | null,
-    ) => Effect.Effect<LaunchTarget, Error>
+    ) => Effect.Effect<LaunchOutcome, Error>
   }
 >() {}
 
@@ -580,18 +580,31 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
         switch (target.kind) {
           case 'client':
             window.open(target.url, '_blank')
-            break
-          case 'android-app':
+            return { kind: 'client' }
+          case 'android-app': {
             // In place, not a new tab: the intent has to be navigated to from
             // the document that was pressed, or Chrome has no gesture to open
             // an app with. `_self` rather than `location.assign` so a test can
             // stand in for it the same way it does for the case above.
             window.open(target.url, '_self')
-            break
+            // The same invite the website's "Invite Me" sends. The app shows
+            // it as a notification, which is a way in that does not depend on
+            // the intent above having been taken.
+            const invited = await apiFetch(
+              `/invite/myself/to/${worldId}:${instanceId}`,
+              { method: 'POST' },
+            ).then(
+              () => true,
+              (e) => {
+                console.error(`Failed to invite myself: ${e}`)
+                return false
+              },
+            )
+            return { kind: 'android-app', invited }
+          }
           case 'not-on-android':
-            break
+            return target
         }
-        return target
       },
       catch: (e) => new Error(`Failed to open instance: ${e}`),
     }),

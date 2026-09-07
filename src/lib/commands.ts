@@ -36,7 +36,7 @@ import { ExternalDataService } from '@/lib/services/external-data-service'
 import { ShareService } from '@/lib/services/share-service'
 import { TaskService } from '@/lib/services/task-service'
 import { VRChatApiService } from '@/lib/services/vrchat-api'
-import type { LaunchTarget } from '@/lib/launch-target'
+import type { LaunchOutcome } from '@/lib/launch-target'
 import type {
   Result,
   BackupMetaData,
@@ -832,7 +832,7 @@ export const commands = {
     worldId: string,
     instanceId: string,
     platforms: Platform[] | null,
-  ): Promise<Result<LaunchTarget, string>> {
+  ): Promise<Result<LaunchOutcome, string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* VRChatApiService
