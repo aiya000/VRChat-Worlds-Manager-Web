@@ -221,22 +221,6 @@ export class GoogleAuthService extends Context.Tag('GoogleAuthService')<
     readonly disconnect: () => Effect.Effect<void, Error>
     /** Must be reached from inside a click, for the same reason `connect` must. */
     readonly getAccessToken: () => Effect.Effect<string, Error>
-    /**
-     * The token already in hand, for a sync nobody pressed a button for.
-     *
-     * **This never asks Google for one.** The name says "if held" because an
-     * earlier version did ask, using `prompt: ''`, on the understanding that
-     * Google would answer from the grant already given without showing
-     * anything. On a real device it did not: it opened a full sign-in window,
-     * at startup and again on every sixty-second poll. An installed PWA opens
-     * that window in a separate context with no Google session of its own,
-     * which is the same root cause as #104.
-     *
-     * So the rule is now one line: **only a press may open Google's window.**
-     * Everything automatic runs on the token that press left behind, and stops
-     * quietly when there is none.
-     */
-    readonly getAccessTokenIfHeld: () => Effect.Effect<string, Error>
   }
 >() {}
 
@@ -279,15 +263,6 @@ export const GoogleAuthServiceLive = Layer.succeed(GoogleAuthService, {
           ? e
           : new Error(`Failed to obtain a Google access token: ${e}`),
     }),
-
-  getAccessTokenIfHeld: () =>
-    currentAccessToken === null
-      ? Effect.fail(
-          new GoogleAuthExpiredError(
-            'No Google access token is held; only a press can obtain one',
-          ),
-        )
-      : Effect.succeed(currentAccessToken),
 
   /**
    * Clears this device's own record of being connected. It does not reach

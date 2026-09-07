@@ -256,14 +256,21 @@ two signals for that, and both are deliberately import-free so anything may list
 creating a cycle. The preferences signal is fired from `writeSettingEntries()` rather than
 from a view refresh, so a backup restore and a manual sync both reach the listeners.
 
+A sync that pulled something has to call `refreshViews()` afterwards for the same reason --
+both sync buttons do -- or the folder list and the grid keep showing what they last read.
+
 ### Google Drive sync: the rules that are not visible in the code
 
 - **The access token lives in memory only.** `currentAccessToken` in
   `src/lib/services/google-auth-service.ts` is a module variable and is never persisted, so
   a reload loses it. Being asked to sign in again after a reload is the design, not a bug
-- **Automatic sync must never open Google's window.** `getAccessTokenIfHeld()` returns a
-  token only if one is already held and otherwise does nothing; only a user's press may take
-  the requesting path. A window opened without a press is a popup block waiting to happen
+- **Only a press syncs, and only a press may open Google's window.** There is no automatic
+  sync any more (#124): the app once synced on startup, after edits, on returning to the tab
+  and on a poll, but every one of those could only run on a token a press had already
+  obtained, so after a reload nothing synced until someone found the button in the settings.
+  Now the list view carries the button, a dot on it says a local change is waiting
+  (`unsynced-changes.ts`), and the first press shows what syncing is. A window opened
+  without a press is a popup block waiting to happen, so keep every sync behind a click
 - **`requestSettingsOverride()` must stay synchronous.** The Google token request runs
   immediately after it, and an `await` in between loses the user gesture, after which the
   browser refuses to open the window. Anything needing `await` belongs in `readSnapshot()`,

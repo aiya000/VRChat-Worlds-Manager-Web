@@ -36,22 +36,15 @@ async function connectAndSync(page: Page) {
 // to make it read again: on a phone, switching apps and back does it anyway.
 test.use({ viewport: { width: 1440, height: 900 } })
 
-test('a folder another device made appears without a reload', async ({
+test('a folder another device made appears after a press, without a reload', async ({
   page,
 }) => {
-  // The poll runs once a minute and nothing here shortens it, so the wait
-  // is well past the default a test gets.
-  test.setTimeout(150_000)
-
   await stubGoogleIdentityServices(page, { token: 'test-access-token' })
   const drive = await stubGoogleDrive(page)
 
   await page.goto(LIST_VIEW)
   await seedFolders(page, [LOCAL_FOLDER])
   await connectAndSync(page)
-  await expect(
-    page.locator(FOLDER_LIST).getByText(LOCAL_FOLDER, { exact: true }),
-  ).toBeVisible()
 
   // The other device: what this one uploaded, plus one folder.
   const uploaded = JSON.parse(drive.named(SYNC_FILE)!.content)
@@ -71,9 +64,27 @@ test('a folder another device made appears without a reload', async ({
   }
   drive.writeFrom(SYNC_FILE, JSON.stringify(uploaded))
 
+  // Back on the list, where the press happens. Nothing has read Drive since
+  // the other device wrote, and nothing will until the button is pressed.
+  await page.goto(LIST_VIEW)
+  await page.addStyleTag({
+    content: 'nextjs-portal { display: none !important; }',
+  })
   await expect(
-    page.getByText(jaJP['settings-page:google-drive-pulled-changes']),
-  ).toBeVisible({ timeout: 90_000 })
+    page.locator(FOLDER_LIST).getByText(LOCAL_FOLDER, { exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.locator(FOLDER_LIST).getByText(FOLDER_FROM_ELSEWHERE, { exact: true }),
+  ).toBeHidden()
+
+  await page.getByTestId('drive-sync-button').click()
+  // The very first press on this device explains itself before it syncs.
+  await page
+    .getByRole('button', { name: jaJP['sync-explanation:action-sync'] })
+    .click()
+  await expect(
+    page.getByText(jaJP['settings-page:google-drive-sync-success']),
+  ).toBeVisible()
 
   // The point of the test: on screen, not merely in the database.
   await expect(

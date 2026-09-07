@@ -153,9 +153,9 @@ test.describe('where the setup gets its data from', () => {
   })
 
   // Someone choosing Drive here is deciding whether to hand this app their
-  // Google account, and how the syncing afterwards behaves -- one press, then
-  // an hour that looks after itself -- is part of that decision. It has to be
-  // readable before connecting, not only after.
+  // Google account, and how the syncing afterwards behaves -- a sync each time
+  // a button is pressed, and nothing else -- is part of that decision. It has
+  // to be readable before connecting, not only after.
   test('says how the syncing will work before anything is connected', async ({
     page,
   }) => {
@@ -166,7 +166,7 @@ test.describe('where the setup gets its data from', () => {
     await choice(page, 'setup-page:restore-source-drive-title').click()
 
     await expect(
-      page.getByText(jaJP['settings-page:google-drive-auto-sync-note']),
+      page.getByText(jaJP['settings-page:google-drive-how-it-works']),
     ).toBeVisible()
     await expect(
       page.getByRole('button', {
