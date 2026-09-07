@@ -22,7 +22,11 @@ import {
   FolderData,
 } from '@/lib/commands'
 import { WorldDisplayData, type WorldFetchFailure } from '@/lib/commands'
-import { WorldDetails, WorldDetailFieldVisibility } from '@/lib/commands'
+import {
+  WorldDetails,
+  WorldCardFieldVisibility,
+  WorldDetailFieldVisibility,
+} from '@/lib/commands'
 import { WorldCardPreview } from '@/components/world-card'
 import { GroupInstanceCreator } from './group-instance-creator'
 import { GroupInstanceType, InstanceType } from '@/types/instances'
@@ -126,6 +130,16 @@ export function WorldDetailPopup({
     capacity: true,
     published: true,
     lastUpdated: true,
+  })
+  // The card fields matter here too: this screen draws a world card of its
+  // own when VRChat will not describe the world, and the author is a card
+  // field with no toggle of its own among the detail ones.
+  const [cardFields, setCardFields] = useState<WorldCardFieldVisibility>({
+    name: true,
+    authorName: true,
+    visits: true,
+    lastUpdated: true,
+    favorites: true,
   })
   const [selectedInstanceType, setSelectedInstanceType] =
     useState<InstanceType>('public')
@@ -300,6 +314,11 @@ export function WorldDetailPopup({
     commands.getWorldDetailFieldVisibility().then((result) => {
       if (result.status === 'ok') {
         setDetailFields(result.data)
+      }
+    })
+    commands.getWorldCardFieldVisibility().then((result) => {
+      if (result.status === 'ok') {
+        setCardFields(result.data)
       }
     })
   }, [open])
@@ -755,6 +774,7 @@ export function WorldDetailPopup({
                       <div className="flex justify-center items-center pl-8 w-full sm:w-1/3">
                         <WorldCardPreview
                           size="Normal"
+                          fieldVisibility={cardFields}
                           world={{
                             worldId: cachedWorldData.worldId,
                             name: cachedWorldData.name,
@@ -785,14 +805,18 @@ export function WorldDetailPopup({
                                 {cachedWorldData.name}
                               </div>
 
-                              <div className="text-gray-500">
-                                {t('general:author')}:
-                              </div>
-                              <div
-                                className={`truncate ${supporters.has(cachedWorldData.authorName) ? 'text-pink-500 dark:text-pink-400' : ''}`}
-                              >
-                                {cachedWorldData.authorName}
-                              </div>
+                              {cardFields.authorName && (
+                                <>
+                                  <div className="text-gray-500">
+                                    {t('general:author')}:
+                                  </div>
+                                  <div
+                                    className={`truncate ${supporters.has(cachedWorldData.authorName) ? 'text-pink-500 dark:text-pink-400' : ''}`}
+                                  >
+                                    {cachedWorldData.authorName}
+                                  </div>
+                                </>
+                              )}
 
                               <div className="text-gray-500">
                                 {t('general:date-added')}:
@@ -907,19 +931,21 @@ export function WorldDetailPopup({
                           status={worldDetails.releaseStatus}
                         />
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {t('world-detail:by')}{' '}
-                        <span
-                          className={`text-sm cursor-pointer hover:underline ${supporters.has(worldDetails.authorName) ? 'text-pink-500 dark:text-pink-400' : 'text-gray-500'}`}
-                          onClick={() => {
-                            // set author filter and close via hook
-                            // selectAuthor handles closing
-                            selectAuthor(worldDetails.authorName)
-                          }}
-                        >
-                          {worldDetails.authorName}
-                        </span>
-                      </div>
+                      {cardFields.authorName && (
+                        <div className="text-sm text-gray-500">
+                          {t('world-detail:by')}{' '}
+                          <span
+                            className={`text-sm cursor-pointer hover:underline ${supporters.has(worldDetails.authorName) ? 'text-pink-500 dark:text-pink-400' : 'text-gray-500'}`}
+                            onClick={() => {
+                              // set author filter and close via hook
+                              // selectAuthor handles closing
+                              selectAuthor(worldDetails.authorName)
+                            }}
+                          >
+                            {worldDetails.authorName}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="w-full sm:w-2/5">
                       <div className="space-y-3">
