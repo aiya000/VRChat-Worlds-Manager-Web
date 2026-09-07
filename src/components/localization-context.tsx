@@ -45,6 +45,14 @@ export const LocalizationContextProvider: FC<Props> = ({ children }) => {
     setLanguageCode(language)
   }
 
+  // `layout.tsx` ships `lang="en"` in the static HTML and cannot know the
+  // locale, which lives in the local database and is read after mount.
+  // `layout.tsx` ships `lang="en"` in the static HTML and cannot know the
+  // locale, which lives in the local database and is read after mount.
+  useEffect(() => {
+    document.documentElement.lang = languageCode.split('-')[0]
+  }, [languageCode])
+
   useEffect(() => {
     commands.getLanguage().then((result) => {
       if (result.status === 'ok') {

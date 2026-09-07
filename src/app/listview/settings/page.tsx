@@ -169,7 +169,10 @@ export default function SettingsPage() {
                 value={language || 'en-US'}
                 onValueChange={(value) => handleLanguageChange(value)}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger
+                  data-testid="language-select"
+                  className="w-[180px]"
+                >
                   <SelectValue placeholder="Language" />
                 </SelectTrigger>
                 <SelectContent>
