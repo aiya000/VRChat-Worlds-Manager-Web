@@ -240,6 +240,7 @@
   "add-world-dialog:preview": "World Preview",
   "add-world-dialog:author": "Author: ",
   "add-world-dialog:duplicate-warning": "This world already exists!",
+  "add-world-dialog:show-hidden-fields": "Show the fields you have hidden, on this screen only",
   "add-world-dialog:invalid-input": "Enter a VRChat world URL or a world ID (wrld_...).",
   "add-world-dialog:unavailable-title": "Could not fetch this world's information",
   "add-world-dialog:unavailable-description": "VRChat returns nothing for this world, as it does for a world that is not public. Give it a name and it can still be added.",

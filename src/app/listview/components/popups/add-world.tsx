@@ -11,7 +11,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { commands, WorldDetails } from '@/lib/commands'
+import {
+  commands,
+  WorldDetails,
+  type WorldCardFieldVisibility,
+  type WorldDetailFieldVisibility,
+} from '@/lib/commands'
 import {
   instanceTypeIn,
   parseWorldReference,
@@ -20,13 +25,35 @@ import {
 } from '@/lib/world-input'
 import { instanceTypeLabelKey } from '@/lib/sync/launched-instances'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { WorldDetailFields } from '@/components/world-detail-fields'
 import { WorldCardPreview } from '@/components/world-card'
 import { useLocalization } from '@/hooks/use-localization'
-import { formatDate } from '@/lib/utils'
 import { useWorlds } from '../../hook/use-worlds'
 import { FolderType, isUserFolder } from '@/types/folders'
 import { toast } from 'sonner'
+
+/**
+ * Everything on. What the checkbox switches to, and what stands in until the
+ * stored choice has been read -- a field that flickers away is worse than one
+ * that appears.
+ */
+const ALL_CARD_FIELDS: WorldCardFieldVisibility = {
+  name: true,
+  authorName: true,
+  visits: true,
+  lastUpdated: true,
+  favorites: true,
+}
+
+const ALL_DETAIL_FIELDS: WorldDetailFieldVisibility = {
+  visits: true,
+  favorites: true,
+  capacity: true,
+  published: true,
+  lastUpdated: true,
+}
 
 interface AddWorldPopupProps {
   currentFolder: FolderType
@@ -34,7 +61,7 @@ interface AddWorldPopupProps {
 }
 
 export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
-  const { t, language } = useLocalization()
+  const { t } = useLocalization()
   const [worldInput, setWorldInput] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -48,6 +75,19 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
   // What the last check resolved to, kept so the instance in it survives the
   // trip to the confirm button.
   const [reference, setReference] = useState<WorldReference | null>(null)
+  // What the reader chose to see on a card and in a world's details. The
+  // preview is a promise about those screens, so it has to keep the same one.
+  const [cardFields, setCardFields] =
+    useState<WorldCardFieldVisibility>(ALL_CARD_FIELDS)
+  const [detailFields, setDetailFields] =
+    useState<WorldDetailFieldVisibility>(ALL_DETAIL_FIELDS)
+  const [showHiddenFields, setShowHiddenFields] = useState<boolean>(false)
+
+  const shownCardFields = showHiddenFields ? ALL_CARD_FIELDS : cardFields
+  const shownDetailFields = showHiddenFields ? ALL_DETAIL_FIELDS : detailFields
+  const somethingIsHidden =
+    Object.values(cardFields).includes(false) ||
+    Object.values(detailFields).includes(false)
 
   const { addWorld, getAllWorlds, refresh } = useWorlds(currentFolder)
 
@@ -102,6 +142,19 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
     }
     fetchWorlds()
   }, [getAllWorlds])
+
+  useEffect(() => {
+    commands.getWorldCardFieldVisibility().then((result) => {
+      if (result.status === 'ok') {
+        setCardFields(result.data)
+      }
+    })
+    commands.getWorldDetailFieldVisibility().then((result) => {
+      if (result.status === 'ok') {
+        setDetailFields(result.data)
+      }
+    })
+  }, [])
 
   const handleCheckWorldId = async (input: string) => {
     setIsLoading(true)
@@ -294,6 +347,7 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
                 <div className="flex justify-between">
                   <WorldCardPreview
                     size="Normal"
+                    fieldVisibility={shownCardFields}
                     world={{
                       worldId: previewWorld.worldId,
                       name: previewWorld.name,
@@ -314,48 +368,46 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
                       <div className="text-sm font-semibold mb-2">
                         {t('world-detail:details')}
                       </div>
-                      <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-                        <div className="text-gray-500">
-                          {' '}
-                          {t('add-world-dialog:author')}{' '}
-                        </div>
-                        <div className="truncate w-[100px]">
-                          {previewWorld.authorName}
-                        </div>
-
-                        <div className="text-gray-500">
-                          {t('world-detail:visits')}
-                        </div>
-                        <div>{previewWorld.visits}</div>
-
-                        <div className="text-gray-500">
-                          {t('world-detail:capacity')}
-                        </div>
-                        <div>
-                          {previewWorld.recommendedCapacity
-                            ? `${previewWorld.recommendedCapacity} (${t('world-detail:max')} ${previewWorld.capacity})`
-                            : previewWorld.capacity}
-                        </div>
-
-                        {previewWorld.publicationDate && (
-                          <>
-                            <div className="text-gray-500">
-                              {t('world-detail:published')}
-                            </div>
-                            <div>
-                              {formatDate(
-                                previewWorld.publicationDate,
-                                language,
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      {/* The same component the world detail uses, so what is
+                          shown here is what will be shown there. */}
+                      <WorldDetailFields
+                        visibility={shownDetailFields}
+                        authorName={
+                          shownCardFields.authorName
+                            ? previewWorld.authorName
+                            : undefined
+                        }
+                        visits={previewWorld.visits}
+                        favorites={previewWorld.favorites}
+                        capacity={previewWorld.capacity}
+                        recommendedCapacity={previewWorld.recommendedCapacity}
+                        publicationDate={previewWorld.publicationDate}
+                        lastUpdated={previewWorld.lastUpdated}
+                      />
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {previewWorld && somethingIsHidden && (
+            <div className="col-span-4 flex items-center gap-2">
+              <Checkbox
+                id="show-hidden-fields"
+                data-testid="show-hidden-fields"
+                checked={showHiddenFields}
+                onCheckedChange={(checked) =>
+                  setShowHiddenFields(checked === true)
+                }
+              />
+              <Label
+                htmlFor="show-hidden-fields"
+                className="text-sm font-normal"
+              >
+                {t('add-world-dialog:show-hidden-fields')}
+              </Label>
+            </div>
           )}
 
           {/* Duplicate warning */}

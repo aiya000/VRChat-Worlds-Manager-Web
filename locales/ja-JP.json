@@ -240,6 +240,7 @@
   "add-world-dialog:preview": "ワールドプレビュー",
   "add-world-dialog:author": "作成者: ",
   "add-world-dialog:duplicate-warning": "このワールドはすでに存在します！",
+  "add-world-dialog:show-hidden-fields": "非表示にしている項目も、この画面だけ表示する",
   "add-world-dialog:invalid-input": "ワールドURLまたはワールドID（wrld_...）を入力してください。",
   "add-world-dialog:unavailable-title": "ワールド情報を取得できませんでした",
   "add-world-dialog:unavailable-description": "非公開のワールドなど、VRChat が情報を返さないワールドです。名前を付ければ、このまま追加できます。",
