@@ -12,6 +12,7 @@ import {
   GoogleAuthExpiredError,
   GoogleAuthService,
   GoogleAuthUnansweredError,
+  type DriveConnectResult,
 } from './services/google-auth-service'
 import {
   DriveSyncService,
@@ -961,13 +962,25 @@ export const commands = {
   },
 
   /** Must be called from inside a click handler -- see `GoogleAuthService`. */
-  async connectGoogleDrive(): Promise<Result<null, string>> {
+  async connectGoogleDrive(): Promise<Result<DriveConnectResult, string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* GoogleAuthService
         yield* svc.connect()
-        return null
-      }),
+        return { kind: 'connected' } as DriveConnectResult
+      }).pipe(
+        // A window that was closed, or that never opened at all, is not an
+        // error to report as one: it is the case the screen has advice for.
+        Effect.catchAll((e) => {
+          if (
+            e instanceof GoogleAuthDismissedError ||
+            e instanceof GoogleAuthUnansweredError
+          ) {
+            return Effect.succeed<DriveConnectResult>({ kind: 'no-window' })
+          }
+          return Effect.fail(e)
+        }),
+      ),
     )
   },
 

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
 import { notifyDriveConnectionChanged } from '@/lib/services/drive-connection-changed'
+import { VrProjectionNotice } from '@/components/vr-projection-notice'
 import { preloadGoogleIdentityScript } from '@/lib/services/google-auth-service'
 import { refreshViews } from '@/lib/services/refresh-views'
 import {
@@ -132,6 +133,14 @@ export const GoogleDriveSection: FC = () => {
       const result = await commands.connectGoogleDrive()
       if (result.status === 'error') {
         toast(t('general:error-title'), { description: result.error })
+        return
+      }
+      if (result.data.kind === 'no-window') {
+        // The one failure with advice attached: nothing opened, which is what
+        // happens where a window cannot open at all.
+        toast(t('settings-page:google-drive-no-window'), {
+          description: t('vr-setup:projection-recommended'),
+        })
         return
       }
       setConnected(true)
@@ -289,6 +298,12 @@ export const GoogleDriveSection: FC = () => {
           </Button>
         )}
       </div>
+
+      {/* Beside the connect button, and only while there is one: connecting is
+          the step that needs a window to open, and this says where to open the
+          app so that one can. This card is also the Drive step of the first-run
+          setup, so the same words appear there. */}
+      {connected !== true && <VrProjectionNotice />}
 
       {/* Outside the connected block on purpose. It describes what connecting
           gets you -- a sync each time a button is pressed, and nothing else --
