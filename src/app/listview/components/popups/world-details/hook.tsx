@@ -184,6 +184,27 @@ export function useWorldDetailsActions(
     }
   }
 
+  const hideWorld = async (worldId: string, worldName: string) => {
+    try {
+      const res = await commands.hideWorld(worldId)
+      if (res.status === 'error') {
+        toast(t('general:error-title'), {
+          description: t('listview-page:error-hide-world'),
+        })
+        return
+      }
+      toast(t('listview-page:worlds-hidden-title'), {
+        description: t('listview-page:worlds-hidden-single', worldName),
+      })
+      onOpenChange(false)
+    } catch (e) {
+      console.error(`Failed to hide world: ${e}`)
+      toast(t('general:error-title'), {
+        description: t('listview-page:error-hide-world'),
+      })
+    }
+  }
+
   const selectAuthor = (author: string) => {
     setAuthorFilter(author)
     onOpenChange(false)
@@ -200,6 +221,7 @@ export function useWorldDetailsActions(
     getGroups,
     getGroupPermissions,
     deleteWorld,
+    hideWorld,
     selectAuthor,
     selectTag,
   }

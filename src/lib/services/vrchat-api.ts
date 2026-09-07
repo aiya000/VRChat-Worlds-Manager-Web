@@ -145,6 +145,52 @@ export class VRChatApiError extends Error {
   }
 }
 
+/** Why a world could not be fetched, sorted by what the user can do about it. */
+export type WorldFetchFailureKind =
+  | 'not-found'
+  | 'not-public'
+  | 'network'
+  | 'other'
+
+export class WorldFetchError extends Error {
+  constructor(
+    readonly kind: WorldFetchFailureKind,
+    readonly status: number | null,
+    readonly detail: string,
+  ) {
+    super(`Failed to get world (${kind}): ${detail}`)
+  }
+}
+
+/**
+ * VRChat answers a deleted or mistyped world id with a 404, and a world that
+ * exists but is private with "World is not public". The second is told by its
+ * wording alone, because its status is not something to rely on. `fetch`
+ * itself throws a `TypeError` when no response ever came back.
+ */
+export function toWorldFetchError(e: unknown): WorldFetchError {
+  if (e instanceof WorldFetchError) {
+    return e
+  }
+  if (e instanceof VRChatApiError) {
+    if (e.status === 404) {
+      return new WorldFetchError('not-found', e.status, e.body)
+    }
+    if (/not public/i.test(e.body)) {
+      return new WorldFetchError('not-public', e.status, e.body)
+    }
+    return new WorldFetchError('other', e.status, e.body)
+  }
+  if (e instanceof TypeError) {
+    return new WorldFetchError('network', null, e.message)
+  }
+  return new WorldFetchError(
+    'other',
+    null,
+    e instanceof Error ? e.message : String(e),
+  )
+}
+
 export const INVALID_TWO_FACTOR_CODE_ERROR = 'invalid-2fa-code'
 
 class InvalidTwoFactorCodeError extends Error {}
@@ -229,7 +275,9 @@ export class VRChatApiService extends Context.Tag('VRChatApiService')<
       { id: string; displayName: string },
       Error
     >
-    readonly getWorld: (worldId: string) => Effect.Effect<WorldDetails, Error>
+    readonly getWorld: (
+      worldId: string,
+    ) => Effect.Effect<WorldDetails, WorldFetchError>
     readonly checkWorldInfo: (
       worldId: string,
     ) => Effect.Effect<WorldDetails, Error>
@@ -452,7 +500,7 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
         const res = await apiFetch(`/worlds/${worldId}`)
         return parseVRChatWorld(await res.json())
       },
-      catch: (e) => new Error(`Failed to get world: ${e}`),
+      catch: toWorldFetchError,
     }),
 
   checkWorldInfo: (worldId) =>
