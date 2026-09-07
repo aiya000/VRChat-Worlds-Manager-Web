@@ -15,6 +15,7 @@ import { useFolders } from '../hook/use-folders'
 import { useTheme } from 'next-themes'
 import { subscribeToPreferencesChanged } from '@/lib/services/preferences-changed'
 import { normalizeThemeValue } from '@/lib/theme'
+import { applyUiScale, DEFAULT_UI_SCALE, type UiScale } from '@/lib/ui-scale'
 import {
   readSettingSyncOverrides,
   setSettingSyncOverride,
@@ -27,6 +28,7 @@ import {
 
 export const useSettingsPage = () => {
   const [cardSize, setCardSize] = useState<CardSize>('Normal')
+  const [uiScale, setUiScale] = useState<UiScale>(DEFAULT_UI_SCALE)
   const [language, setLanguage] = useState<string>('en-US')
   const [folderRemovalPreference, setFolderRemovalPreference] =
     useState<FolderRemovalPreference | null>(null)
@@ -76,6 +78,7 @@ export const useSettingsPage = () => {
         const themeResult = await commands.getTheme()
         const languageResult = await commands.getLanguage()
         const cardSizeResult = await commands.getCardSize()
+        const uiScaleResult = await commands.getUiScale()
         const folderRemovalPreferenceResult =
           await commands.getFolderRemovalPreference()
         const fieldVisibilityResult =
@@ -90,6 +93,8 @@ export const useSettingsPage = () => {
           languageResult.status === 'ok' ? languageResult.data : 'en-US'
         const cardSize =
           cardSizeResult.status === 'ok' ? cardSizeResult.data : 'Normal'
+        const uiScale =
+          uiScaleResult.status === 'ok' ? uiScaleResult.data : DEFAULT_UI_SCALE
 
         const folderRemovalPreference =
           folderRemovalPreferenceResult.status === 'ok'
@@ -119,6 +124,7 @@ export const useSettingsPage = () => {
         setLanguage(language)
         changeLanguage(language)
         setCardSize(cardSize)
+        setUiScale(uiScale)
         setSyncOverrides(readSettingSyncOverrides())
         setFolderRemovalPreference(folderRemovalPreference)
         setFieldVisibility(fieldVisibility)
@@ -128,6 +134,7 @@ export const useSettingsPage = () => {
           themeResult.status === 'error' ||
           languageResult.status === 'error' ||
           cardSizeResult.status === 'error' ||
+          uiScaleResult.status === 'error' ||
           folderRemovalPreferenceResult.status === 'error' ||
           fieldVisibilityResult.status === 'error' ||
           detailFieldVisibilityResult.status === 'error'
@@ -139,6 +146,7 @@ export const useSettingsPage = () => {
               (themeResult.status === 'error' ? themeResult.error : '') +
               (languageResult.status === 'error' ? languageResult.error : '') +
               (cardSizeResult.status === 'error' ? cardSizeResult.error : '') +
+              (uiScaleResult.status === 'error' ? uiScaleResult.error : '') +
               (folderRemovalPreferenceResult.status === 'error'
                 ? folderRemovalPreferenceResult.error
                 : '') +
@@ -355,6 +363,22 @@ export const useSettingsPage = () => {
     }
   }
 
+  const handleUiScaleChange = async (value: UiScale) => {
+    const result = await commands.setUiScale(value)
+    if (result.status !== 'ok') {
+      console.error(`Failed to set UI scale: ${result.error}`)
+      toast(t('general:error-title'), {
+        description:
+          t('settings-page:error-save-preferences') + ': ' + result.error,
+      })
+      return
+    }
+    setUiScale(value)
+    // A write from the screen that shows a setting raises no signal, so the
+    // document is told here rather than through `UiScaleEffect`.
+    applyUiScale(value)
+  }
+
   const handleCardSizeChange = async (value: CardSize) => {
     try {
       console.info(`Setting card size to: ${value}`)
@@ -473,6 +497,7 @@ export const useSettingsPage = () => {
 
   return {
     cardSize,
+    uiScale,
     language,
     folderRemovalPreference,
     fieldVisibility,
@@ -493,6 +518,7 @@ export const useSettingsPage = () => {
     handleThemeChange,
     handleLanguageChange,
     handleCardSizeChange,
+    handleUiScaleChange,
     handleFieldVisibilityChange,
     handleDetailFieldVisibilityChange,
     handleFolderRemovalPreferenceChange,

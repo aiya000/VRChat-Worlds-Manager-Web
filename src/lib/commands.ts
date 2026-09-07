@@ -64,6 +64,7 @@ import type {
   WorldDisplayData,
   TaskStatusChanged,
 } from '@/lib/types'
+import type { UiScale } from '@/lib/ui-scale'
 
 function describeError(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
@@ -434,6 +435,24 @@ export const commands = {
       Effect.gen(function* () {
         const svc = yield* PreferencesService
         yield* svc.setLanguage(language)
+      }),
+    )
+  },
+
+  async getUiScale(): Promise<Result<UiScale, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        return yield* svc.getUiScale()
+      }),
+    )
+  },
+
+  async setUiScale(uiScale: UiScale): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        yield* svc.setUiScale(uiScale)
       }),
     )
   },
