@@ -21,7 +21,7 @@ import {
   commands,
   FolderData,
 } from '@/lib/commands'
-import { WorldDisplayData } from '@/lib/commands'
+import { WorldDisplayData, type WorldFetchFailure } from '@/lib/commands'
 import { WorldDetails, WorldDetailFieldVisibility } from '@/lib/commands'
 import { WorldCardPreview } from '@/components/world-card'
 import { GroupInstanceCreator } from './group-instance-creator'
@@ -38,6 +38,11 @@ import { useFolders } from '@/app/listview/hook/use-folders'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useWorldDetailsActions } from './hook'
 import { LaunchedInstances } from './launched-instances'
+import {
+  RawErrorDetails,
+  WorldFetchFailureNotice,
+  worldFetchFailureMessageKey,
+} from './fetch-failure'
 import { useWorlds } from '@/app/listview/hook/use-worlds'
 import { FolderType } from '@/types/folders'
 import { usePatreonContext } from '@/contexts/patreon-context'
@@ -97,6 +102,7 @@ export function WorldDetailPopup({
     getGroups,
     getGroupPermissions,
     deleteWorld,
+    hideWorld,
     selectAuthor,
     selectTag,
   } = useWorldDetailsActions(onOpenChange, () =>
@@ -110,7 +116,9 @@ export function WorldDetailPopup({
   // shows it without the popup having to be closed and opened again.
   const [instanceReloadKey, setInstanceReloadKey] = useState(0)
   const [worldDetails, setWorldDetails] = useState<WorldDetails | null>(null)
-  const [errorState, setErrorState] = useState<string | null>(null)
+  const [fetchFailure, setFetchFailure] = useState<WorldFetchFailure | null>(
+    null,
+  )
   const [detailFields, setDetailFields] = useState<WorldDetailFieldVisibility>({
     visits: true,
     favorites: true,
@@ -140,7 +148,10 @@ export function WorldDetailPopup({
 
   const [isComposing, setIsComposing] = useState(false)
 
-  const [isWorldNotPublic, setIsWorldNotPublic] = useState<boolean>(false)
+  // VRChat no longer serves the world (deleted, or made private), so what is
+  // saved on this device is all there is to show.
+  const [isWorldUnavailable, setIsWorldUnavailable] = useState<boolean>(false)
+  const [isWorldHidden, setIsWorldHidden] = useState<boolean>(false)
   const [isWorldBlacklisted, setIsWorldBlacklisted] = useState<boolean>(false)
   const [cachedWorldData, setCachedWorldData] =
     useState<WorldDisplayData | null>(null)
@@ -300,8 +311,10 @@ export function WorldDetailPopup({
 
       // Reset all state when opening the dialog with a new world
       setIsLoading(true)
-      setErrorState(null)
-      setIsWorldNotPublic(false)
+      setFetchFailure(null)
+      setIsWorldUnavailable(false)
+      setIsWorldHidden(false)
+      setCachedWorldData(null)
       setIsWorldBlacklisted(false) // Reset blacklisted status
       setCountdownSeconds(5) // Reset to initial countdown value
       setIsCountdownActive(false) // Reset countdown activation
@@ -323,8 +336,12 @@ export function WorldDetailPopup({
             ),
           )
         } else {
-          if (result.error.includes('World is not public')) {
-            setIsWorldNotPublic(true)
+          setFetchFailure(result.error)
+          if (
+            result.error.kind === 'not-found' ||
+            result.error.kind === 'not-public'
+          ) {
+            setIsWorldUnavailable(true)
 
             // Get cached world data
             try {
@@ -338,6 +355,9 @@ export function WorldDetailPopup({
 
               if (hiddenWorldsResult.status === 'ok') {
                 worldsList = [...worldsList, ...hiddenWorldsResult.data]
+                setIsWorldHidden(
+                  hiddenWorldsResult.data.some((w) => w.worldId === worldId),
+                )
               }
 
               const cachedWorld = worldsList.find((w) => w.worldId === worldId)
@@ -368,11 +388,10 @@ export function WorldDetailPopup({
               console.error(`Failed to fetch blacklist: ${blacklistError}`)
             }
           }
-          setErrorState(result.error)
         }
       } catch (e) {
         console.error(`Failed to fetch world details: ${e}`)
-        setErrorState(e as string)
+        setFetchFailure({ kind: 'other', status: null, message: String(e) })
       } finally {
         setIsLoading(false)
       }
@@ -478,7 +497,9 @@ export function WorldDetailPopup({
       setInstanceTypePreference(selectedInstanceType)
     } catch (e) {
       console.error(`Failed to create instance: ${e}`)
-      setErrorState(`Failed to create instance: ${e}`)
+      toast(t('general:error-title'), {
+        description: t('listview-page:error-create-instance'),
+      })
     }
   }
 
@@ -558,8 +579,14 @@ export function WorldDetailPopup({
     onOpenChange(false) // Close dialog after creating instance
   }
 
-  const handleDeleteWorld = (worldId: string) => {
-    deleteWorld(worldId)
+  const handleDeleteWorld = async (worldId: string) => {
+    await deleteWorld(worldId)
+    refresh()
+  }
+
+  const handleHideWorld = async (world: WorldDisplayData) => {
+    await hideWorld(world.worldId, world.name)
+    refresh()
   }
 
   // Add this effect to handle the countdown and auto-close
@@ -687,15 +714,13 @@ export function WorldDetailPopup({
           />
         ) : (
           <>
-            {errorState && (
-              <div className="text-red-500 text-sm">{errorState}</div>
-            )}
-
             {isLoading ? (
               <div className="flex items-center justify-center p-4">
                 <span>{t('world-detail:loading-details')}</span>
               </div>
-            ) : isWorldNotPublic && cachedWorldData ? (
+            ) : isWorldUnavailable &&
+              cachedWorldData &&
+              fetchFailure !== null ? (
               // Combined display for both blacklisted and not public worlds
               <div className="flex flex-col gap-4">
                 <Card className="w-full">
@@ -710,7 +735,7 @@ export function WorldDetailPopup({
                       <AlertDescription>
                         {isWorldBlacklisted
                           ? t('world-detail:world-blacklisted')
-                          : t('world-detail:world-not-public')}
+                          : t(worldFetchFailureMessageKey(fetchFailure.kind))}
                         {isWorldBlacklisted && (
                           <div className="font-bold mt-1">
                             {t('world-detail:closing-in', countdownSeconds)}
@@ -718,6 +743,11 @@ export function WorldDetailPopup({
                         )}
                       </AlertDescription>
                     </Alert>
+                    {!isWorldBlacklisted && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {t('world-detail:unavailable-next-steps')}
+                      </p>
+                    )}
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-col sm:flex-row gap-6 justify-between">
@@ -803,6 +833,15 @@ export function WorldDetailPopup({
                                 </a>
                               </Button>
                             )}
+                            {!isWorldBlacklisted && !isWorldHidden && (
+                              <Button
+                                variant="outline"
+                                className="flex items-center gap-1"
+                                onClick={() => handleHideWorld(cachedWorldData)}
+                              >
+                                {t('general:hide-title')}
+                              </Button>
+                            )}
                             <Button
                               variant="destructive"
                               className="flex items-center gap-1 ml-auto"
@@ -850,9 +889,14 @@ export function WorldDetailPopup({
                         </div>
                       </div>
                     )}
+                    <div className="mt-4">
+                      <RawErrorDetails failure={fetchFailure} />
+                    </div>
                   </CardContent>
                 </Card>
               </div>
+            ) : fetchFailure !== null ? (
+              <WorldFetchFailureNotice failure={fetchFailure} />
             ) : (
               worldDetails && (
                 <div className="flex flex-col gap-4">
