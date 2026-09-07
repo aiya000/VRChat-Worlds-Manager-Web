@@ -687,6 +687,19 @@ editing this repository at the same moment.
   has deleted the head branch. Run from a worktree, that worktree is left holding `develop`,
   which then stops every other worktree from checking `develop` out
 
+### `git pull` must not make a merge commit
+
+The history here is the record of which Issue a change came from, and a merge commit made by
+a `git pull` says nothing at all -- it only records that two copies of the same branch drifted
+apart for a moment.
+
+- **`pull.rebase` is set to `true` in this repository's config**, so a plain `git pull` rebases.
+  That config lives in `.git/config`, which is not tracked, so a fresh clone does not have it:
+  set it there too, with `git config pull.rebase true`
+- Where the intent is "take what is on the remote and go no further", `git fetch` followed by
+  `git merge --ff-only origin/<branch>` says exactly that, and stops loudly instead of merging
+  when the branches have diverged
+
 ## Say When the Session Has Grown Too Long
 
 Work here runs long: a schema migration, a design thread on an Issue, and several PRs in
