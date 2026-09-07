@@ -66,6 +66,13 @@ export const worldDetailsSchema = Schema.Struct({
   capacity: Schema.Number,
   recommendedCapacity: Schema.NullOr(Schema.Number),
   publicationDate: Schema.NullOr(Schema.String),
+  releaseStatus: Schema.Literal(
+    'public',
+    'private',
+    'hidden',
+    'all',
+    'unknown',
+  ),
 })
 
 export const backupDataSchema = Schema.Struct({

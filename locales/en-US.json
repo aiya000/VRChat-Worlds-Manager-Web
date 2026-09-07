@@ -220,6 +220,7 @@
   "world-detail:custom-tag-placeholder": "Add custom tag",
   "world-detail:custom-tags-save-error": "Failed to save custom tags. Please try again.",
   "world-detail:world-not-public": "This world is private. Instances cannot be created.",
+  "world-detail:private-world": "Private",
   "world-detail:world-not-found": "This world was deleted or could not be found. Instances cannot be created.",
   "world-detail:world-fetch-network": "Could not reach VRChat. Check your connection and open the world again.",
   "world-detail:world-fetch-failed": "Could not load this world. Please try again later.",

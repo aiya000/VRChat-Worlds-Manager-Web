@@ -304,7 +304,12 @@ export const WorldServiceLive = Layer.succeed(WorldService, {
       try: async () => {
         const detail = await db.worldDetails.get(worldId)
         if (detail) {
-          return detail as WorldDetails
+          // A row stored before the release status was kept has none, and an
+          // absent status is not the same as a public world.
+          return {
+            ...detail,
+            releaseStatus: detail.releaseStatus ?? 'unknown',
+          } as WorldDetails
         }
         throw new Error(`World ${worldId} not found locally`)
       },
@@ -350,6 +355,7 @@ export const WorldServiceLive = Layer.succeed(WorldService, {
           capacity: world.capacity,
           recommendedCapacity: world.recommendedCapacity,
           publicationDate: world.publicationDate,
+          releaseStatus: world.releaseStatus,
         })
       },
       catch: (e) => new Error(`Failed to put world details: ${e}`),

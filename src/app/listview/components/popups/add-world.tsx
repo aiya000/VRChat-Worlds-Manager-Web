@@ -28,6 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { WorldDetailFields } from '@/components/world-detail-fields'
+import { WorldReleaseStatusBadge } from '@/components/world-release-status-badge'
 import { WorldCardPreview } from '@/components/world-card'
 import { useLocalization } from '@/hooks/use-localization'
 import { useWorlds } from '../../hook/use-worlds'
@@ -365,8 +366,13 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
                   />
                   <div className="flex flex-col gap-4">
                     <div>
-                      <div className="text-sm font-semibold mb-2">
-                        {t('world-detail:details')}
+                      <div className="mb-2 flex items-center gap-2">
+                        <div className="text-sm font-semibold">
+                          {t('world-detail:details')}
+                        </div>
+                        <WorldReleaseStatusBadge
+                          status={previewWorld.releaseStatus}
+                        />
                       </div>
                       {/* The same component the world detail uses, so what is
                           shown here is what will be shown there. */}

@@ -38,6 +38,7 @@ import { useFolders } from '@/app/listview/hook/use-folders'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useWorldDetailsActions } from './hook'
 import { LaunchedInstances } from './launched-instances'
+import { WorldReleaseStatusBadge } from '@/components/world-release-status-badge'
 import {
   RawErrorDetails,
   WorldFetchFailureNotice,
@@ -898,8 +899,13 @@ export function WorldDetailPopup({
                           />
                         </a>
                       </div>
-                      <div className="text-md font-semibold cursor-default">
-                        {worldDetails.name}
+                      <div className="flex items-center gap-2">
+                        <div className="text-md font-semibold cursor-default">
+                          {worldDetails.name}
+                        </div>
+                        <WorldReleaseStatusBadge
+                          status={worldDetails.releaseStatus}
+                        />
                       </div>
                       <div className="text-sm text-gray-500">
                         {t('world-detail:by')}{' '}

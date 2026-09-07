@@ -220,6 +220,7 @@
   "world-detail:custom-tag-placeholder": "カスタムタグを追加",
   "world-detail:custom-tags-save-error": "カスタムタグの保存に失敗しました。もう一度お試しください。",
   "world-detail:world-not-public": "このワールドは非公開になっています。インスタンスを作成できません。",
+  "world-detail:private-world": "プライベート",
   "world-detail:world-not-found": "このワールドは削除されたか、見つかりませんでした。インスタンスを作成できません。",
   "world-detail:world-fetch-network": "VRChat に接続できませんでした。通信状況を確認して、もう一度開いてください。",
   "world-detail:world-fetch-failed": "ワールドの情報を取得できませんでした。しばらくしてからもう一度お試しください。",
