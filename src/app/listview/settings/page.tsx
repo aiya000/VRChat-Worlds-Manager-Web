@@ -13,6 +13,7 @@ import {
 import { DeviceOnlySettingToggle } from '@/components/device-only-setting-toggle'
 import { GoogleDriveSection } from './components/google-drive-section'
 import { MemoConflictsSection } from './components/memo-conflicts-section'
+import { PushSettingsSection } from './components/push-settings-section'
 import { WorldCardPreview } from '@/components/world-card'
 import { WorldCardFieldToggles } from '@/components/world-card-field-toggles'
 import { WorldDetailFieldToggles } from '@/components/world-detail-field-toggles'
@@ -291,6 +292,12 @@ export default function SettingsPage() {
           {/* Renders nothing when there is nothing set aside, which is almost
               always. */}
           <MemoConflictsSection />
+          {/* Set apart from the cards above with extra room: this is the one
+              action here that overrules other devices, and it should not read
+              as an everyday neighbour of "sync now" (#119). */}
+          <div className="pt-6">
+            <PushSettingsSection />
+          </div>
         </TabsContent>
 
         <TabsContent value="data-management" className="space-y-4">
