@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DeviceOnlySettingToggle } from '@/components/device-only-setting-toggle'
+import { normalizeUiScale, UI_SCALES, VR_UI_SCALE } from '@/lib/ui-scale'
 import { GoogleDriveSection } from './components/google-drive-section'
 import { MemoConflictsSection } from './components/memo-conflicts-section'
 import { PushSettingsSection } from './components/push-settings-section'
@@ -77,6 +78,8 @@ export default function SettingsPage() {
     handleThemeChange,
     handleLanguageChange,
     handleCardSizeChange,
+    uiScale,
+    handleUiScaleChange,
     handleFieldVisibilityChange,
     handleDetailFieldVisibilityChange,
     handleFolderRemovalPreferenceChange,
@@ -248,6 +251,57 @@ export default function SettingsPage() {
               checked={isDeviceOnly('cardSize')}
               onCheckedChange={(deviceOnly) =>
                 handleDeviceOnlyChange('cardSize', deviceOnly)
+              }
+            />
+          </Card>
+
+          <Card className="flex flex-col gap-3 p-4 rounded-lg border">
+            <div className="flex w-full flex-row items-center justify-between gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label className="text-base font-medium">
+                  {t('settings-page:ui-scale')}
+                </Label>
+                <div className="text-sm text-muted-foreground">
+                  {t('settings-page:ui-scale-description')}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  data-testid="ui-scale-vr-preset"
+                  onClick={() => handleUiScaleChange(VR_UI_SCALE)}
+                >
+                  {t('settings-page:ui-scale-vr-preset')}
+                </Button>
+                <Select
+                  value={String(uiScale)}
+                  onValueChange={(value) =>
+                    handleUiScaleChange(normalizeUiScale(value))
+                  }
+                >
+                  <SelectTrigger
+                    data-testid="ui-scale-select"
+                    className="w-[110px]"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UI_SCALES.map((scale) => (
+                      <SelectItem key={scale} value={String(scale)}>
+                        {`${scale}%`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DeviceOnlySettingToggle
+              settingKey="uiScale"
+              label={t('settings-page:device-only-label')}
+              description={t('settings-page:device-only-description')}
+              checked={isDeviceOnly('uiScale')}
+              onCheckedChange={(deviceOnly) =>
+                handleDeviceOnlyChange('uiScale', deviceOnly)
               }
             />
           </Card>

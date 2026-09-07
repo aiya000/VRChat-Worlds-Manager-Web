@@ -1,5 +1,10 @@
 import { Context, Effect, Layer } from 'effect'
 import { markSettingUpdated } from './setting-sync'
+import {
+  DEFAULT_UI_SCALE,
+  normalizeUiScale,
+  type UiScale,
+} from '@/lib/ui-scale'
 import type {
   CardSize,
   FilterItemSelectorStarredType,
@@ -35,6 +40,8 @@ export class PreferencesService extends Context.Tag('PreferencesService')<
     readonly setLanguage: (language: string) => Effect.Effect<void>
     readonly getCardSize: () => Effect.Effect<CardSize>
     readonly setCardSize: (cardSize: CardSize) => Effect.Effect<void>
+    readonly getUiScale: () => Effect.Effect<UiScale>
+    readonly setUiScale: (uiScale: UiScale) => Effect.Effect<void>
     readonly getRegion: () => Effect.Effect<InstanceRegion>
     readonly setRegion: (region: InstanceRegion) => Effect.Effect<void>
     readonly getInstanceType: () => Effect.Effect<InstanceType>
@@ -101,6 +108,11 @@ export const PreferencesServiceLive = Layer.succeed(PreferencesService, {
   setLanguage: (language) => Effect.sync(() => setItem('language', language)),
   getCardSize: () => Effect.succeed(getItem<CardSize>('cardSize', 'Normal')),
   setCardSize: (cardSize) => Effect.sync(() => setItem('cardSize', cardSize)),
+  getUiScale: () =>
+    Effect.succeed(
+      normalizeUiScale(getItem<unknown>('uiScale', DEFAULT_UI_SCALE)),
+    ),
+  setUiScale: (uiScale) => Effect.sync(() => setItem('uiScale', uiScale)),
   getRegion: () => Effect.succeed(getItem<InstanceRegion>('region', 'us')),
   setRegion: (region) => Effect.sync(() => setItem('region', region)),
   getInstanceType: () =>

@@ -1,6 +1,15 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const PRODUCTION = 'https://vrchat-worlds-manager-web.pages.dev'
+
+/**
+ * The dev server streams the head and React renders it again, so a tag can
+ * momentarily exist twice; the static export this ships as has exactly one.
+ * The claim under test is what the page declares, not how many times.
+ */
+function meta(page: Page, selector: string) {
+  return page.locator(selector).first()
+}
 
 function metaContent(property: string) {
   return `meta[property="${property}"]`
@@ -21,23 +30,23 @@ test.describe('the card this app shows when its link is shared', () => {
     await page.goto('/')
 
     await expect(page).toHaveTitle(/VRChat のお気に入りワールドを整理する/)
-    await expect(page.locator(namedMetaContent('description'))).toHaveAttribute(
+    await expect(meta(page, namedMetaContent('description'))).toHaveAttribute(
       'content',
       /VRChat のお気に入りワールド/,
     )
-    await expect(page.locator(metaContent('og:title'))).toHaveAttribute(
+    await expect(meta(page, metaContent('og:title'))).toHaveAttribute(
       'content',
       /VRChat のお気に入りワールドを整理する/,
     )
-    await expect(page.locator(metaContent('og:description'))).toHaveAttribute(
+    await expect(meta(page, metaContent('og:description'))).toHaveAttribute(
       'content',
       /VRChat のお気に入りワールド/,
     )
-    await expect(page.locator(metaContent('og:locale'))).toHaveAttribute(
+    await expect(meta(page, metaContent('og:locale'))).toHaveAttribute(
       'content',
       'ja_JP',
     )
-    await expect(page.locator(metaContent('og:site_name'))).toHaveAttribute(
+    await expect(meta(page, metaContent('og:site_name'))).toHaveAttribute(
       'content',
       'VRChat Worlds Manager Web',
     )
@@ -50,24 +59,26 @@ test.describe('the card this app shows when its link is shared', () => {
 
     // A crawler has no page to resolve a relative path against, so the URL has
     // to be absolute even though the app is served as static files.
-    await expect(page.locator(metaContent('og:image'))).toHaveAttribute(
+    await expect(meta(page, metaContent('og:image'))).toHaveAttribute(
       'content',
       `${PRODUCTION}/og-image.png`,
     )
-    await expect(page.locator(metaContent('og:image:width'))).toHaveAttribute(
+    await expect(meta(page, metaContent('og:image:width'))).toHaveAttribute(
       'content',
       '1200',
     )
-    await expect(page.locator(metaContent('og:image:height'))).toHaveAttribute(
+    await expect(meta(page, metaContent('og:image:height'))).toHaveAttribute(
       'content',
       '630',
     )
-    await expect(
-      page.locator(namedMetaContent('twitter:card')),
-    ).toHaveAttribute('content', 'summary_large_image')
-    await expect(
-      page.locator(namedMetaContent('twitter:image')),
-    ).toHaveAttribute('content', `${PRODUCTION}/og-image.png`)
+    await expect(meta(page, namedMetaContent('twitter:card'))).toHaveAttribute(
+      'content',
+      'summary_large_image',
+    )
+    await expect(meta(page, namedMetaContent('twitter:image'))).toHaveAttribute(
+      'content',
+      `${PRODUCTION}/og-image.png`,
+    )
   })
 
   test('serves the image it advertises, at the size it claims', async ({
