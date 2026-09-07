@@ -12,7 +12,10 @@ export const WorldGridSkeleton: React.FC<WorldGridSkeletonProps> = ({
   const items = useMemo(() => Array.from({ length: count }), [count])
 
   return (
-    <div className="pt-2 flex-1 overflow-auto relative">
+    <div
+      data-testid="world-grid-skeleton"
+      className="pt-2 flex-1 overflow-auto relative"
+    >
       <div className="mx-auto" style={{ maxWidth: '1200px' }}>
         <div
           className="grid justify-evenly gap-x-4"
