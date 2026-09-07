@@ -37,13 +37,15 @@ export const UiScaleStepper: FC<{
 
   return (
     <div
-      className="flex shrink-0 items-center gap-1 rounded-md border p-1"
+      // `h-9`, the default button height: a taller control sits visibly
+      // lower than the buttons it shares the row with.
+      className="flex h-9 shrink-0 items-center gap-1 rounded-md border px-1"
       data-testid={testIdPrefix}
     >
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
+        className="h-7 w-7"
         disabled={index <= 0}
         onClick={() => step(-1)}
         aria-label={t('general:ui-scale-smaller')}
@@ -57,7 +59,7 @@ export const UiScaleStepper: FC<{
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
+        className="h-7 w-7"
         disabled={index >= UI_SCALES.length - 1}
         onClick={() => step(1)}
         aria-label={t('general:ui-scale-larger')}
