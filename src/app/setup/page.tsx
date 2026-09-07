@@ -41,7 +41,7 @@ import {
   RestoreSourceChoice,
   type RestoreSource,
 } from '@/app/setup/components/restore-source-choice'
-import { ArrowLeft, FolderOpen, Info } from 'lucide-react'
+import { ArrowLeft, ExternalLink, FolderOpen, Info } from 'lucide-react'
 import { MigrationConfirmationPopup } from '@/app/listview/settings/components/popups/migration-confirmation-popup'
 import { SiGithub } from '@icons-pack/react-simple-icons'
 
@@ -556,6 +556,17 @@ const WelcomePage: React.FC = () => {
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground text-center">
                       {t('setup-page:migration-description')}
+                    </p>
+                    <p className="text-center">
+                      <a
+                        href="/migration-guide/v2"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm underline underline-offset-2"
+                      >
+                        {t('migration-guide:link-label')}
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
                     </p>
                   </div>
 
