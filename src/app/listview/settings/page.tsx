@@ -20,7 +20,15 @@ import { WorldDetailFieldToggles } from '@/components/world-detail-field-toggles
 import { WorldDetailPreview } from '@/components/world-detail-preview'
 
 import { FolderRemovalPreference } from '@/lib/commands'
-import { LogOut, Trash2, Upload, FolderOpen, Save, Users } from 'lucide-react'
+import {
+  LogOut,
+  Trash2,
+  Upload,
+  FolderOpen,
+  Save,
+  Users,
+  ExternalLink,
+} from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { Card } from '../../../components/ui/card'
@@ -389,6 +397,15 @@ export default function SettingsPage() {
               <div className="text-sm text-muted-foreground">
                 {t('settings-page:data-migration-description')}
               </div>
+              <a
+                href="/migration-guide/v2"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm underline underline-offset-2"
+              >
+                {t('migration-guide:link-label')}
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
             </div>
             <Button
               variant="outline"
