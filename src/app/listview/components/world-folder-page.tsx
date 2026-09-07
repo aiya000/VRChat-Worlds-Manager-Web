@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DriveSyncButton } from './drive-sync-button'
 import { SearchBar } from './searchbar'
+import { UiScaleControl } from './ui-scale-control'
 import { WorldGrid } from './world-grid'
 import { WorldGridSkeleton } from './world-grid/skeleton'
 import { useWorldFolderPage } from '../hook/use-world-folder-page'
@@ -93,6 +94,10 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
                 reachable from where the worlds are rather than from the
                 settings screen. */}
             <DriveSyncButton />
+            {/* Last in the row, and on every folder page: the scale is what
+                the reader reaches for when the interface has grown too large
+                to navigate, so it may not live behind navigation. */}
+            <UiScaleControl />
           </div>
         </div>
         <div>

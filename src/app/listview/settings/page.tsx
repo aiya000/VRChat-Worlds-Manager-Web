@@ -11,7 +11,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DeviceOnlySettingToggle } from '@/components/device-only-setting-toggle'
-import { normalizeUiScale, UI_SCALES, VR_UI_SCALE } from '@/lib/ui-scale'
+import { UiScaleStepper } from '@/components/ui-scale-stepper'
+import { VR_UI_SCALE } from '@/lib/ui-scale'
 import { GoogleDriveSection } from './components/google-drive-section'
 import { MemoConflictsSection } from './components/memo-conflicts-section'
 import { PushSettingsSection } from './components/push-settings-section'
@@ -273,26 +274,11 @@ export default function SettingsPage() {
                 >
                   {t('settings-page:ui-scale-vr-preset')}
                 </Button>
-                <Select
-                  value={String(uiScale)}
-                  onValueChange={(value) =>
-                    handleUiScaleChange(normalizeUiScale(value))
-                  }
-                >
-                  <SelectTrigger
-                    data-testid="ui-scale-select"
-                    className="w-[110px]"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {UI_SCALES.map((scale) => (
-                      <SelectItem key={scale} value={String(scale)}>
-                        {`${scale}%`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <UiScaleStepper
+                  value={uiScale}
+                  onChange={handleUiScaleChange}
+                  testIdPrefix="ui-scale-stepper"
+                />
               </div>
             </div>
             <DeviceOnlySettingToggle
