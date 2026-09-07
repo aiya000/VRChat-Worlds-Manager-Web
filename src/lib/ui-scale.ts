@@ -13,6 +13,12 @@ export type UiScale = (typeof UI_SCALES)[number]
 
 export const DEFAULT_UI_SCALE: UiScale = 100
 
+/**
+ * The same scale as a plain multiplier, for CSS that has to reason about it.
+ * `zoom` alone cannot be read back from a stylesheet.
+ */
+export const UI_SCALE_PROPERTY = '--ui-scale'
+
 /** What "make this readable in a headset" means, for the one-press preset. */
 export const VR_UI_SCALE: UiScale = 150
 
@@ -33,4 +39,10 @@ export function applyUiScale(scale: UiScale): void {
   }
   document.documentElement.style.zoom =
     scale === DEFAULT_UI_SCALE ? '' : `${scale}%`
+  // Read by the popover rules in `globals.css`, which have to undo this zoom
+  // and put it back on again a level lower -- see the comment there.
+  document.documentElement.style.setProperty(
+    UI_SCALE_PROPERTY,
+    String(scale / 100),
+  )
 }
