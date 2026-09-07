@@ -53,12 +53,16 @@ test.describe('installing this as an app', () => {
 
   test('offers to do it when the browser says it can', async ({ page }) => {
     await openAbout(page)
-    // The listener goes on at mount, so the event has to come after it.
     await expect(page.getByTestId('pwa-install-notice')).toBeVisible()
-    await offerToInstall(page)
 
     const button = page.getByTestId('pwa-install-button')
-    await expect(button).toBeVisible()
+    // The listener goes on in an effect, which runs after the paint that made
+    // the notice visible -- so being able to see it is not proof that the
+    // event would be heard. Offered again until it is.
+    await expect(async () => {
+      await offerToInstall(page)
+      await expect(button).toBeVisible({ timeout: 500 })
+    }).toPass({ timeout: 15_000 })
     // The words are replaced by the button that does the thing.
     await expect(
       page.getByText(jaJP['about-section:install-steps-browser']),
