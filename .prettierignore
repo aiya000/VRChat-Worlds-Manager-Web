@@ -1,1 +1,5 @@
 worker/
+
+# Google's site-ownership token for Search Console. Its bytes are dictated by
+# Google and checked verbatim, so it must not be reformatted.
+public/google1115d8bfd0d506b1.html
