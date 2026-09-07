@@ -197,3 +197,30 @@
 [data-theme='light'] {
   --theme-icon-invert: 1;
 }
+
+/*
+ * Popovers, under a zoomed document.
+ *
+ * The interface is drawn larger with `zoom` on the document (see
+ * `applyUiScale`). Radix positions a popover by measuring its trigger with
+ * `getBoundingClientRect`, which answers in device pixels, and then writing
+ * that number as a `transform` on an element that is itself inside the zoomed
+ * document -- so the offset is multiplied by the zoom a second time. Measured
+ * at 200% in a 1280px window, a select's options landed at x=1826: off the
+ * side of the screen, and out of reach of the very control that sets the
+ * scale.
+ *
+ * Undoing the zoom on the wrapper puts its transform back into the coordinate
+ * space it was measured in, and putting the zoom back on the content keeps the
+ * popover the size the rest of the interface is. Radix's collision handling
+ * then works in the right space as well.
+ *
+ * At 100% both rules are `zoom: 1` and nothing happens.
+ */
+[data-radix-popper-content-wrapper] {
+  zoom: calc(1 / var(--ui-scale, 1));
+}
+
+[data-radix-popper-content-wrapper] > * {
+  zoom: var(--ui-scale, 1);
+}
