@@ -97,9 +97,16 @@ test('throws away what was serving the old bundle before reloading', async ({
     .click()
 
   // The button clears up before it reloads, so what is being waited for is
-  // the clearing, not the navigation.
+  // the clearing, not the navigation. The reload can land mid-poll, though,
+  // and an evaluate that straddles it fails with "Execution context was
+  // destroyed"; that answer means "not known yet", so it is reported as the
+  // cache still being there and the poll goes round again after the load.
   await expect
-    .poll(() => page.evaluate(() => caches.keys()))
+    .poll(() =>
+      page
+        .evaluate(() => caches.keys())
+        .catch((): string[] => ['vrcww-an-earlier-build']),
+    )
     .not.toContain('vrcww-an-earlier-build')
 })
 
