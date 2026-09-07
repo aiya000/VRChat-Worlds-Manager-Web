@@ -24,6 +24,7 @@ import {
 import * as Portal from '@radix-ui/react-portal'
 import { Badge } from '@/components/ui/badge'
 import { useWorldGrid } from './hook'
+import { DraggableWorld } from '../world-drag'
 
 interface WorldGridProps {
   worlds: WorldDisplayData[]
@@ -66,6 +67,10 @@ export function WorldGrid({
     isHiddenFolder,
     existingWorldIds,
   } = useWorldGrid(currentFolder, worlds)
+
+  // Worlds found on the search page are not in the collection yet, and hidden
+  // ones are meant to be restored first; both keep the popup as their way in.
+  const canDragToFolder = !disableCardClick && !isFindPage && !isHiddenFolder
 
   const gap = 16
   const cardWidths: Record<CardSize, number> = {
@@ -135,11 +140,13 @@ export function WorldGrid({
                 {isSelected && (
                   <div className="absolute inset-0 rounded-lg border-2 border-primary pointer-events-none z-10" />
                 )}
-                <WorldCardPreview
-                  size={cardSize}
-                  world={world}
-                  fieldVisibility={fieldVisibility}
-                />
+                <DraggableWorld world={world} enabled={canDragToFolder}>
+                  <WorldCardPreview
+                    size={cardSize}
+                    world={world}
+                    fieldVisibility={fieldVisibility}
+                  />
+                </DraggableWorld>
                 <div className="absolute bottom-[70px] left-2 z-10">
                   {isFindPage && existingWorldIds.has(world.worldId) && (
                     <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100 hover:border-green-300 cursor-default">

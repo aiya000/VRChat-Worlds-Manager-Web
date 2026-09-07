@@ -77,7 +77,7 @@ export function markSettingUpdated(key: string, at: number = Date.now()): void {
   }
   writeUpdatedAt(key, at)
   // Settings live in local storage rather than in Dexie, so the change signal
-  // the automatic sync watches has to be raised by hand here.
+  // the sync button watches has to be raised by hand here.
   notifyLocalChange()
 }
 

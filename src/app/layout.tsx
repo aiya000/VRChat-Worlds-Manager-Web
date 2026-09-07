@@ -20,9 +20,39 @@ const _geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
+const siteName = 'VRChat Worlds Manager Web'
+const title = 'VRChat Worlds Manager Web｜VRChat のお気に入りワールドを整理する'
+const description =
+  'VRChat のお気に入りワールドをフォルダで整理して、どの端末からでも開けるようにする Web アプリです。ブラウザだけで動き、VR のオーバーレイやスマホからも使えます。'
+
 export const metadata: Metadata = {
-  title: 'VRChat Worlds Manager Web',
-  description: 'Manage your VRChat worlds with ease',
+  // Static export cannot resolve a relative OG image on its own, and the card
+  // is fetched by a crawler that has no page to resolve it against.
+  metadataBase: new URL('https://vrchat-worlds-manager-web.pages.dev'),
+  title,
+  description,
+  openGraph: {
+    type: 'website',
+    siteName,
+    title,
+    description,
+    url: '/',
+    locale: 'ja_JP',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: siteName,
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title,
+    description,
+    images: ['/og-image.png'],
+  },
 }
 
 export default function RootLayout({

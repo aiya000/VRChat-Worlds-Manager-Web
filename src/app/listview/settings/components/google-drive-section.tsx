@@ -1,24 +1,16 @@
 'use client'
 
-import { ArrowUpFromLine, Cloud, RefreshCw, Unlink } from 'lucide-react'
+import { Cloud, RefreshCw, Unlink } from 'lucide-react'
 import { useEffect, useState, type FC } from 'react'
 import { toast } from 'sonner'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
+import { notifyDriveConnectionChanged } from '@/lib/services/drive-connection-changed'
 import { preloadGoogleIdentityScript } from '@/lib/services/google-auth-service'
+import { refreshViews } from '@/lib/services/refresh-views'
 import {
   syncStepPercentage,
   type SyncStep,
@@ -28,6 +20,7 @@ import {
   subscribeToSyncActivity,
   tryBeginSync,
 } from '@/lib/services/sync-activity'
+import { SyncExplanationDialog } from '@/components/sync-explanation-dialog'
 import {
   msUntilRelativeTimeChanges,
   relativeTime,
@@ -57,14 +50,13 @@ function isRunningInstalled(): boolean {
 /**
  * Connect, disconnect, and one button that syncs.
  *
- * The app also syncs on its own now (`useDriveAutoSync`), which this screen
- * has to keep out of the way of: the button is the one place a sync reports
- * what it did, so it must not start a second one on top of an automatic sync
- * already running, and it has to notice when one of those moves the "last
- * synced" line underneath it.
+ * Syncing happens only from a press (#124). The list view has a button that
+ * runs the same sync, so this screen has to keep out of its way: it must not
+ * start a second sync on top of one already running from there, and it has to
+ * notice when that one moves the "last synced" line underneath it.
  *
- * The button remains the only way back from an expired hour: a token cannot
- * be renewed without a gesture, and this is the gesture.
+ * A press is also the only way back from an expired hour: a token cannot be
+ * renewed without a gesture, and this is one of the two.
  */
 export const GoogleDriveSection: FC = () => {
   const { t } = useLocalization()
@@ -80,9 +72,8 @@ export const GoogleDriveSection: FC = () => {
   const [step, setStep] = useState<SyncStep | null>(null)
   const [unreadable, setUnreadable] = useState<string | null>(null)
   const [installed, setInstalled] = useState(false)
-  const [autoSyncing, setAutoSyncing] = useState(false)
-  const [pushingSettings, setPushingSettings] = useState(false)
-  const [confirmingPush, setConfirmingPush] = useState(false)
+  const [syncingElsewhere, setSyncingElsewhere] = useState(false)
+  const [explaining, setExplaining] = useState(false)
 
   useEffect(() => {
     // Loaded ahead of the click that needs it: Google requires the token
@@ -109,7 +100,7 @@ export const GoogleDriveSection: FC = () => {
   useEffect(
     () =>
       subscribeToSyncActivity((activity) => {
-        setAutoSyncing(activity.running)
+        setSyncingElsewhere(activity.running)
         if (activity.lastSyncedAt !== null) {
           setLastSyncedAt(activity.lastSyncedAt)
         }
@@ -144,6 +135,7 @@ export const GoogleDriveSection: FC = () => {
         return
       }
       setConnected(true)
+      notifyDriveConnectionChanged()
     } finally {
       setBusy(false)
     }
@@ -158,37 +150,28 @@ export const GoogleDriveSection: FC = () => {
         return
       }
       setConnected(false)
+      notifyDriveConnectionChanged()
     } finally {
       setBusy(false)
     }
   }
 
   /**
-   * One press of either button.
-   *
-   * Both are the same sync -- the "push" one only sends a demand along with it
-   * -- so everything from here on is shared: which failures are worth a
-   * sentence, and which of them are not failures at all.
+   * One press of the button: which failures are worth a sentence, and which
+   * of them are not failures at all.
    */
-  const sync = async (mode: 'sync' | 'push') => {
-    // Refused rather than queued: an automatic sync is already doing exactly
-    // this, and a second one would only merge against a file the first is
-    // about to replace.
+  const sync = async () => {
+    // Refused rather than queued: the list's button may already be doing
+    // exactly this, and a second one would only merge against a file the
+    // first is about to replace.
     if (!tryBeginSync()) {
       return
     }
-    if (mode === 'push') {
-      setPushingSettings(true)
-    } else {
-      setSyncing(true)
-    }
+    setSyncing(true)
     setStep('authorizing')
     let syncedAt: number | null = null
     try {
-      const result =
-        mode === 'push'
-          ? await commands.pushSettingsToAllDevices(setStep)
-          : await commands.syncGoogleDriveNow(setStep)
+      const result = await commands.syncGoogleDriveNow(setStep)
       if (result.status === 'error') {
         toast(t('general:error-title'), { description: result.error })
         return
@@ -218,14 +201,14 @@ export const GoogleDriveSection: FC = () => {
                 'settings-page:google-drive-sync-conflicts',
                 result.data.memoConflicts,
               )
-            : mode === 'push'
-              ? t('settings-page:push-settings-success')
-              : t('settings-page:google-drive-sync-success'),
+            : t('settings-page:google-drive-sync-success'),
       })
+      // What came down is in the database; the lists behind this screen do
+      // not read it again on their own.
+      await refreshViews()
     } finally {
       endSync(syncedAt)
       setSyncing(false)
-      setPushingSettings(false)
       setStep(null)
     }
   }
@@ -238,8 +221,6 @@ export const GoogleDriveSection: FC = () => {
    * wrong sat on "syncing" with nothing to say whether anything was still
    * happening.
    *
-   * Rendered under whichever button was pressed. Under the other one it reads
-   * as that button having been the one that ran.
    */
   const progress = (
     <div className="space-y-1 text-sm text-muted-foreground">
@@ -257,7 +238,10 @@ export const GoogleDriveSection: FC = () => {
   )
 
   return (
-    <Card className="flex flex-col gap-4 rounded-lg border p-4">
+    <Card
+      className="flex flex-col gap-4 rounded-lg border p-4"
+      data-testid="google-drive-section"
+    >
       {installed && (
         // Said before the button rather than after the wait: from the home
         // screen, pressing it can end on a blank page that never comes back.
@@ -283,7 +267,7 @@ export const GoogleDriveSection: FC = () => {
           <Button
             variant="outline"
             className="gap-2"
-            disabled={busy || syncing || pushingSettings || autoSyncing}
+            disabled={busy || syncing || syncingElsewhere}
             onClick={disconnect}
           >
             <Unlink className="h-4 w-4" />
@@ -307,12 +291,25 @@ export const GoogleDriveSection: FC = () => {
       </div>
 
       {/* Outside the connected block on purpose. It describes what connecting
-          gets you -- one press, then an hour that looks after itself -- which
-          is what someone deciding whether to connect at all needs to read,
-          and this card is also the Google Drive step of the first-run setup. */}
+          gets you -- a sync each time a button is pressed, and nothing else --
+          which is what someone deciding whether to connect at all needs to
+          read, and this card is also the Google Drive step of the first-run
+          setup. */}
       <div className="text-sm text-muted-foreground">
-        {t('settings-page:google-drive-auto-sync-note')}
+        {t('settings-page:google-drive-how-it-works')}
       </div>
+      <Button
+        variant="ghost"
+        className="h-10 w-fit px-2 text-sm"
+        onClick={() => setExplaining(true)}
+      >
+        {t('settings-page:google-drive-show-explanation')}
+      </Button>
+      <SyncExplanationDialog
+        open={explaining}
+        mode="info"
+        onOpenChange={setExplaining}
+      />
 
       {connected === true && (
         <div className="flex flex-col gap-3 border-t pt-4">
@@ -338,68 +335,18 @@ export const GoogleDriveSection: FC = () => {
               once the hour-long token runs out. */}
           <Button
             className="h-12 w-full gap-2 text-base"
-            disabled={busy || syncing || pushingSettings || autoSyncing}
-            onClick={() => sync('sync')}
+            disabled={busy || syncing || syncingElsewhere}
+            onClick={sync}
           >
             <RefreshCw
-              className={`h-5 w-5 ${syncing || autoSyncing ? 'animate-spin' : ''}`}
+              className={`h-5 w-5 ${syncing || syncingElsewhere ? 'animate-spin' : ''}`}
               aria-hidden
             />
-            {syncing || autoSyncing
+            {syncing || syncingElsewhere
               ? t('settings-page:google-drive-syncing')
               : t('settings-page:google-drive-sync-now')}
           </Button>
           {syncing && progress}
-
-          {/* Its own block rather than a second line under the sync button:
-              this is the one control here that overrules a promise another
-              device was given, and it has to be read before it is pressed. */}
-          <div
-            className="flex flex-col gap-2 border-t pt-4"
-            data-testid="push-settings-block"
-          >
-            <Label className="text-base font-medium">
-              {t('settings-page:push-settings-title')}
-            </Label>
-            <div className="whitespace-pre-line text-sm text-muted-foreground">
-              {t('settings-page:push-settings-description')}
-            </div>
-            <Button
-              variant="outline"
-              className="h-12 w-full gap-2 text-base"
-              disabled={busy || syncing || pushingSettings || autoSyncing}
-              onClick={() => setConfirmingPush(true)}
-            >
-              {pushingSettings ? (
-                <RefreshCw className="h-5 w-5 animate-spin" aria-hidden />
-              ) : (
-                <ArrowUpFromLine className="h-5 w-5" aria-hidden />
-              )}
-              {pushingSettings
-                ? t('settings-page:google-drive-syncing')
-                : t('settings-page:push-settings-button')}
-            </Button>
-            {pushingSettings && progress}
-          </div>
-
-          <AlertDialog open={confirmingPush} onOpenChange={setConfirmingPush}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {t('settings-page:push-settings-confirm-title')}
-                </AlertDialogTitle>
-                <AlertDialogDescription className="whitespace-pre-line">
-                  {t('settings-page:push-settings-confirm-description')}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t('general:cancel')}</AlertDialogCancel>
-                <AlertDialogAction onClick={() => sync('push')}>
-                  {t('settings-page:push-settings-confirm-action')}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       )}
     </Card>

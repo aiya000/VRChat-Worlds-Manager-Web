@@ -251,19 +251,32 @@ for was being made by the service worker instead, and the test hung with no clue
 This app does not use `useLiveQuery`. **Writing to Dexie refreshes no screen** — whatever
 wrote has to announce it.
 
-`src/lib/services/local-changes.ts` and `src/lib/services/preferences-changed.ts` are the
-two signals for that, and both are deliberately import-free so anything may listen without
-creating a cycle. The preferences signal is fired from `writeSettingEntries()` rather than
-from a view refresh, so a backup restore and a manual sync both reach the listeners.
+`src/lib/services/local-changes.ts`, `src/lib/services/preferences-changed.ts` and
+`src/lib/services/drive-connection-changed.ts` are the signals for that, and all are
+deliberately import-free so anything may listen without creating a cycle. The preferences
+signal is fired from `writeSettingEntries()` rather than from a view refresh, so a backup
+restore and a manual sync both reach the listeners.
+
+The same rule applies between screens: **two cards that each read the same state for
+themselves do not see each other's writes.** The push-settings card was split out of the
+Drive card and then stayed hidden after "connect" until the next reload; the connection
+signal above is what fixed it. When a component is split, look for the state it used to share.
+
+A sync that pulled something has to call `refreshViews()` afterwards for the same reason --
+both sync buttons do -- or the folder list and the grid keep showing what they last read.
 
 ### Google Drive sync: the rules that are not visible in the code
 
 - **The access token lives in memory only.** `currentAccessToken` in
   `src/lib/services/google-auth-service.ts` is a module variable and is never persisted, so
   a reload loses it. Being asked to sign in again after a reload is the design, not a bug
-- **Automatic sync must never open Google's window.** `getAccessTokenIfHeld()` returns a
-  token only if one is already held and otherwise does nothing; only a user's press may take
-  the requesting path. A window opened without a press is a popup block waiting to happen
+- **Only a press syncs, and only a press may open Google's window.** There is no automatic
+  sync any more (#124): the app once synced on startup, after edits, on returning to the tab
+  and on a poll, but every one of those could only run on a token a press had already
+  obtained, so after a reload nothing synced until someone found the button in the settings.
+  Now the list view carries the button, a dot on it says a local change is waiting
+  (`unsynced-changes.ts`), and the first press shows what syncing is. A window opened
+  without a press is a popup block waiting to happen, so keep every sync behind a click
 - **`requestSettingsOverride()` must stay synchronous.** The Google token request runs
   immediately after it, and an `await` in between loses the user gesture, after which the
   browser refuses to open the window. Anything needing `await` belongs in `readSnapshot()`,
@@ -300,6 +313,23 @@ What answers a sync question without signing in, cheapest first:
   and reading its local storage and IndexedDB needs no sign-in. Whether a _fresh_ token request
   survives Google's check in an attached browser has not been tried here
 
+Three things about reading a phone that way:
+
+- **Android freezes Chrome as soon as it leaves the foreground** (`dumpsys activity processes`
+  shows `isFrozen=true`), and the DevTools socket stops answering. The `chrome-attach` MCP
+  then hangs rather than failing; a raw CDP `Runtime.evaluate` over the WebSocket with its own
+  timeout is the reliable way to read. The page has to be kept in front — split screen with
+  whatever the person is typing into works
+- **The phone usually holds both the production PWA and the `develop` site**, and they are
+  different origins with different storage. A sync tab showing "connect" on a device that was
+  synced yesterday means the other origin is open, not that the login expired. Check the URL in
+  `/json/list` before diagnosing anything
+- **A test page can be shown to the phone without hosting it anywhere**: serve it locally
+  (`python3 -m http.server <port>`), `adb reverse tcp:<port> tcp:<port>`, then
+  `adb shell "am start -a android.intent.action.VIEW -d 'http://localhost:<port>/page.html'"`.
+  Quote the whole remote command — a `;` in the URL is otherwise cut by the phone's shell — and
+  do not try `data:` or `file://` URLs, which Chrome refuses from an intent
+
 ### The stale-bundle notice means the bundle is old, not the data
 
 `StaleBundleNotice` appears on exactly one condition: the schema version recorded in
@@ -324,15 +354,29 @@ request without a descriptive `User-Agent`:
   `com.vrchat.mobile.playstore` and `com.vrchat.mobile` with `handle_all_urls`
 
 `handle_all_urls` is only the site granting the app permission; **which paths Android
-actually hands over is decided by the app's own intent filters**, which are not published.
-So neither file tells you whether a given `vrchat.com` URL will open the Android app — the
-iOS path list in particular says nothing about Android, and reading it as if it did is a
-mistake that has been made here before.
+actually hands over is decided by the app's own intent filters**. The iOS path list in
+particular says nothing about Android, and reading it as if it did is a mistake that has been
+made here before.
 
-What is known from a real device: an intent aimed at `https://vrchat.com/home/launch` was
-not taken by the Android app, and the fallback web page reported "This instance not found".
-`vrch.at/<shortName>` is only a 302 to `vrchat.com/i/<shortName>`, so it inherits whatever
-is true of the latter.
+The app's intent filters are not published, but a phone with it installed will list them:
+`adb shell dumpsys package com.vrchat.mobile.playstore`. **The VRChat Android app declares
+exactly three URL filters — `com.vrchat.mobile://oauth/discord`, `https://verify.vrchat.com/*`
+and a `discord-<id>://` scheme — and nothing for instances.** There is no `vrchat://` scheme
+and no `vrchat.com/home/launch` or `/i/...` path, so **no link opens the Android app into an
+instance**; the only way in is a self-invite, which the app shows as a notification.
+
+What a link does instead, seen on a real device:
+
+- An `intent://` URL that names the package (`package=com.vrchat.mobile.playstore`) for a
+  scheme the app does not declare sends Chrome to the app's **Google Play page**, even with the
+  app installed — that is Chrome's rule for "no activity resolves it", not a sign the app is
+  missing. Do not name the package for a scheme the app has not declared
+- The same URL without `package=` does nothing visible, and so does a launcher intent
+  (`intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;...`)
+  navigated to from Chrome: it does not open the app either
+- `https://vrchat.com/home/launch` with a fallback URL opened the fallback page, which said
+  "This instance not found" and looked like the app had answered. `vrch.at/<shortName>` is
+  only a 302 to `vrchat.com/i/<shortName>`, so it inherits whatever is true of the latter
 
 ## UI Target Environments
 
@@ -421,7 +465,17 @@ Things that have cost real time here before:
   Without it the worker makes some of them and the count is wrong
 - **Next's dev overlay sits over the page and swallows clicks.** Any spec that clicks needs
   `page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' })`
-- **A spec that waits for the 60-second poll needs `test.setTimeout(150_000)`** in the file
+- **A spec that waits on a timer longer than the default 30 seconds needs `test.setTimeout`**
+  in the file
+- **`getByRole('button', { name })` matches by substring.** A button whose "?" help badge sits
+  beside it has a sibling whose `aria-label` contains the button's own words, so the plain
+  form resolves to two elements and fails strict mode. Pass `exact: true`
+- **The sidebar drawer stays open after a folder is made from it**, and it covers the buttons
+  behind it. Press `Escape` and wait for the dialog to be hidden before clicking anything on
+  the page
+- **Measure nothing until the sync button is there.** It renders nothing while the connection
+  state is being read, and the header row settles only once it appears; a bounding box taken
+  before that is of a different layout
 - **Delete throwaway debug specs** (`tests/e2e/__debug.spec.ts` and friends) as soon as
   the thing they were written to answer is answered
 
@@ -582,6 +636,12 @@ The release notes are the app's user-facing changelog — the About page links t
 https://github.com/aiya000/VRChat-Worlds-Manager-Web/releases and the app ships no
 changelog of its own. Write the notes for users, not for developers: what changed
 that they will notice, not every commit.
+
+Keep them about the length of an app-store update: a short list of what changed, with the
+one or two things people will notice in bold, and **no technical section** — the commits are
+the technical record. Lead with the note that Drive sync is still limited to registered
+test users for as long as that is true. A change that has not been checked on a real
+device does not go in the notes; leave it for the release after it is confirmed.
 
 ## Say When the Session Has Grown Too Long
 

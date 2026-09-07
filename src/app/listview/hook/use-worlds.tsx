@@ -138,7 +138,7 @@ export const useWorldsStore = create<WorldsStoreState>((set, get) => ({
     const key = folderKey(folder)
     const res = await commands.getWorld(worldId, null)
     if (res.status === 'error') {
-      throw new Error(res.error)
+      throw new Error(res.error.message)
     }
 
     // Only call addWorldToFolder command for user folders

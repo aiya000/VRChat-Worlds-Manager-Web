@@ -4,10 +4,10 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useLocalization } from '@/hooks/use-localization'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
+import { FetchWorldsButton } from '@/app/listview/components/fetch-worlds-button'
 import {
   CircleHelpIcon,
   Loader2,
-  RefreshCw,
   Search,
   Square,
   CheckSquare,
@@ -39,10 +39,18 @@ import { useFolders } from '@/app/listview/hook/use-folders'
 
 export default function FindWorldsPage() {
   const { t } = useLocalization()
+  // `t` is a new function on every render, so anything listing it as a
+  // dependency is rebuilt on every render too, and every effect that depends
+  // on it runs again. The fetch below reads the latest `t` from here instead.
+  const tRef = useRef(t)
+  tRef.current = t
   const [activeTab, setActiveTab] = useState('recently-visited')
+  // `null` until the first answer arrives. An empty answer and "not asked
+  // yet" used to be the same value, so the effect that fetches on first load
+  // could not tell them apart and asked again as soon as it finished.
   const [recentlyVisitedWorlds, setRecentlyVisitedWorlds] = useState<
-    WorldDisplayData[]
-  >([])
+    WorldDisplayData[] | null
+  >(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchResults, setSearchResults] = useState<WorldDisplayData[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -56,6 +64,7 @@ export default function FindWorldsPage() {
   const [hasMoreResults, setHasMoreResults] = useState(true)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const findGridRef = useRef<HTMLDivElement>(null)
+  const hasRequestedRecentlyVisitedRef = useRef(false)
   const {
     isSelectionMode,
     toggleSelectionMode,
@@ -64,22 +73,21 @@ export default function FindWorldsPage() {
     getSelectedWorlds,
   } = useSelectedWorldsStore()
 
+  const visitedWorlds = recentlyVisitedWorlds ?? []
   const selectedWorlds = Array.from(getSelectedWorlds(SpecialFolders.Find))
   const selectedWorldIdSet = new Set(selectedWorlds)
 
   // Check if all recently visited worlds are selected
   const allSelected =
-    recentlyVisitedWorlds.length > 0 &&
-    selectedWorlds.length === recentlyVisitedWorlds.length &&
-    recentlyVisitedWorlds.every((world) =>
-      selectedWorldIdSet.has(world.worldId),
-    )
+    visitedWorlds.length > 0 &&
+    selectedWorlds.length === visitedWorlds.length &&
+    visitedWorlds.every((world) => selectedWorldIdSet.has(world.worldId))
 
   const handleSelectAll = () => {
     if (allSelected) {
       clearFolderSelections(SpecialFolders.Find)
     } else {
-      const worldIds = recentlyVisitedWorlds.map((world) => world.worldId)
+      const worldIds = visitedWorlds.map((world) => world.worldId)
       selectAllWorlds(SpecialFolders.Find, worldIds)
     }
   }
@@ -96,8 +104,8 @@ export default function FindWorldsPage() {
         console.info(`Fetched recently visited worlds: ${worlds.data.length}`)
         setRecentlyVisitedWorlds(worlds.data)
       }
-      toast(t('find-page:fetch-recently-visited-worlds'), {
-        description: t(
+      toast(tRef.current('find-page:fetch-recently-visited-worlds'), {
+        description: tRef.current(
           'find-page:fetch-recently-visited-worlds-success',
           worlds.data.length,
         ),
@@ -105,10 +113,12 @@ export default function FindWorldsPage() {
       })
     } catch (err) {
       console.error(`Error fetching recently visited worlds: ${String(err)}`)
+      // The page is no longer waiting for an answer, whatever went wrong.
+      setRecentlyVisitedWorlds((current) => current ?? [])
     } finally {
       setIsLoading(false)
     }
-  }, [t])
+  }, [])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -152,12 +162,15 @@ export default function FindWorldsPage() {
     number | null
   >(null)
 
-  // Fetch recently visited worlds on initial load
+  // Fetch recently visited worlds on initial load, once. Asking whenever the
+  // list was empty meant an account with nothing recent fetched forever.
   useEffect(() => {
-    if (recentlyVisitedWorlds.length === 0 && !isLoading) {
-      fetchRecentlyVisitedWorlds()
+    if (hasRequestedRecentlyVisitedRef.current) {
+      return
     }
-  }, [recentlyVisitedWorlds.length, isLoading, fetchRecentlyVisitedWorlds])
+    hasRequestedRecentlyVisitedRef.current = true
+    fetchRecentlyVisitedWorlds()
+  }, [fetchRecentlyVisitedWorlds])
 
   // Load tags when the search tab is active
   useEffect(() => {
@@ -303,7 +316,7 @@ export default function FindWorldsPage() {
         <div className="flex items-center">
           {isSelectionMode &&
             activeTab === 'recently-visited' &&
-            recentlyVisitedWorlds.length > 0 && (
+            visitedWorlds.length > 0 && (
               <Button
                 variant="outline"
                 onClick={handleSelectAll}
@@ -316,19 +329,14 @@ export default function FindWorldsPage() {
                 </span>
               </Button>
             )}
-          <Button
-            variant="outline"
-            onClick={fetchRecentlyVisitedWorlds}
-            disabled={activeTab !== 'recently-visited' || isLoading}
-            className={`ml-2 flex items-center gap-2 ${
-              activeTab !== 'recently-visited' ? 'invisible' : ''
-            }`}
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
+          {activeTab === 'recently-visited' && (
+            <FetchWorldsButton
+              kind="recent"
+              onClick={fetchRecentlyVisitedWorlds}
+              disabled={isLoading}
+              loading={isLoading}
             />
-            <span>{t('general:fetch-refresh')}</span>
-          </Button>
+          )}
           <Button
             variant={isSelectionMode ? 'secondary' : 'ghost'}
             size="icon"
@@ -378,11 +386,11 @@ export default function FindWorldsPage() {
       <div>
         {activeTab === 'recently-visited' && (
           <div className="flex flex-col gap-2">
-            {isLoading ? (
+            {isLoading || recentlyVisitedWorlds === null ? (
               <WorldGridSkeleton />
-            ) : recentlyVisitedWorlds.length > 0 ? (
+            ) : visitedWorlds.length > 0 ? (
               <WorldGrid
-                worlds={recentlyVisitedWorlds}
+                worlds={visitedWorlds}
                 currentFolder={SpecialFolders.Find}
                 containerRef={findGridRef}
               />

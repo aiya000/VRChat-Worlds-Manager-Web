@@ -490,7 +490,7 @@ export const useAddToFolderPopup = ({
           (result) => result.status === 'error',
         )
         if (errorResult) {
-          throw new Error(errorResult.error)
+          throw new Error(errorResult.error.message)
         }
         console.info('[AddToFolder] Verified worlds exist from search results')
         toast(t('listview-page:worlds-added-title'), {

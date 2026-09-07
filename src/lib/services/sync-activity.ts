@@ -2,11 +2,11 @@
  * One place that knows whether a sync is running, so two of them cannot start
  * at once and the settings screen can say so.
  *
- * Automatic syncing means the button is no longer the only thing that starts
- * one: an edit, coming back to the tab, and a poll can all fire while someone
- * is looking at the screen. Two syncs racing would each merge against a file
- * the other is about to replace, which the optimistic retry would survive but
- * only by doing all the work twice.
+ * There are two buttons that start one -- on the list and on the settings
+ * screen -- and a press on one while the other is still running must not
+ * become a second sync. Two syncs racing would each merge against a file the
+ * other is about to replace, which the optimistic retry would survive but only
+ * by doing all the work twice.
  */
 
 export interface SyncActivity {

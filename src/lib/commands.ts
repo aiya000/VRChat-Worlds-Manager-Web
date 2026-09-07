@@ -35,7 +35,11 @@ import { InitService } from '@/lib/services/init-service'
 import { ExternalDataService } from '@/lib/services/external-data-service'
 import { ShareService } from '@/lib/services/share-service'
 import { TaskService } from '@/lib/services/task-service'
-import { VRChatApiService } from '@/lib/services/vrchat-api'
+import {
+  VRChatApiService,
+  toWorldFetchError,
+  type WorldFetchFailureKind,
+} from '@/lib/services/vrchat-api'
 import type { LaunchOutcome } from '@/lib/launch-target'
 import type {
   Result,
@@ -61,9 +65,21 @@ import type {
   TaskStatusChanged,
 } from '@/lib/types'
 
+function describeError(e: unknown): string {
+  return e instanceof Error ? e.message : String(e)
+}
+
 function run<A>(
   effect: Effect.Effect<A, unknown, unknown>,
 ): Promise<Result<A, string>> {
+  return runWith(effect, describeError)
+}
+
+/** Like `run`, but the caller decides what a failure turns into. */
+function runWith<A, E>(
+  effect: Effect.Effect<A, unknown, unknown>,
+  toError: (e: unknown) => E,
+): Promise<Result<A, E>> {
   const provided = Effect.provide(effect, AppLayer) as Effect.Effect<
     A,
     unknown,
@@ -71,12 +87,9 @@ function run<A>(
   >
   return Effect.runPromise(
     provided.pipe(
-      Effect.map((data): Result<A, string> => ({ status: 'ok', data })),
+      Effect.map((data): Result<A, E> => ({ status: 'ok', data })),
       Effect.catchAll((e: unknown) =>
-        Effect.succeed({
-          status: 'error' as const,
-          error: e instanceof Error ? e.message : String(e),
-        }),
+        Effect.succeed({ status: 'error' as const, error: toError(e) }),
       ),
     ),
   )
@@ -102,6 +115,18 @@ function runVoid(
     ),
   )
 }
+
+/**
+ * Why `getWorld` came back empty-handed. `kind` is what a screen decides on;
+ * `message` is the raw error, for a bug report rather than for reading.
+ */
+export interface WorldFetchFailure {
+  kind: WorldFetchFailureKind
+  status: number | null
+  message: string
+}
+
+export type { WorldFetchFailureKind }
 
 export const commands = {
   async fetchPatreonData(): Promise<Result<PatreonData, string>> {
@@ -706,8 +731,8 @@ export const commands = {
   async getWorld(
     worldId: string,
     dontSaveToLocal: boolean | null,
-  ): Promise<Result<WorldDetails, string>> {
-    return run(
+  ): Promise<Result<WorldDetails, WorldFetchFailure>> {
+    return runWith(
       Effect.gen(function* () {
         const api = yield* VRChatApiService
         const worlds = yield* WorldService
@@ -729,6 +754,14 @@ export const commands = {
           ),
         )
       }),
+      (e): WorldFetchFailure => {
+        const failure = toWorldFetchError(e)
+        return {
+          kind: failure.kind,
+          status: failure.status,
+          message: failure.message,
+        }
+      },
     )
   },
 
@@ -966,67 +999,6 @@ export const commands = {
     // called this to still count as a user gesture.
     requestSettingsOverride()
     return commands.syncGoogleDriveNow(onProgress)
-  },
-
-  /**
-   * The same sync, started by the app rather than by a press.
-   *
-   * The only difference is where the token comes from: this runs on the one a
-   * press already obtained, and reports `reauth-needed` when there is none.
-   * It never opens Google's window -- see `getAccessTokenIfHeld`.
-   */
-  async syncGoogleDriveInBackground(): Promise<
-    Result<DriveSyncResult, string>
-  > {
-    return run(
-      Effect.gen(function* () {
-        const auth = yield* GoogleAuthService
-        const sync = yield* DriveSyncService
-
-        const token = yield* auth.getAccessTokenIfHeld()
-
-        return yield* sync
-          .syncNow(token, () => {})
-          .pipe(
-            Effect.map(
-              (outcome): DriveSyncResult => ({ kind: 'synced', ...outcome }),
-            ),
-          )
-      }).pipe(
-        Effect.catchAll((e) =>
-          e instanceof GoogleAuthExpiredError
-            ? Effect.succeed<DriveSyncResult>({ kind: 'reauth-needed' })
-            : Effect.fail(e),
-        ),
-      ),
-    )
-  },
-
-  /**
-   * Whether another device has written to Drive since this one last did.
-   *
-   * `false` rather than an error when there is no token in hand: a poll that
-   * cannot ask has nothing to report, and there is no press behind it to
-   * explain the failure to. It must never obtain one of its own -- a window
-   * opening sixty seconds after someone last touched the app is the bug this
-   * whole path was rewritten for.
-   */
-  async googleDriveRemoteChanged(): Promise<Result<boolean, string>> {
-    return run(
-      Effect.gen(function* () {
-        const auth = yield* GoogleAuthService
-        const sync = yield* DriveSyncService
-
-        const token = yield* auth.getAccessTokenIfHeld()
-        return yield* sync.remoteChanged(token)
-      }).pipe(
-        Effect.catchAll((e) =>
-          e instanceof GoogleAuthExpiredError
-            ? Effect.succeed(false)
-            : Effect.fail(e),
-        ),
-      ),
-    )
   },
 
   async googleDriveLastSyncedAt(): Promise<Result<number | null, string>> {

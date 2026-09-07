@@ -13,13 +13,23 @@ import {
 import { DeviceOnlySettingToggle } from '@/components/device-only-setting-toggle'
 import { GoogleDriveSection } from './components/google-drive-section'
 import { MemoConflictsSection } from './components/memo-conflicts-section'
+import { PushSettingsSection } from './components/push-settings-section'
 import { WorldCardPreview } from '@/components/world-card'
 import { WorldCardFieldToggles } from '@/components/world-card-field-toggles'
 import { WorldDetailFieldToggles } from '@/components/world-detail-field-toggles'
 import { WorldDetailPreview } from '@/components/world-detail-preview'
 
 import { FolderRemovalPreference } from '@/lib/commands'
-import { LogOut, Trash2, Upload, FolderOpen, Save, Users } from 'lucide-react'
+import {
+  LogOut,
+  Trash2,
+  Upload,
+  FolderOpen,
+  Save,
+  Users,
+  ExternalLink,
+} from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { Card } from '../../../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -31,9 +41,20 @@ import { ImportFavoritesFromAccountDialog } from '@/app/listview/settings/compon
 import { useSettingsPage } from './hook'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 
+const TABS = ['preferences', 'sync', 'data-management', 'others'] as const
+type Tab = (typeof TABS)[number]
+
+function isTab(value: string | null): value is Tab {
+  return TABS.some((tab) => tab === value)
+}
+
 export default function SettingsPage() {
   const [showImportFavoritesDialog, setShowImportFavoritesDialog] =
     useState(false)
+  // `?tab=sync` is how the list's sync button lands someone on the connect
+  // button, rather than on the first tab with the right one three taps away.
+  const requestedTab = useSearchParams().get('tab')
+  const initialTab: Tab = isTab(requestedTab) ? requestedTab : 'preferences'
   const {
     cardSize,
     language,
@@ -72,21 +93,29 @@ export default function SettingsPage() {
         <SidebarTrigger className="h-10 w-10 shrink-0" />
         <h1 className="text-2xl font-bold">{t('general:settings')}</h1>
       </div>
-      <Tabs defaultValue="preferences" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <div className="sticky top-0 z-10 bg-background pt-2 pb-2">
-          <TabsList className="grid grid-cols-4">
-            <TabsTrigger value="preferences">
-              {t('settings-page:section-preferences')}
-            </TabsTrigger>
-            <TabsTrigger value="sync">
-              {t('settings-page:section-sync')}
-            </TabsTrigger>
-            <TabsTrigger value="data-management">
-              {t('settings-page:section-data-management')}
-            </TabsTrigger>
-            <TabsTrigger value="others">
-              {t('settings-page:section-others')}
-            </TabsTrigger>
+          {/* Four equal columns of no-wrap labels ran out past the bar on a
+              phone. Each tab takes an equal share and lets its words wrap
+              instead: two lines are readable in a VR panel, a clipped word
+              is not. */}
+          <TabsList className="flex h-auto w-full">
+            {(
+              [
+                ['preferences', 'settings-page:section-preferences'],
+                ['sync', 'settings-page:section-sync'],
+                ['data-management', 'settings-page:section-data-management'],
+                ['others', 'settings-page:section-others'],
+              ] as const
+            ).map(([value, label]) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className="min-w-0 flex-1 whitespace-normal py-2 text-center leading-tight"
+              >
+                {t(label)}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </div>
 
@@ -140,7 +169,10 @@ export default function SettingsPage() {
                 value={language || 'en-US'}
                 onValueChange={(value) => handleLanguageChange(value)}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger
+                  data-testid="language-select"
+                  className="w-[180px]"
+                >
                   <SelectValue placeholder="Language" />
                 </SelectTrigger>
                 <SelectContent>
@@ -279,6 +311,12 @@ export default function SettingsPage() {
           {/* Renders nothing when there is nothing set aside, which is almost
               always. */}
           <MemoConflictsSection />
+          {/* Set apart from the cards above with extra room: this is the one
+              action here that overrules other devices, and it should not read
+              as an everyday neighbour of "sync now" (#119). */}
+          <div className="pt-6">
+            <PushSettingsSection />
+          </div>
         </TabsContent>
 
         <TabsContent value="data-management" className="space-y-4">
@@ -362,6 +400,15 @@ export default function SettingsPage() {
               <div className="text-sm text-muted-foreground">
                 {t('settings-page:data-migration-description')}
               </div>
+              <a
+                href="/migration-guide/v2"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm underline underline-offset-2"
+              >
+                {t('migration-guide:link-label')}
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
             </div>
             <Button
               variant="outline"
