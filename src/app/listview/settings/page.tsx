@@ -86,19 +86,27 @@ export default function SettingsPage() {
       </div>
       <Tabs defaultValue={initialTab} className="w-full">
         <div className="sticky top-0 z-10 bg-background pt-2 pb-2">
-          <TabsList className="grid grid-cols-4">
-            <TabsTrigger value="preferences">
-              {t('settings-page:section-preferences')}
-            </TabsTrigger>
-            <TabsTrigger value="sync">
-              {t('settings-page:section-sync')}
-            </TabsTrigger>
-            <TabsTrigger value="data-management">
-              {t('settings-page:section-data-management')}
-            </TabsTrigger>
-            <TabsTrigger value="others">
-              {t('settings-page:section-others')}
-            </TabsTrigger>
+          {/* Four equal columns of no-wrap labels ran out past the bar on a
+              phone. Each tab takes an equal share and lets its words wrap
+              instead: two lines are readable in a VR panel, a clipped word
+              is not. */}
+          <TabsList className="flex h-auto w-full">
+            {(
+              [
+                ['preferences', 'settings-page:section-preferences'],
+                ['sync', 'settings-page:section-sync'],
+                ['data-management', 'settings-page:section-data-management'],
+                ['others', 'settings-page:section-others'],
+              ] as const
+            ).map(([value, label]) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className="min-w-0 flex-1 whitespace-normal py-2 text-center leading-tight"
+              >
+                {t(label)}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </div>
 
