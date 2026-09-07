@@ -5,6 +5,7 @@ import { AppSidebar } from './components/app-sidebar'
 import { PopupManager } from './hook/usePopups/popup-manager'
 import { PatreonProvider } from '@/contexts/patreon-context'
 import { SidebarProvider } from '@/components/ui/sidebar'
+import { WorldDragProvider } from './components/world-drag'
 import { useTrackLocalChanges } from '@/hooks/use-track-local-changes'
 import { usePulledPreferences } from '@/hooks/use-pulled-preferences'
 import type { CSSProperties } from 'react'
@@ -35,15 +36,19 @@ export function ListViewClientShell({
         <SidebarProvider
           style={{ '--sidebar-width': '17rem' } as CSSProperties}
         >
-          <AppSidebar />
-          {/* A div, not a `main`: the root layout already provides that
-              landmark, and `main` may not be nested inside another one. */}
-          <div
-            data-testid="list-view-content"
-            className="flex-1 min-w-0 h-svh overflow-y-auto no-webview-scroll-bar"
-          >
-            {children}
-          </div>
+          {/* Around both the sidebar and the grid: a card picked up in one is
+              dropped in the other. */}
+          <WorldDragProvider>
+            <AppSidebar />
+            {/* A div, not a `main`: the root layout already provides that
+                landmark, and `main` may not be nested inside another one. */}
+            <div
+              data-testid="list-view-content"
+              className="flex-1 min-w-0 h-svh overflow-y-auto no-webview-scroll-bar"
+            >
+              {children}
+            </div>
+          </WorldDragProvider>
           <PopupManager />
         </SidebarProvider>
       </PatreonProvider>
