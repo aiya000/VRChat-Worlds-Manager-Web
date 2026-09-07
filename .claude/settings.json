@@ -1,5 +1,5 @@
 {
   "permissions": {
-    "allow": ["Bash(git push:*)"]
+    "allow": ["Bash(git push:*)", "Bash(git fetch:*)"]
   }
 }
