@@ -234,3 +234,35 @@ test.describe('the sync button on the list', () => {
     )
   })
 })
+
+// Just wide enough for "add" and "fetch" to share the first line, and not
+// wide enough for "sync" to join them: the shape in the phone screenshot
+// where the wrapped button used to start a new left margin of its own.
+test.describe('when the header actions wrap', () => {
+  test.use({ viewport: { width: 500, height: 932 } })
+
+  test('the sync button lines up under the right edge of the fetch button', async ({
+    page,
+  }) => {
+    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleDrive(page)
+    await openTheList(page)
+
+    // The sync button appears once the connection state has been read, and
+    // the row settles only then; measure nothing before it is there.
+    await expect(syncButton(page)).toBeVisible()
+    const fetch = page.getByRole('button', {
+      name: jaJP['fetch-favorites:button'],
+      exact: true,
+    })
+    const fetchBox = (await fetch.boundingBox())!
+    const syncBox = (await syncButton(page).boundingBox())!
+    expect(syncBox.y).toBeGreaterThan(fetchBox.y + fetchBox.height - 1)
+    expect(
+      Math.abs(syncBox.x + syncBox.width - (fetchBox.x + fetchBox.width)),
+    ).toBeLessThanOrEqual(1)
+    // ...and it is the same height, or it would sit visibly lower on the
+    // widths where the two share a line.
+    expect(syncBox.height).toBe(fetchBox.height)
+  })
+})

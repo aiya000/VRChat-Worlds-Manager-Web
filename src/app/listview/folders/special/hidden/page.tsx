@@ -48,7 +48,6 @@ export default function HiddenWorldsPage() {
           </DropdownMenu>
           <FetchWorldsButton
             kind="favorites"
-            className="ml-2"
             onClick={handleReload}
             disabled={isLoading}
             loading={isLoading}

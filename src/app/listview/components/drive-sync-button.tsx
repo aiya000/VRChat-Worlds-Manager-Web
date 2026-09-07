@@ -187,7 +187,8 @@ export const DriveSyncButton: FC = () => {
     <>
       {/* The word stays at every width: two characters beside the icon are
           what tell this button apart from the one that fetches favourites,
-          and a VR overlay panel can spare that much. */}
+          and a VR overlay panel can spare that much. Default height, like
+          the buttons it sits beside; a taller one sat visibly lower. */}
       <HelpBadge
         tooltip={tooltip}
         helpLabel={t('general:help-about', t('list-view:sync'))}
@@ -196,7 +197,7 @@ export const DriveSyncButton: FC = () => {
       >
         <Button
           variant={connected ? 'outline' : 'ghost'}
-          className="relative h-10 shrink-0 gap-2 px-3"
+          className="relative shrink-0 gap-2 px-3"
           disabled={syncing}
           onClick={press}
           aria-label={label}

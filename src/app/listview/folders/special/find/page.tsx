@@ -319,7 +319,6 @@ export default function FindWorldsPage() {
           {activeTab === 'recently-visited' && (
             <FetchWorldsButton
               kind="recent"
-              className="ml-2"
               onClick={fetchRecentlyVisitedWorlds}
               disabled={isLoading}
               loading={isLoading}

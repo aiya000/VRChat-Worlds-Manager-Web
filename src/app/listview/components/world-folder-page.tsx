@@ -63,7 +63,10 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="text-xl font-bold truncate">{title}</h1>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          {/* `justify-end`: on a phone these wrap onto a second line, and a
+              button that wrapped should sit under the right edge of the row
+              above rather than start a new left margin of its own. */}
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {isSelectionMode && filteredWorlds.length > 0 && (
               <Button
                 variant="outline"

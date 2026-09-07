@@ -30,7 +30,6 @@ export default function AllWorldsPage() {
           </Button>
           <FetchWorldsButton
             kind="favorites"
-            className="ml-2"
             onClick={handleReload}
             disabled={isLoading}
             loading={isLoading}
