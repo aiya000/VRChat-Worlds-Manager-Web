@@ -4,6 +4,7 @@ import { CloudOff, RefreshCw } from 'lucide-react'
 import { useEffect, useState, type FC } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { HelpBadge } from '@/components/help-badge'
 import {
   SyncExplanationDialog,
   type SyncExplanationMode,
@@ -18,10 +19,7 @@ import {
   syncActivity,
   tryBeginSync,
 } from '@/lib/services/sync-activity'
-import {
-  rememberSyncExplained,
-  wasSyncExplained,
-} from '@/lib/services/sync-explanation'
+import { wasSyncExplained } from '@/lib/services/sync-explanation'
 import {
   lastLocalChangeAt,
   subscribeToUnsyncedChanges,
@@ -41,9 +39,10 @@ import { hasUnsyncedChanges } from '@/lib/sync/unsynced-changes'
  * progress, and the toast is the report.
  *
  * Two things are said without being asked: that a change made here has not
- * been sent yet (the dot), and -- before the very first press -- what pressing
- * does. On a device that is not connected the button leads to where connecting
- * happens, rather than pretending to sync.
+ * been sent yet (the dot), and -- before each press, until told not to --
+ * what pressing does. The "?" in the corner says it again on demand. On a
+ * device that is not connected the button leads to where connecting happens,
+ * rather than pretending to sync.
  */
 export const DriveSyncButton: FC = () => {
   const { t } = useLocalization()
@@ -158,7 +157,6 @@ export const DriveSyncButton: FC = () => {
   }
 
   const proceedAfterExplanation = () => {
-    rememberSyncExplained()
     void sync()
   }
 
@@ -177,45 +175,53 @@ export const DriveSyncButton: FC = () => {
         ? `${t('list-view:sync')} — ${t('list-view:sync-unsynced')}`
         : t('list-view:sync')
 
+  const tooltip =
+    connected && lastSyncedAt !== null
+      ? `${t('list-view:sync-tooltip')}\n${t(
+          'settings-page:google-drive-last-synced',
+          describeAgo(lastSyncedAt),
+        )}`
+      : t('list-view:sync-tooltip')
+
   return (
     <>
-      {/* Icon-only below `sm`: this row is pinned in a VR overlay panel and on
-          a phone, and neither can spare the width of a word. */}
-      <Button
-        variant={connected ? 'outline' : 'ghost'}
-        className="relative h-10 shrink-0 gap-2 px-2 sm:px-3"
-        disabled={syncing}
-        onClick={press}
-        aria-label={label}
-        title={
-          connected && lastSyncedAt !== null
-            ? t(
-                'settings-page:google-drive-last-synced',
-                describeAgo(lastSyncedAt),
-              )
-            : undefined
-        }
-        data-testid="drive-sync-button"
-        data-unsynced={unsynced ? 'true' : undefined}
+      {/* The word stays at every width: two characters beside the icon are
+          what tell this button apart from the one that fetches favourites,
+          and a VR overlay panel can spare that much. */}
+      <HelpBadge
+        tooltip={tooltip}
+        helpLabel={t('general:help-about', t('list-view:sync'))}
+        onHelp={() => setExplaining('info')}
+        helpTestId="drive-sync-help"
       >
-        {connected ? (
-          <RefreshCw
-            className={`h-5 w-5 ${syncing ? 'animate-spin' : ''}`}
-            aria-hidden
-          />
-        ) : (
-          <CloudOff className="h-5 w-5" aria-hidden />
-        )}
-        <span className="hidden sm:inline">
-          {connected ? t('list-view:sync') : t('list-view:connect')}
-        </span>
-        {unsynced && (
-          <span
-            className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary"
-            aria-hidden
-          />
-        )}
-      </Button>
+        <Button
+          variant={connected ? 'outline' : 'ghost'}
+          className="relative h-10 shrink-0 gap-2 px-3"
+          disabled={syncing}
+          onClick={press}
+          aria-label={label}
+          data-testid="drive-sync-button"
+          data-unsynced={unsynced ? 'true' : undefined}
+        >
+          {connected ? (
+            <RefreshCw
+              className={`h-5 w-5 ${syncing ? 'animate-spin' : ''}`}
+              aria-hidden
+            />
+          ) : (
+            <CloudOff className="h-5 w-5" aria-hidden />
+          )}
+          <span>
+            {connected ? t('list-view:sync') : t('list-view:connect')}
+          </span>
+          {unsynced && (
+            <span
+              className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary"
+              aria-hidden
+            />
+          )}
+        </Button>
+      </HelpBadge>
 
       <SyncExplanationDialog
         open={explaining !== null}

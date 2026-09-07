@@ -83,6 +83,12 @@ async function openTheList(page: Page) {
 
 const syncButton = (page: Page) => page.getByTestId('drive-sync-button')
 const explanation = (page: Page) => page.getByTestId('sync-explanation')
+const proceed = (page: Page) =>
+  page.getByRole('button', { name: jaJP['sync-explanation:action-sync'] })
+const dontShowAgain = (page: Page) =>
+  page.getByLabel(jaJP['explanation:dont-show-again'])
+const successToast = (page: Page) =>
+  page.getByText(jaJP['settings-page:google-drive-sync-success'])
 
 async function createFolder(page: Page, name: string) {
   await page.locator('[data-sidebar="trigger"]').click()
@@ -136,7 +142,7 @@ test.describe('the sync button on the list', () => {
     ).toBeVisible()
   })
 
-  test('explains itself once, then syncs on the press after', async ({
+  test('explains itself before each press, until told not to', async ({
     page,
   }) => {
     await stubGoogleDrive(page, driveHolding(JSON.stringify(REMOTE_SNAPSHOT)))
@@ -147,23 +153,38 @@ test.describe('the sync button on the list', () => {
 
     await syncButton(page).click()
     await expect(explanation(page)).toBeVisible()
-    await page
-      .getByRole('button', { name: jaJP['sync-explanation:action-sync'] })
-      .click()
-    await expect(
-      page.getByText(jaJP['settings-page:google-drive-sync-success']),
-    ).toBeVisible()
+    await proceed(page).click()
+    await expect(successToast(page)).toBeVisible()
     await expect(explanation(page)).toBeHidden()
 
-    // Once read, it stays out of the way: the next press just syncs.
-    await page
-      .getByText(jaJP['settings-page:google-drive-sync-success'])
-      .waitFor({ state: 'hidden' })
+    // Going on without ticking the box is not the same as having read it:
+    // it comes back on the next press.
+    await successToast(page).waitFor({ state: 'hidden' })
+    await syncButton(page).click()
+    await expect(explanation(page)).toBeVisible()
+    await dontShowAgain(page).click()
+    await proceed(page).click()
+    await expect(successToast(page)).toBeVisible()
+
+    // Now it stays out of the way: the next press just syncs.
+    await successToast(page).waitFor({ state: 'hidden' })
     await syncButton(page).click()
     await expect(explanation(page)).toBeHidden()
-    await expect(
-      page.getByText(jaJP['settings-page:google-drive-sync-success']),
-    ).toBeVisible()
+    await expect(successToast(page)).toBeVisible()
+  })
+
+  test('the "?" shows the explanation on demand, without the checkbox', async ({
+    page,
+  }) => {
+    await stubGoogleDrive(page)
+    await openTheList(page)
+
+    await page.getByTestId('drive-sync-help').click()
+    await expect(explanation(page)).toBeVisible()
+    await expect(dontShowAgain(page)).toBeHidden()
+    await expect(proceed(page)).toBeHidden()
+    await page.getByRole('button', { name: jaJP['general:close'] }).click()
+    await expect(explanation(page)).toBeHidden()
   })
 
   test('marks a change waiting to be sent, and clears the mark once it went', async ({
@@ -180,9 +201,8 @@ test.describe('the sync button on the list', () => {
 
     // A first sync, so there is a "last synced" for a change to be newer than.
     await syncButton(page).click()
-    await page
-      .getByRole('button', { name: jaJP['sync-explanation:action-sync'] })
-      .click()
+    await dontShowAgain(page).click()
+    await proceed(page).click()
     await expect(
       page.getByText(jaJP['settings-page:google-drive-sync-success']),
     ).toBeVisible()

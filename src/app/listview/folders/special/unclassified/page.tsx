@@ -2,7 +2,8 @@
 
 import { useLocalization } from '@/hooks/use-localization'
 import { Button } from '@/components/ui/button'
-import { Plus, RefreshCw } from 'lucide-react'
+import { FetchWorldsButton } from '@/app/listview/components/fetch-worlds-button'
+import { Plus } from 'lucide-react'
 import WorldFolderPage from '@/app/listview/components/world-folder-page'
 import { SpecialFolders } from '@/types/folders'
 
@@ -27,15 +28,13 @@ export default function UnclassifiedWorldsPage() {
             <Plus className="h-4 w-4" />
             <span>{t('listview-page:add-world')}</span>
           </Button>
-          <Button
-            className="flex items-center gap-2 cursor-pointer ml-2"
-            variant="outline"
+          <FetchWorldsButton
+            kind="favorites"
+            className="ml-2"
             onClick={handleReload}
             disabled={isLoading}
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span>{t('general:fetch-refresh')}</span>
-          </Button>
+            loading={isLoading}
+          />
         </>
       )}
     />

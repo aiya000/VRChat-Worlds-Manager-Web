@@ -2,13 +2,14 @@
 
 import { useLocalization } from '@/hooks/use-localization'
 import { Button } from '@/components/ui/button'
+import { FetchWorldsButton } from '@/app/listview/components/fetch-worlds-button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Menu, Plus, RefreshCw } from 'lucide-react'
+import { Menu, Plus } from 'lucide-react'
 import WorldFolderPage from '@/app/listview/components/world-folder-page'
 import { SpecialFolders } from '@/types/folders'
 
@@ -45,15 +46,13 @@ export default function HiddenWorldsPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            className="flex items-center gap-2 cursor-pointer ml-2"
-            variant="outline"
+          <FetchWorldsButton
+            kind="favorites"
+            className="ml-2"
             onClick={handleReload}
             disabled={isLoading}
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span>{t('general:fetch-refresh')}</span>
-          </Button>
+            loading={isLoading}
+          />
         </>
       )}
     />

@@ -4,10 +4,10 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useLocalization } from '@/hooks/use-localization'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
+import { FetchWorldsButton } from '@/app/listview/components/fetch-worlds-button'
 import {
   CircleHelpIcon,
   Loader2,
-  RefreshCw,
   Search,
   Square,
   CheckSquare,
@@ -316,19 +316,15 @@ export default function FindWorldsPage() {
                 </span>
               </Button>
             )}
-          <Button
-            variant="outline"
-            onClick={fetchRecentlyVisitedWorlds}
-            disabled={activeTab !== 'recently-visited' || isLoading}
-            className={`ml-2 flex items-center gap-2 ${
-              activeTab !== 'recently-visited' ? 'invisible' : ''
-            }`}
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
+          {activeTab === 'recently-visited' && (
+            <FetchWorldsButton
+              kind="recent"
+              className="ml-2"
+              onClick={fetchRecentlyVisitedWorlds}
+              disabled={isLoading}
+              loading={isLoading}
             />
-            <span>{t('general:fetch-refresh')}</span>
-          </Button>
+          )}
           <Button
             variant={isSelectionMode ? 'secondary' : 'ghost'}
             size="icon"
