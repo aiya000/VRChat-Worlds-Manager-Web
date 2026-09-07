@@ -861,34 +861,6 @@ export function WorldDetailPopup({
                         platforms={worldPlatforms}
                       />
                     )}
-                    {!isWorldBlacklisted && (
-                      <div className="mt-4 pt-4 border-t border-border">
-                        <div className="text-sm text-muted-foreground">
-                          <p className="font-medium mb-2">
-                            {t('world-detail:author-removal-title')}
-                          </p>
-                          <p className="mb-3">
-                            {t('world-detail:author-removal-description')}
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1"
-                            asChild
-                          >
-                            <a
-                              href="https://docs.google.com/forms/d/e/1FAIpQLSctTr69Arr9VazZ2zj_5cUlmlafBxM3LDrx12jpyPN1lj5baQ/viewform"
-                              target="_blank"
-                              rel="noreferrer"
-                              title={t('world-detail:request-removal')}
-                            >
-                              {t('world-detail:request-removal')}
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                     <div className="mt-4">
                       <RawErrorDetails failure={fetchFailure} />
                     </div>
