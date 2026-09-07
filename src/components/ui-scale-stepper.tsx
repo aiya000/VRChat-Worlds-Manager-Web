@@ -39,7 +39,12 @@ export const UiScaleStepper: FC<{
     <div
       // `h-9`, the default button height: a taller control sits visibly
       // lower than the buttons it shares the row with.
-      className="flex h-9 shrink-0 items-center gap-1 rounded-md border px-1"
+      //
+      // `px-4` rather than the padding the border alone would want: the "?"
+      // badge sits over the bottom-right corner of whatever it explains, and
+      // at a narrower padding it covered a quarter of the "+" -- which a VR
+      // laser then hit instead of the button.
+      className="flex h-9 shrink-0 items-center gap-1 rounded-md border px-4"
       data-testid={testIdPrefix}
     >
       <Button

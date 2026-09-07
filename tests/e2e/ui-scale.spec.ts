@@ -206,6 +206,24 @@ test.describe('changing the size from the list view', () => {
     }
   })
 
+  test('keeps the "?" clear of the button it sits beside', async ({ page }) => {
+    // The badge is drawn over the bottom-right corner of what it explains, and
+    // it used to cover a quarter of the "+". A laser pointed at the button hit
+    // the badge instead.
+    await openListView(page)
+
+    const plus = (await page
+      .getByTestId('ui-scale-quick-increase')
+      .boundingBox())!
+    const help = (await page.getByTestId('ui-scale-help').boundingBox())!
+    const overlap =
+      Math.min(plus.x + plus.width, help.x + help.width) -
+      Math.max(plus.x, help.x)
+    // A hairline of contact is sub-pixel rounding; anything a finger or a
+    // laser could land on is not.
+    expect(overlap).toBeLessThanOrEqual(2)
+  })
+
   test('says what it scales, behind the "?"', async ({ page }) => {
     await openListView(page)
 
