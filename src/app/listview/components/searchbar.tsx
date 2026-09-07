@@ -21,7 +21,6 @@ import { useRef, useEffect } from 'react'
 import { usePopupStore } from '../hook/usePopups/store'
 import { Badge } from '@/components/ui/badge'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { DriveSyncButton } from './drive-sync-button'
 import { FolderType } from '@/types/folders'
 import { useWorldFiltersStore } from '../hook/use-filters'
 
@@ -188,10 +187,6 @@ export function SearchBar({ currentFolder }: SearchBarProps) {
               <Square className="h-4 w-4" />
             )}
           </Button>
-          {/* On the pinned row, like the sidebar trigger: syncing is a press
-              now (#124), and the press has to be reachable from where the
-              worlds are rather than from the settings screen. */}
-          <DriveSyncButton />
         </div>
       </div>
 

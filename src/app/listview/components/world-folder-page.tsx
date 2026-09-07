@@ -1,6 +1,7 @@
 import React from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DriveSyncButton } from './drive-sync-button'
 import { SearchBar } from './searchbar'
 import { WorldGrid } from './world-grid'
 import { WorldGridSkeleton } from './world-grid/skeleton'
@@ -83,6 +84,12 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
               worlds,
               filteredWorlds,
             })}
+            {/* Beside the button that fetches from VRChat: the two are the
+                actions that reach outside this device, and they read as a
+                pair. Syncing is a press now (#124), and the press has to be
+                reachable from where the worlds are rather than from the
+                settings screen. */}
+            <DriveSyncButton />
           </div>
         </div>
         <div>
