@@ -10,6 +10,7 @@ import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
 import { notifyDriveConnectionChanged } from '@/lib/services/drive-connection-changed'
 import { VrProjectionNotice } from '@/components/vr-projection-notice'
+import { isRunningInstalled } from '@/lib/pwa'
 import { preloadGoogleIdentityScript } from '@/lib/services/google-auth-service'
 import { refreshViews } from '@/lib/services/refresh-views'
 import {
@@ -26,27 +27,6 @@ import {
   msUntilRelativeTimeChanges,
   relativeTime,
 } from '@/lib/sync/relative-time'
-
-/**
- * Whether the app was opened from the home screen rather than in a browser tab.
- *
- * It matters because Google's consent window is then a Chrome Custom Tab, a
- * separate process that may not be able to hand its answer back -- see #104.
- * Until that is fixed by not using a second window at all, the honest thing is
- * to say so before someone presses the button and waits.
- */
-function isRunningInstalled(): boolean {
-  if (typeof window === 'undefined') {
-    return false
-  }
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.matchMedia('(display-mode: fullscreen)').matches ||
-    window.matchMedia('(display-mode: minimal-ui)').matches ||
-    // Safari on iOS predates `display-mode` and reports it here instead.
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  )
-}
 
 /**
  * Connect, disconnect, and one button that syncs.

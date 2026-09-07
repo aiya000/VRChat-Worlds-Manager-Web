@@ -6,6 +6,7 @@ import { useLocalization } from '@/hooks/use-localization'
 import { Button } from '@/components/ui/button'
 import { UserProfile } from '@/app/listview/about/components/user-profile'
 import { VrProjectionNotice } from '@/components/vr-projection-notice'
+import { PwaInstallNotice } from '@/components/pwa-install-notice'
 import { SiGithub, SiDiscord } from '@icons-pack/react-simple-icons'
 import { ScrollText, Shield } from 'lucide-react'
 import Link from 'next/link'
@@ -36,6 +37,19 @@ export default function AboutSection() {
               xUsername="public_ai000ya"
               githubUsername="aiya000"
             />
+          </CardContent>
+        </Card>
+
+        {/* Kept to one place, and to no banner: an offer to install that
+            interrupts is the kind nobody reads. Someone looking into what this
+            app is will pass the About page, and a reader who installed it
+            already sees nothing here at all. */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('about-section:install-title')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PwaInstallNotice />
           </CardContent>
         </Card>
 
