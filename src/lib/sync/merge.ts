@@ -12,6 +12,7 @@ import {
   type MemoSyncRecord,
   type MergeResult,
   type SetRef,
+  type SettingsOverride,
   type Snapshot,
   type SyncedSetting,
   type SyncMeta,
@@ -434,7 +435,31 @@ export function emptySnapshot(deviceId: string): Snapshot {
     customTags: [],
     launchedInstances: [],
     settings: {},
+    settingsOverride: null,
   }
+}
+
+/**
+ * The newer of two demands, or whichever exists.
+ *
+ * It rides along in the file rather than being consumed by the merge, because
+ * the device that has to obey it may not be the one that merged it in. Whether
+ * it is still owed is decided where it lands -- see `SettingsOverride`.
+ */
+function mergeSettingsOverride(
+  a: SettingsOverride | null,
+  b: SettingsOverride | null,
+): SettingsOverride | null {
+  if (a === null) {
+    return b
+  }
+  if (b === null) {
+    return a
+  }
+  if (a.at !== b.at) {
+    return a.at > b.at ? a : b
+  }
+  return a.origin >= b.origin ? a : b
 }
 
 function mergeRecords<T>(
@@ -562,6 +587,10 @@ export function mergeSnapshot(
         remote.settings,
         local.deviceId,
         remote.deviceId,
+      ),
+      settingsOverride: mergeSettingsOverride(
+        local.settingsOverride,
+        remote.settingsOverride,
       ),
     },
     memoConflicts,

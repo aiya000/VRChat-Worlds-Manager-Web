@@ -4,6 +4,7 @@ import {
   canonicalizeSettingValue,
   isSyncableSettingKey,
   selectSettingsToApply,
+  selectSettingsToForce,
   selectSyncedSettings,
   settingSyncClass,
   starredFilterSettingKey,
@@ -215,5 +216,93 @@ describe('canonicalizeSettingValue', () => {
     expect(canonicalizeSettingValue('sortPreferences', '["name","asc"]')).toBe(
       '["name","asc"]',
     )
+  })
+})
+
+describe('selectSettingsToForce', () => {
+  const entries: SettingEntries = {
+    language: { value: '"ja-JP"', updatedAt: 5 },
+    cardSize: { value: '"Compact"', updatedAt: 7 },
+    theme: { value: '"dark"', updatedAt: 0 },
+  }
+
+  it('publishes the keys this device would otherwise keep to itself', () => {
+    expect(selectSettingsToForce(entries, 900)).toHaveProperty('cardSize')
+  })
+
+  it('stamps everything with the moment the demand was made, so it wins', () => {
+    const forced = selectSettingsToForce(entries, 900)
+    expect(forced.language?.updatedAt).toBe(900)
+    expect(forced.cardSize?.updatedAt).toBe(900)
+  })
+
+  it('gives a setting older than timestamps a real time at last', () => {
+    // Anywhere else it travels as `0` and loses to every real clock reading.
+    expect(selectSettingsToForce(entries, 900).theme?.updatedAt).toBe(900)
+  })
+
+  it('still writes the theme in the form next-themes reads', () => {
+    expect(selectSettingsToForce(entries, 900).theme?.value).toBe('dark')
+  })
+
+  it('offers nothing for a setting this device has never written', () => {
+    expect(selectSettingsToForce({}, 900)).toEqual({})
+  })
+})
+
+describe('selectSettingsToApply, when obeying a demand', () => {
+  it('takes a key this device had marked as its own', () => {
+    expect(
+      selectSettingsToApply(
+        { cardSize: { value: '"Expanded"', updatedAt: 9 } },
+        { cardSize: { value: '"Compact"', updatedAt: 1 } },
+        {},
+        true,
+      ),
+    ).toEqual({ cardSize: { value: '"Expanded"', updatedAt: 9 } })
+  })
+
+  it('takes a key the user themselves marked as this device only', () => {
+    expect(
+      selectSettingsToApply(
+        { language: { value: '"en-US"', updatedAt: 9 } },
+        { language: { value: '"ja-JP"', updatedAt: 1 } },
+        { language: true },
+        true,
+      ),
+    ).toEqual({ language: { value: '"en-US"', updatedAt: 9 } })
+  })
+
+  it('overwrites a value this device changed more recently', () => {
+    expect(
+      selectSettingsToApply(
+        { language: { value: '"en-US"', updatedAt: 2 } },
+        { language: { value: '"ja-JP"', updatedAt: 500 } },
+        {},
+        true,
+      ),
+    ).toEqual({ language: { value: '"en-US"', updatedAt: 2 } })
+  })
+
+  it('still writes nothing when the value already matches', () => {
+    expect(
+      selectSettingsToApply(
+        { language: { value: '"ja-JP"', updatedAt: 9 } },
+        { language: { value: '"ja-JP"', updatedAt: 1 } },
+        {},
+        true,
+      ),
+    ).toEqual({})
+  })
+
+  it('still refuses a key that is not a setting of this app', () => {
+    expect(
+      selectSettingsToApply(
+        { authState: { value: 'a-token', updatedAt: 9 } },
+        {},
+        {},
+        true,
+      ),
+    ).toEqual({})
   })
 })

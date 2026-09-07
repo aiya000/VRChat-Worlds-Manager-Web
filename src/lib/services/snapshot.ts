@@ -7,17 +7,22 @@ import {
 import { emptySnapshot } from '@/lib/sync/merge'
 import {
   selectSettingsToApply,
+  selectSettingsToForce,
   selectSyncedSettings,
 } from '@/lib/sync/settings'
 import {
   SNAPSHOT_FORMAT_VERSION,
+  type SettingsOverride,
   type Snapshot,
   type WorldSyncRecord,
 } from '@/lib/sync/types'
 import { db, FOLDER_ORDER_KEY, type WorldRecord } from './db'
 import {
+  readPendingSettingsOverrideAt,
   readSettingEntries,
   readSettingSyncOverrides,
+  rememberAppliedSettingsOverride,
+  shouldObeySettingsOverride,
   writeSettingEntries,
 } from './setting-sync'
 import { deviceId } from './sync-meta'
@@ -47,6 +52,13 @@ export async function readSnapshot(): Promise<Snapshot> {
     db.customTags.toArray(),
     db.launchedInstances.toArray(),
   ])
+
+  // A demand waiting to go out changes what this device publishes: everything
+  // it holds, stamped now, rather than the keys it ordinarily shares.
+  const overrideAt = readPendingSettingsOverrideAt()
+  const settingsOverride: SettingsOverride | null =
+    overrideAt === null ? null : { origin: await deviceId(), at: overrideAt }
+  const settingEntries = readSettingEntries()
 
   return {
     formatVersion: SNAPSHOT_FORMAT_VERSION,
@@ -86,10 +98,11 @@ export async function readSnapshot(): Promise<Snapshot> {
     memos,
     customTags,
     launchedInstances,
-    settings: selectSyncedSettings(
-      readSettingEntries(),
-      readSettingSyncOverrides(),
-    ),
+    settings:
+      settingsOverride === null
+        ? selectSyncedSettings(settingEntries, readSettingSyncOverrides())
+        : selectSettingsToForce(settingEntries, settingsOverride.at),
+    settingsOverride,
   }
 }
 
@@ -186,13 +199,24 @@ export async function applySnapshot(snapshot: Snapshot): Promise<void> {
   // Settings live in local storage rather than in Dexie, so they are written
   // after the transaction commits: there is nothing to roll them back with,
   // and writing them first would leave them describing data that never landed.
+  //
+  // The device id is read here rather than taken from `snapshot.deviceId`,
+  // which is whatever the file said when this is a backup being restored.
+  const forced = shouldObeySettingsOverride(
+    snapshot.settingsOverride,
+    await deviceId(),
+  )
   writeSettingEntries(
     selectSettingsToApply(
       snapshot.settings,
       readSettingEntries(),
       readSettingSyncOverrides(),
+      forced,
     ),
   )
+  if (forced && snapshot.settingsOverride !== null) {
+    rememberAppliedSettingsOverride(snapshot.settingsOverride.at)
+  }
 }
 
 export class UnreadableBackupError extends Error {}

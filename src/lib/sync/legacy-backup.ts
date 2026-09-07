@@ -131,5 +131,6 @@ export function fromLegacyBackup(
     })),
     launchedInstances: [],
     settings: {},
+    settingsOverride: null,
   }
 }

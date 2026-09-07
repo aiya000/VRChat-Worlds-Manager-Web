@@ -1,4 +1,5 @@
 import { notifyLocalChange } from './local-changes'
+import { notifyPreferencesChanged } from './preferences-changed'
 import {
   isSyncableSettingKey,
   SYNCABLE_SETTING_KEYS,
@@ -6,12 +7,19 @@ import {
   type SettingSyncOverrides,
   type SyncableSettingKey,
 } from '@/lib/sync/settings'
+import type { SettingsOverride } from '@/lib/sync/types'
 
 /** When each syncable setting was last written here, keyed by setting name. */
 const UPDATED_AT_KEY = 'settingUpdatedAt'
 
 /** Keys whose sync class this device has been told to flip. Never synced. */
 const SYNC_OVERRIDES_KEY = 'settingSyncOverrides'
+
+/** A demand made here that has not reached Drive yet. */
+const PENDING_OVERRIDE_KEY = 'pendingSettingsOverride'
+
+/** The `at` of the newest demand this device has already obeyed. */
+const APPLIED_OVERRIDE_AT_KEY = 'appliedSettingsOverrideAt'
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') {
@@ -117,6 +125,13 @@ export function writeSettingEntries(entries: SettingEntries): void {
   }
 
   localStorage.setItem(UPDATED_AT_KEY, JSON.stringify(updatedAt))
+
+  // Nothing watches local storage, and the screens that read these values read
+  // them once. Without this a sync that worked leaves the app looking exactly
+  // as it did before it ran.
+  if (Object.keys(entries).length > 0) {
+    notifyPreferencesChanged()
+  }
 }
 
 export function readSettingSyncOverrides(): SettingSyncOverrides {
@@ -143,4 +158,79 @@ export function setSettingSyncOverride(
     SYNC_OVERRIDES_KEY,
     JSON.stringify({ ...readSettingSyncOverrides(), [key]: deviceOnly }),
   )
+  // Turning "this device only" off changes what this device publishes just as
+  // surely as editing the setting would. Without this the new classification
+  // waited for the next edit or the next press, which reads on screen as the
+  // toggle having done nothing at all.
+  notifyLocalChange()
+}
+
+/**
+ * Asks that this device's settings replace every other device's, once.
+ *
+ * It is recorded rather than acted on: the demand has to travel in the next
+ * snapshot, and only a sync can carry it. Its `at` is written straight into
+ * "already obeyed" as well, so this device never hands its own demand back to
+ * itself when the file comes round again.
+ *
+ * Nothing is awaited here, and that is deliberate rather than incidental: this
+ * runs inside the click that goes on to ask Google for a token, and a token
+ * request that has lost its user gesture is a window that never opens. The
+ * device id the demand travels under is filled in where the snapshot is built,
+ * which is somewhere an await is free.
+ */
+export function requestSettingsOverride(at: number = Date.now()): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  localStorage.setItem(PENDING_OVERRIDE_KEY, JSON.stringify({ at }))
+  rememberAppliedSettingsOverride(at)
+  notifyLocalChange()
+}
+
+/** When a demand was made here, or `null` if none is waiting. */
+export function readPendingSettingsOverrideAt(): number | null {
+  const stored = readJson<Record<string, unknown>>(PENDING_OVERRIDE_KEY, {})
+  const { at } = stored
+  return typeof at === 'number' ? at : null
+}
+
+/** Called once the demand has actually reached Drive. */
+export function clearPendingSettingsOverride(): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  localStorage.removeItem(PENDING_OVERRIDE_KEY)
+}
+
+export function readAppliedSettingsOverrideAt(): number {
+  if (typeof window === 'undefined') {
+    return 0
+  }
+  const at = Number(localStorage.getItem(APPLIED_OVERRIDE_AT_KEY))
+  return Number.isFinite(at) ? at : 0
+}
+
+export function rememberAppliedSettingsOverride(at: number): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  localStorage.setItem(APPLIED_OVERRIDE_AT_KEY, String(at))
+}
+
+/**
+ * Whether a snapshot's demand is one this device still owes.
+ *
+ * A demand is obeyed once and then remembered, because the marker stays in the
+ * file: obeying it on every later sync would quietly undo every setting anyone
+ * changed afterwards.
+ */
+export function shouldObeySettingsOverride(
+  override: SettingsOverride | null,
+  localDeviceId: string,
+): boolean {
+  if (override === null || override.origin === localDeviceId) {
+    return false
+  }
+  return override.at > readAppliedSettingsOverrideAt()
 }

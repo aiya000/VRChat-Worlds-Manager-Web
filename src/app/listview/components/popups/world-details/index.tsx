@@ -144,6 +144,10 @@ export function WorldDetailPopup({
   const [isWorldBlacklisted, setIsWorldBlacklisted] = useState<boolean>(false)
   const [cachedWorldData, setCachedWorldData] =
     useState<WorldDisplayData | null>(null)
+  // What the world was built for, from whichever source answered. `null` when
+  // neither has yet; the launch button treats that as "possibly".
+  const worldPlatforms =
+    worldDetails?.platform ?? cachedWorldData?.platform ?? null
 
   // Add these new state variables
   const [countdownSeconds, setCountdownSeconds] = useState<number>(5)
@@ -468,6 +472,7 @@ export function WorldDetailPopup({
         worldId,
         selectedInstanceType as Exclude<InstanceType, 'group'>,
         selectedRegion,
+        worldPlatforms,
       )
       setRegionPreference(selectedRegion)
       setInstanceTypePreference(selectedInstanceType)
@@ -545,6 +550,7 @@ export function WorldDetailPopup({
       groupId,
       instanceType,
       queueEnabled,
+      worldPlatforms,
       selectedRoles,
     )
     // Reset state after creating instance
@@ -811,7 +817,10 @@ export function WorldDetailPopup({
                       </div>
                     </div>
                     {!isWorldBlacklisted && (
-                      <LaunchedInstances worldId={cachedWorldData.worldId} />
+                      <LaunchedInstances
+                        worldId={cachedWorldData.worldId}
+                        platforms={worldPlatforms}
+                      />
                     )}
                     {!isWorldBlacklisted && (
                       <div className="mt-4 pt-4 border-t border-border">
@@ -999,6 +1008,7 @@ export function WorldDetailPopup({
                         <LaunchedInstances
                           worldId={worldId}
                           reloadKey={instanceReloadKey}
+                          platforms={worldPlatforms}
                         />
                       </div>
                     </div>

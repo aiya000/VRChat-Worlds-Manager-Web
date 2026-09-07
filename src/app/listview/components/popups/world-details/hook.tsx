@@ -1,10 +1,12 @@
 import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
 import { InstanceRegion } from '@/lib/commands'
+import type { Platform } from '@/lib/types'
 import { GroupInstanceType, InstanceType } from '@/types/instances'
 import { toast } from 'sonner'
 import { useWorldFiltersStore } from '@/app/listview/hook/use-filters'
 import { UserGroup, GroupInstancePermissionInfo } from '@/lib/commands'
+import { openInClient } from './open-in-client'
 
 export function useWorldDetailsActions(
   onOpenChange: (open: boolean) => void,
@@ -13,10 +15,15 @@ export function useWorldDetailsActions(
   const { t } = useLocalization()
   const { setAuthorFilter, setTagFilters } = useWorldFiltersStore()
 
+  /**
+   * `platforms` is what the world was built for, or `null` when not known;
+   * it is what decides whether an Android phone can be handed the app.
+   */
   const createInstance = async (
     worldId: string,
     instanceType: Exclude<InstanceType, 'group'>,
     region: InstanceRegion,
+    platforms: Platform[] | null,
   ) => {
     try {
       const result = await commands.createWorldInstance(
@@ -49,13 +56,7 @@ export function useWorldDetailsActions(
           label: t('listview-page:open-in-client'),
           onClick: async () => {
             try {
-              const openRes = await commands.openInstanceInClient(
-                info.world_id,
-                info.instance_id,
-              )
-              if (openRes.status === 'error') {
-                toast(t('general:error-title'), { description: openRes.error })
-              }
+              await openInClient(info.world_id, info.instance_id, platforms, t)
             } catch (e) {
               console.error(`Failed to open instance in client: ${e}`)
             }
@@ -76,6 +77,7 @@ export function useWorldDetailsActions(
     id: string,
     instanceType: GroupInstanceType,
     queueEnabled: boolean,
+    platforms: Platform[] | null,
     selectedRoles?: string[],
   ) => {
     try {
@@ -112,13 +114,7 @@ export function useWorldDetailsActions(
           label: t('listview-page:open-in-client'),
           onClick: async () => {
             try {
-              const openRes = await commands.openInstanceInClient(
-                info.world_id,
-                info.instance_id,
-              )
-              if (openRes.status === 'error') {
-                toast(t('general:error-title'), { description: openRes.error })
-              }
+              await openInClient(info.world_id, info.instance_id, platforms, t)
             } catch (e) {
               console.error(`Failed to open instance in client: ${e}`)
             }

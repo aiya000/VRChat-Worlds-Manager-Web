@@ -24,6 +24,14 @@ interface WorldsStoreState {
   addWorldToFolder: (folder: FolderType, worldId: string) => Promise<void>
   getAllWorlds: () => Promise<WorldDisplayData[]>
   getFavoriteWorlds: () => Promise<unknown>
+  /**
+   * Re-reads every list this store is currently holding.
+   *
+   * Nothing here watches the database, so rows written underneath it -- by a
+   * sync pulling another device's changes -- stay invisible until something
+   * asks again. This is what asks.
+   */
+  reloadAll: () => Promise<void>
 }
 
 async function fetchWorldsImpl(
@@ -161,6 +169,19 @@ export const useWorldsStore = create<WorldsStoreState>((set, get) => ({
       return res.data
     }
     throw new Error(res.error)
+  },
+  async reloadAll() {
+    const { byKey, load } = get()
+    // `folderKey` is `String(folder)`, and a folder is a string either way --
+    // a user folder's name, or one of the special folders' values -- so the
+    // key it produced is the folder it came from.
+    await Promise.all(
+      Object.keys(byKey).map((key) =>
+        load(key as FolderType, { force: true }).catch((e) => {
+          console.error(`[useWorldsStore] reload failed for key=${key}: ${e}`)
+        }),
+      ),
+    )
   },
 }))
 

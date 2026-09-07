@@ -535,3 +535,76 @@ describe('mergeSnapshot: properties that must hold', () => {
     expect(merged.settings.language.value).toBe('en-US')
   })
 })
+
+describe("a demand that one device's settings replace everyone's", () => {
+  it('travels in the merged file rather than being consumed by the merge', () => {
+    const local = snapshot(PHONE, {
+      settingsOverride: { origin: PHONE, at: 500 },
+    })
+    const remote = snapshot(DESKTOP, {})
+
+    expect(mergeSnapshot(local, remote).snapshot.settingsOverride).toEqual({
+      origin: PHONE,
+      at: 500,
+    })
+  })
+
+  it('picks up one that is already in the file', () => {
+    const local = snapshot(PHONE, {})
+    const remote = snapshot(DESKTOP, {
+      settingsOverride: { origin: DESKTOP, at: 500 },
+    })
+
+    expect(mergeSnapshot(local, remote).snapshot.settingsOverride).toEqual({
+      origin: DESKTOP,
+      at: 500,
+    })
+  })
+
+  it('keeps the newer of two, so the last person to ask is the one obeyed', () => {
+    const local = snapshot(PHONE, {
+      settingsOverride: { origin: PHONE, at: 500 },
+    })
+    const remote = snapshot(DESKTOP, {
+      settingsOverride: { origin: DESKTOP, at: 900 },
+    })
+
+    expect(mergeSnapshot(local, remote).snapshot.settingsOverride).toEqual({
+      origin: DESKTOP,
+      at: 900,
+    })
+  })
+
+  it('settles two made in the same millisecond the same way round either way', () => {
+    const local = snapshot(PHONE, {
+      settingsOverride: { origin: PHONE, at: 500 },
+    })
+    const remote = snapshot(DESKTOP, {
+      settingsOverride: { origin: DESKTOP, at: 500 },
+    })
+
+    expect(mergeSnapshot(local, remote).snapshot.settingsOverride).toEqual(
+      mergeSnapshot(remote, local).snapshot.settingsOverride,
+    )
+  })
+
+  it('leaves worlds and folders entirely alone', () => {
+    const local = snapshot(PHONE, {
+      settingsOverride: { origin: PHONE, at: 500 },
+      folders: [folder('f-a', 'お気に入り', { updatedAt: 10, origin: PHONE })],
+      worlds: [world('wrld_a', { updatedAt: 10, origin: PHONE })],
+    })
+    const remote = snapshot(DESKTOP, {
+      folders: [folder('f-b', 'ネタ', { updatedAt: 20, origin: DESKTOP })],
+      worlds: [world('wrld_b', { updatedAt: 20, origin: DESKTOP })],
+    })
+
+    const merged = mergeSnapshot(local, remote).snapshot
+    expect(merged.folders.map((each) => each.id).sort()).toEqual(['f-a', 'f-b'])
+    expect(merged.worlds.map((each) => each.worldId).sort()).toEqual([
+      'wrld_a',
+      'wrld_b',
+    ])
+    expect(merged.worlds.every((each) => each.deletedAt === null)).toBe(true)
+  })
+})

@@ -198,6 +198,10 @@ comment.
 - English support via client-side detection
 - Dynamic `lang` attribute updates based on `navigator.language`
 
+**`t` from `useLocalization` is a new function on every render.** It is defined in the
+render body and is not memoised, so listing it in a `useEffect` dependency array re-runs
+that effect on every render.
+
 ### SEO Considerations
 
 - This is a static site (Static Generation)
@@ -241,6 +245,94 @@ not recognise, and so fetched third-party scripts on the page's behalf.
 That is worth remembering when adding anything that loads an external script: it
 defeated Playwright's `page.route()` mocks, because the request the mock was waiting
 for was being made by the service worker instead, and the test hung with no clue why.
+
+### Nothing on screen redraws by itself
+
+This app does not use `useLiveQuery`. **Writing to Dexie refreshes no screen** — whatever
+wrote has to announce it.
+
+`src/lib/services/local-changes.ts` and `src/lib/services/preferences-changed.ts` are the
+two signals for that, and both are deliberately import-free so anything may listen without
+creating a cycle. The preferences signal is fired from `writeSettingEntries()` rather than
+from a view refresh, so a backup restore and a manual sync both reach the listeners.
+
+### Google Drive sync: the rules that are not visible in the code
+
+- **The access token lives in memory only.** `currentAccessToken` in
+  `src/lib/services/google-auth-service.ts` is a module variable and is never persisted, so
+  a reload loses it. Being asked to sign in again after a reload is the design, not a bug
+- **Automatic sync must never open Google's window.** `getAccessTokenIfHeld()` returns a
+  token only if one is already held and otherwise does nothing; only a user's press may take
+  the requesting path. A window opened without a press is a popup block waiting to happen
+- **`requestSettingsOverride()` must stay synchronous.** The Google token request runs
+  immediately after it, and an `await` in between loses the user gesture, after which the
+  browser refuses to open the window. Anything needing `await` belongs in `readSnapshot()`,
+  where awaiting costs nothing
+- **A pulled change must not be pushed straight back.** `asRemoteWrite()` in
+  `local-changes.ts` marks writes that came from the remote so the change signal does not
+  start another push
+- **Whether a setting syncs is the receiving device's decision.** A device that has marked a
+  setting `deviceOnly` drops the incoming value even though the file carries one. The one-off
+  "push to every device" request is the only exception, and it is obeyed once: the receiver
+  remembers `appliedSettingsOverrideAt` and obeys only a strictly newer `at`. Obeying every
+  time would roll back every setting the user changed afterwards
+
+### Drive sync cannot be exercised from an automated browser
+
+Google refuses to sign in from a browser under automation -- Chrome for Testing, or a Chrome
+launched with `--remote-debugging-port` -- and answers "Couldn't sign you in / This browser or app
+may not be secure". The block is deliberate, and working around it is not something to attempt.
+
+**So a browser an agent drives can reach every part of this app except what sits behind the Google
+sign-in**: connecting Drive, syncing, and the settings push are all out of reach that way. Everything
+else -- setup, the list view, layout at any viewport, IndexedDB, local storage -- drives fine, and is
+worth using.
+
+What answers a sync question without signing in, cheapest first:
+
+- **Read a backup file.** `createBackup()` calls the very `readSnapshot()` the sync uploads, so a
+  backup JSON holds exactly the `settings` and `settingsOverride` a push would have sent. Exporting
+  one on the device in question settles most "what did that device actually publish?" questions with
+  no credentials involved at all. Remember it drops `deviceOnly` keys, so an absent key means either
+  "never written" or "marked as this device only"
+- **Attach to a browser a person signed in to themselves**, rather than launching one. A real phone
+  reached over `adb forward tcp:<port> localabstract:chrome_devtools_remote` is the practical case,
+  and reading its local storage and IndexedDB needs no sign-in. Whether a _fresh_ token request
+  survives Google's check in an attached browser has not been tried here
+
+### The stale-bundle notice means the bundle is old, not the data
+
+`StaleBundleNotice` appears on exactly one condition: the schema version recorded in
+IndexedDB is higher than the `APP_DB_VERSION` of the bundle that is running. That version
+has only ever gone 1 → 3 → 4 → 5, so a device showing the notice is running an old bundle;
+it is not holding strange data, and clearing storage will not help it.
+
+`public/sw.js` names its cache per build (`NEXT_PUBLIC_BUILD_ID`, which CI sets from
+`GITHUB_SHA`) and registration passes `updateViaCache: 'none'`, so a new build does not
+inherit the old cache. The notice's reload button goes through `src/lib/stale-bundle.ts`,
+which unregisters the service workers and deletes the caches before reloading — the escape
+hatch for a device that is stuck.
+
+### VRChat's deep links: what the two well-known files actually say
+
+Both are public and worth re-reading rather than remembering, and VRChat's WAF rejects a
+request without a descriptive `User-Agent`:
+
+- `https://vrchat.com/.well-known/apple-app-site-association` (**iOS only**) lists the paths
+  `/home/device` and `/home/device/*`, and nothing else
+- `https://vrchat.com/.well-known/assetlinks.json` (**Android**) declares
+  `com.vrchat.mobile.playstore` and `com.vrchat.mobile` with `handle_all_urls`
+
+`handle_all_urls` is only the site granting the app permission; **which paths Android
+actually hands over is decided by the app's own intent filters**, which are not published.
+So neither file tells you whether a given `vrchat.com` URL will open the Android app — the
+iOS path list in particular says nothing about Android, and reading it as if it did is a
+mistake that has been made here before.
+
+What is known from a real device: an intent aimed at `https://vrchat.com/home/launch` was
+not taken by the Android app, and the fallback web page reported "This instance not found".
+`vrch.at/<shortName>` is only a 302 to `vrchat.com/i/<shortName>`, so it inherits whatever
+is true of the latter.
 
 ## UI Target Environments
 
@@ -306,6 +398,11 @@ conflict in `package.json`. (CI does the same thing in its own step.)
 
 `bun run test:e2e` starts the dev server itself; nothing needs to be running first.
 
+**A full local run drops roughly 10-14 specs on `page.goto`, a different set each time.**
+Re-run with `bunx playwright test --last-failed` before reading a single failure log: if
+they then all pass, it was contention from running the whole suite in parallel rather than
+anything the change did. CI has not shown this.
+
 ### Writing E2E Tests
 
 Things that have cost real time here before:
@@ -317,6 +414,14 @@ Things that have cost real time here before:
   the object store itself, not for the version number
 - **A button whose description sits inside it has that description in its accessible
   name.** Target those by `aria-pressed` or another attribute instead of by name
+- **A button that renames itself while it works** — "同期中..." and the like — cannot be
+  reached by `getByRole('button', { name })` for the part of the run that matters. Give the
+  block a `data-testid` and assert inside it
+- **Counting requests means blocking the service worker**: `test.use({ serviceWorkers: 'block' })`.
+  Without it the worker makes some of them and the count is wrong
+- **Next's dev overlay sits over the page and swallows clicks.** Any spec that clicks needs
+  `page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' })`
+- **A spec that waits for the 60-second poll needs `test.setTimeout(150_000)`** in the file
 - **Delete throwaway debug specs** (`tests/e2e/__debug.spec.ts` and friends) as soon as
   the thing they were written to answer is answered
 
@@ -334,9 +439,17 @@ Things that have cost real time here before:
 ### Before Committing
 
 1. Run `bun run typecheck` to verify TypeScript types
-2. Run `bun run build` to ensure the build succeeds
-3. Check for any warnings in the build output
-4. Test the generated static files in the `out/` directory
+2. Run `bun run lint`
+3. Run `bun run build` to ensure the build succeeds, and check the output for warnings
+4. Run `bun run test`, and `bun run test:e2e` as well when the change touches the interface
+5. Run `cd worker && bun run check` when the change touches the Worker
+6. Test the generated static files in the `out/` directory
+
+⚠️ **`bun --cwd worker run <script>` does not run the script.** It prints `bun run`'s own
+help instead, which is easy to skim past as success. Use `cd worker && bun run <script>`.
+
+A test written for a fix should be run **against the code before the fix** as well, to see
+it fail. A test that passes either way proves nothing.
 
 ### Don't Skip
 
@@ -440,6 +553,20 @@ the Google OAuth client).
 **Anything that has to be true of "the site" as the outside world sees it — a link an
 external verifier fetches, a file at a known path — is only true once it reaches
 `main`.** Merging to `develop` does not put it on the production URL.
+
+### The Worker deploys from `main` alone
+
+`.github/workflows/deploy-backend.yml` is wired to `main` and deliberately not to `develop`:
+`wrangler deploy` has no per-branch preview, so adding `develop` would overwrite the
+production Worker with whatever is on it.
+
+**A change under `worker/` therefore cannot be exercised on the `develop` site at all.** It
+goes live at the next release and not before, so plan for that rather than discovering it
+while trying to test on a phone.
+
+The Worker also caps itself: `IP_HOURLY_LIMIT` is 500 requests per IP per hour and
+`DAILY_QUOTA` is 90,000 overall. Anything that walks a list has to page rather than fan out —
+favourites come from `/worlds/favorites`, 100 per request.
 
 ### Releases are announced through GitHub Releases
 

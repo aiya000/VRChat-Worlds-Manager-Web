@@ -33,11 +33,18 @@ export async function stubGoogleIdentityServices(
     await route.fulfill({
       contentType: 'application/javascript',
       body: `
+        // Counted, not just answered: "a sync opened Google's window when
+        // nobody pressed anything" is a thing a test has to be able to see,
+        // and the real window is what this stub replaces.
+        window.__googleTokenRequests = 0
         window.google = {
           accounts: {
             oauth2: {
               initTokenClient: (config) => ({
-                requestAccessToken: () => { ${call} },
+                requestAccessToken: () => {
+                  window.__googleTokenRequests += 1
+                  ${call}
+                },
               }),
               revoke: (_token, callback) => callback(),
             },
@@ -46,4 +53,13 @@ export async function stubGoogleIdentityServices(
       `,
     })
   })
+}
+
+/** How many times the page has asked Google for a token since it loaded. */
+export async function tokenRequestCount(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      (window as unknown as { __googleTokenRequests?: number })
+        .__googleTokenRequests ?? 0,
+  )
 }

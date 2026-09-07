@@ -18,11 +18,15 @@ import {
   type DriveSyncResult,
   type SyncProgress,
 } from './services/drive-sync-service'
+import { requestSettingsOverride } from './services/setting-sync'
 import { AppLayer } from '@/lib/services/layers'
 import { PreferencesService } from '@/lib/services/preferences'
 import { FolderService } from '@/lib/services/folder-service'
 import { WorldService } from '@/lib/services/world-service'
-import { MemoService } from '@/lib/services/memo-service'
+import {
+  MemoService,
+  type MemoConflictEntry,
+} from '@/lib/services/memo-service'
 import { CustomTagsService } from '@/lib/services/custom-tags-service'
 import { AuthService } from '@/lib/services/auth-service'
 import { BackupService, type RestoreMode } from '@/lib/services/backup-service'
@@ -32,6 +36,7 @@ import { ExternalDataService } from '@/lib/services/external-data-service'
 import { ShareService } from '@/lib/services/share-service'
 import { TaskService } from '@/lib/services/task-service'
 import { VRChatApiService } from '@/lib/services/vrchat-api'
+import type { LaunchOutcome } from '@/lib/launch-target'
 import type {
   Result,
   BackupMetaData,
@@ -44,6 +49,7 @@ import type {
   InstanceRegion,
   PatreonData,
   PatreonVRChatNames,
+  Platform,
   PreviousMetadata,
   TaskStatus,
   UserGroup,
@@ -763,17 +769,13 @@ export const commands = {
 
   async createWorldInstance(
     worldId: string,
-    instanceTypeStr: string,
-    regionStr: string,
+    instanceType: Exclude<InstanceType, 'group'>,
+    region: InstanceRegion,
   ): Promise<Result<InstanceInfo, string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* VRChatApiService
-        return yield* svc.createWorldInstance(
-          worldId,
-          instanceTypeStr,
-          regionStr,
-        )
+        return yield* svc.createWorldInstance(worldId, instanceType, region)
       }),
     )
   },
@@ -821,14 +823,20 @@ export const commands = {
     )
   },
 
+  /**
+   * `platforms` is what the world was built for, when the caller knows; it
+   * decides whether an Android phone is handed the app or told there is no
+   * Android build to open.
+   */
   async openInstanceInClient(
     worldId: string,
     instanceId: string,
-  ): Promise<Result<string, string>> {
+    platforms: Platform[] | null,
+  ): Promise<Result<LaunchOutcome, string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* VRChatApiService
-        return yield* svc.openInstanceInClient(worldId, instanceId)
+        return yield* svc.openInstanceInClient(worldId, instanceId, platforms)
       }),
     )
   },
@@ -943,11 +951,29 @@ export const commands = {
   },
 
   /**
+   * Hands this device's settings to every other device, once.
+   *
+   * The demand is recorded and then an ordinary sync carries it: there is no
+   * separate upload, and everything else in the snapshot -- worlds, folders,
+   * memos -- is merged exactly as it always is. Nothing is deleted anywhere.
+   *
+   * Must be called from inside a click handler -- see `GoogleAuthService`.
+   */
+  async pushSettingsToAllDevices(
+    onProgress: SyncProgress = () => {},
+  ): Promise<Result<DriveSyncResult, string>> {
+    // Recorded first and without an await: what follows needs the click that
+    // called this to still count as a user gesture.
+    requestSettingsOverride()
+    return commands.syncGoogleDriveNow(onProgress)
+  },
+
+  /**
    * The same sync, started by the app rather than by a press.
    *
-   * The only difference is where the token comes from: there is no gesture to
-   * open a Google window with, so this either uses the grant already given or
-   * reports `reauth-needed` and leaves the button to it.
+   * The only difference is where the token comes from: this runs on the one a
+   * press already obtained, and reports `reauth-needed` when there is none.
+   * It never opens Google's window -- see `getAccessTokenIfHeld`.
    */
   async syncGoogleDriveInBackground(): Promise<
     Result<DriveSyncResult, string>
@@ -957,7 +983,7 @@ export const commands = {
         const auth = yield* GoogleAuthService
         const sync = yield* DriveSyncService
 
-        const token = yield* auth.getAccessTokenInBackground()
+        const token = yield* auth.getAccessTokenIfHeld()
 
         return yield* sync
           .syncNow(token, () => {})
@@ -979,9 +1005,11 @@ export const commands = {
   /**
    * Whether another device has written to Drive since this one last did.
    *
-   * `false` rather than an error when there is no usable token: a poll that
+   * `false` rather than an error when there is no token in hand: a poll that
    * cannot ask has nothing to report, and there is no press behind it to
-   * explain the failure to.
+   * explain the failure to. It must never obtain one of its own -- a window
+   * opening sixty seconds after someone last touched the app is the bug this
+   * whole path was rewritten for.
    */
   async googleDriveRemoteChanged(): Promise<Result<boolean, string>> {
     return run(
@@ -989,7 +1017,7 @@ export const commands = {
         const auth = yield* GoogleAuthService
         const sync = yield* DriveSyncService
 
-        const token = yield* auth.getAccessTokenInBackground()
+        const token = yield* auth.getAccessTokenIfHeld()
         return yield* sync.remoteChanged(token)
       }).pipe(
         Effect.catchAll((e) =>
@@ -1168,6 +1196,33 @@ export const commands = {
       Effect.gen(function* () {
         const svc = yield* MemoService
         yield* svc.setMemoAndSave(worldId, memo)
+      }),
+    )
+  },
+
+  async listMemoConflicts(): Promise<Result<MemoConflictEntry[], string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* MemoService
+        return yield* svc.listMemoConflicts()
+      }),
+    )
+  },
+
+  async discardMemoBackup(worldId: string): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* MemoService
+        yield* svc.discardMemoBackup(worldId)
+      }),
+    )
+  },
+
+  async restoreMemoBackup(worldId: string): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* MemoService
+        yield* svc.restoreMemoBackup(worldId)
       }),
     )
   },

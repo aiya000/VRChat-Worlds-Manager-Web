@@ -118,3 +118,126 @@ test.describe('instances kept so a world can be entered again', () => {
     ])
   })
 })
+
+/** What `window.open` was handed: the URL, and which window it was for. */
+function watchWindowOpen(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<{ url: string; target: string | undefined }>((resolve) => {
+        window.open = (url, target) => {
+          resolve({ url: String(url), target })
+          return null
+        }
+      }),
+  )
+}
+
+test.describe('entering an instance from an Android phone', () => {
+  test.use({
+    userAgent:
+      'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36',
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+  })
+
+  test('hands the VRChat app an intent, in this tab, and invites the person in', async ({
+    page,
+  }) => {
+    let invited: string | null = null
+    await page.route('**/api/1/invite/myself/to/**', async (route) => {
+      invited = new URL(route.request().url()).pathname
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 'not_1', type: 'invite' }),
+      })
+    })
+
+    await page.goto(LIST_VIEW)
+    await seedWorldWithInstances(page, {
+      platform: ['standalonewindows', 'android'],
+    })
+    await openTheWorld(page)
+
+    // A `vrchat://` URL in a fresh tab is what left a blank page on a real
+    // phone. An intent URL that names the app, navigated to from the tab that
+    // was pressed, is what Chrome will actually act on.
+    const opened = watchWindowOpen(page)
+    await savedInstances(page)
+      .locator('button', { hasText: jaJP['world-detail:friends'] })
+      .first()
+      .click()
+
+    const { url, target } = await opened
+    expect(target).toBe('_self')
+    expect(url).toBe(
+      `intent://launch?ref=vrchat.com&id=${WORLD_ID}:22222#Intent;scheme=vrchat;package=com.vrchat.mobile.playstore;end`,
+    )
+
+    // The invite is the way in that does not depend on the intent being
+    // taken, and the person is told it went.
+    await expect(
+      page.getByText(jaJP['world-detail:android-invite-sent']),
+    ).toBeVisible()
+    expect(invited).toBe(`/api/1/invite/myself/to/${WORLD_ID}:22222`)
+  })
+
+  test('says when the invite could not be sent', async ({ page }) => {
+    await page.route('**/api/1/invite/myself/to/**', (route) =>
+      route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: { message: 'Missing Credentials', status_code: 401 },
+        }),
+      }),
+    )
+
+    await page.goto(LIST_VIEW)
+    await seedWorldWithInstances(page, {
+      platform: ['standalonewindows', 'android'],
+    })
+    await openTheWorld(page)
+    await page.evaluate(() => {
+      window.open = () => null
+    })
+
+    await savedInstances(page)
+      .locator('button', { hasText: jaJP['world-detail:friends'] })
+      .first()
+      .click()
+
+    await expect(
+      page.getByText(jaJP['world-detail:android-invite-failed']),
+    ).toBeVisible()
+  })
+
+  test('says so, and opens nothing, when the world has no Android build', async ({
+    page,
+  }) => {
+    await page.goto(LIST_VIEW)
+    await seedWorldWithInstances(page, { platform: ['standalonewindows'] })
+    await openTheWorld(page)
+
+    let opened = false
+    await page.evaluate(() => {
+      window.open = () => {
+        ;(window as Window & { __opened?: boolean }).__opened = true
+        return null
+      }
+    })
+
+    await savedInstances(page)
+      .locator('button', { hasText: jaJP['world-detail:friends'] })
+      .first()
+      .click()
+
+    await expect(
+      page.getByText(jaJP['world-detail:not-on-android']),
+    ).toBeVisible()
+    opened = await page.evaluate(
+      () => (window as Window & { __opened?: boolean }).__opened === true,
+    )
+    expect(opened).toBe(false)
+  })
+})

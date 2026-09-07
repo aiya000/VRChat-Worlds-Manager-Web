@@ -2,7 +2,10 @@ import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { seedFolders } from './seed-folders'
 import { stubGoogleDrive, type FakeDriveFile } from './stub-google-drive'
-import { stubGoogleIdentityServices } from './stub-google-identity'
+import {
+  stubGoogleIdentityServices,
+  tokenRequestCount,
+} from './stub-google-identity'
 
 const SETTINGS = '/listview/settings'
 const LIST_VIEW = '/listview/folders/special/all'
@@ -64,6 +67,13 @@ async function openSyncTab(page: Page) {
     .click()
 }
 
+/**
+ * Connects, and stays on the page that did it.
+ *
+ * The token lives in memory and nothing automatic may ask for another, so a
+ * navigation after this point is a navigation to a page that cannot sync.
+ * Every test below therefore does its work from here.
+ */
 async function connect(page: Page) {
   await openSyncTab(page)
   await page
@@ -131,25 +141,7 @@ test.describe('syncing with Google Drive without being asked', () => {
     await stubGoogleIdentityServices(page, { token: 'test-access-token' })
   })
 
-  test('takes on what another device wrote, on being opened', async ({
-    page,
-  }) => {
-    await stubGoogleDrive(page, driveHolding(JSON.stringify(REMOTE_SNAPSHOT)))
-    await page.goto(LIST_VIEW)
-    await seedFolders(page, [LOCAL_ONLY_FOLDER])
-
-    // Connecting alone does not sync -- and the reload is the point: it throws
-    // away the token in memory, so what happens next has to stand on the grant
-    // Google already gave rather than on the press that just happened.
-    await connect(page)
-    await page.goto(LIST_VIEW)
-
-    await expect
-      .poll(() => folderNames(page))
-      .toEqual([REMOTE_ONLY_FOLDER, LOCAL_ONLY_FOLDER].sort())
-  })
-
-  test('sends a change made afterwards, without anyone pressing sync', async ({
+  test('takes on and sends up a change, without anyone pressing sync', async ({
     page,
   }) => {
     const drive = await stubGoogleDrive(
@@ -160,36 +152,82 @@ test.describe('syncing with Google Drive without being asked', () => {
     await seedFolders(page, [LOCAL_ONLY_FOLDER])
     await connect(page)
 
-    await page.goto(LIST_VIEW)
-    // Let the sync that opening the app starts finish first, so what is
-    // asserted below is the push the new folder caused and not that one.
-    await expect
-      .poll(() => folderNames(page))
-      .toEqual([REMOTE_ONLY_FOLDER, LOCAL_ONLY_FOLDER].sort())
-
     // Through the interface, not straight into IndexedDB: what schedules the
-    // upload is Dexie telling the app a row changed, and a raw IndexedDB write
+    // sync is Dexie telling the app a row changed, and a raw IndexedDB write
     // goes round the back of that.
     await createFolder(page, MADE_AFTER_CONNECTING)
 
     // The debounce is ten seconds of quiet, and nothing here is allowed to
     // shorten it: the wait is the behaviour being tested.
     await expect
-      .poll(
-        () => {
-          const uploaded = drive.named(SYNC_FILE)?.content
-          if (uploaded === undefined) {
-            return []
-          }
-          return (JSON.parse(uploaded).folders as { name: string }[])
-            .map((folder) => folder.name)
-            .sort()
-        },
-        { timeout: 30_000 },
-      )
+      .poll(() => folderNames(page), { timeout: 30_000 })
       .toEqual(
         [REMOTE_ONLY_FOLDER, LOCAL_ONLY_FOLDER, MADE_AFTER_CONNECTING].sort(),
       )
+
+    const uploaded = JSON.parse(drive.named(SYNC_FILE)!.content)
+    expect(
+      (uploaded.folders as { name: string }[]).map((f) => f.name).sort(),
+    ).toEqual(
+      [REMOTE_ONLY_FOLDER, LOCAL_ONLY_FOLDER, MADE_AFTER_CONNECTING].sort(),
+    )
+  })
+
+  /**
+   * The regression this file exists for.
+   *
+   * An automatic sync used to ask Google for a token when it had none, on the
+   * understanding that `prompt: ''` would answer from the grant already given
+   * without showing anything. On a real device it opened a full sign-in
+   * window instead -- when the app was opened, and again on every
+   * sixty-second poll. Only a press may open that window now.
+   */
+  test('never opens Google’s window for a sync nobody started', async ({
+    page,
+  }) => {
+    const drive = await stubGoogleDrive(
+      page,
+      driveHolding(JSON.stringify(REMOTE_SNAPSHOT)),
+    )
+    await page.goto(LIST_VIEW)
+    await seedFolders(page, [LOCAL_ONLY_FOLDER])
+    await connect(page)
+
+    // The reload is the point: it throws away the token in memory, leaving the
+    // device connected but holding nothing.
+    await page.goto(LIST_VIEW)
+    expect(await tokenRequestCount(page)).toBe(0)
+
+    await createFolder(page, MADE_AFTER_CONNECTING)
+    // Well past the ten seconds a push waits for.
+    await page.waitForTimeout(13_000)
+
+    expect(await tokenRequestCount(page)).toBe(0)
+    // ...and the edit stayed here rather than being lost or half-sent.
+    expect(
+      (
+        JSON.parse(drive.named(SYNC_FILE)!.content).folders as {
+          name: string
+        }[]
+      ).map((f) => f.name),
+    ).toEqual([REMOTE_ONLY_FOLDER])
+    expect(await folderNames(page)).toContain(MADE_AFTER_CONNECTING)
+  })
+
+  test('says so, rather than silently not syncing', async ({ page }) => {
+    await stubGoogleDrive(page, driveHolding(JSON.stringify(REMOTE_SNAPSHOT)))
+    await page.goto(LIST_VIEW)
+    await seedFolders(page, [LOCAL_ONLY_FOLDER])
+    await connect(page)
+    await page.goto(LIST_VIEW)
+
+    await createFolder(page, MADE_AFTER_CONNECTING)
+
+    // The one moment an expired hour costs something: an edit was waiting to
+    // go up. The toast carries the press that fixes it.
+    await expect(
+      page.getByText(jaJP['settings-page:google-drive-reauth-needed']),
+    ).toBeVisible({ timeout: 30_000 })
   })
 })
 

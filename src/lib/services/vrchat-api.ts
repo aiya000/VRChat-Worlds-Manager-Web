@@ -1,13 +1,17 @@
 import { Context, Effect, Layer } from 'effect'
-import { launchUrlFor } from '@/lib/sync/launched-instances'
+import { launchTargetFor, type LaunchOutcome } from '@/lib/launch-target'
+import { instanceRequestBody, parseInstanceInfo } from '@/lib/vrchat-instances'
+import type { InstanceType } from '@/types/instances'
 import { db } from './db'
 import { parseVRChatWorld, toWorldDisplayData } from './vrchat-world'
 import type {
   WorldDetails,
   WorldDisplayData,
   InstanceInfo,
+  InstanceRegion,
   UserGroup,
   GroupInstancePermissionInfo,
+  Platform,
 } from '@/lib/types'
 
 // `localStorage` override lets a developer point the app at a locally-run
@@ -242,8 +246,8 @@ export class VRChatApiService extends Context.Tag('VRChatApiService')<
     ) => Effect.Effect<WorldDisplayData[], Error>
     readonly createWorldInstance: (
       worldId: string,
-      instanceTypeStr: string,
-      regionStr: string,
+      instanceType: Exclude<InstanceType, 'group'>,
+      region: InstanceRegion,
     ) => Effect.Effect<InstanceInfo, Error>
     readonly getUserGroups: () => Effect.Effect<UserGroup[], Error>
     readonly getPermissionForCreateGroupInstance: (
@@ -260,7 +264,8 @@ export class VRChatApiService extends Context.Tag('VRChatApiService')<
     readonly openInstanceInClient: (
       worldId: string,
       instanceId: string,
-    ) => Effect.Effect<string, Error>
+      platforms: Platform[] | null,
+    ) => Effect.Effect<LaunchOutcome, Error>
   }
 >() {}
 
@@ -324,11 +329,30 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
       },
     }),
 
+  /**
+   * Ends the VRChat session, and treats "there was none" as done.
+   *
+   * Logging out asks for a state rather than an action, so a device that is
+   * already in that state has succeeded. Reporting a failure instead is a trap
+   * with no way out: the tokens are dropped below whatever happens, so every
+   * later press asks VRChat with the same nothing and is told off again, while
+   * the screen still looks signed in.
+   */
   logout: () =>
     Effect.tryPromise({
       try: async () => {
         try {
+          const held = await loadToken(AUTH_TOKEN_KEY)
+          if (held === null || held === '') {
+            return
+          }
           await apiFetch('/logout', { method: 'PUT' })
+        } catch (e) {
+          // A session VRChat has already forgotten answers `401 Missing
+          // Credentials`, which is the state this was trying to reach.
+          if (!(e instanceof VRChatApiError) || e.status !== 401) {
+            throw e
+          }
         } finally {
           await clearTokens()
         }
@@ -480,18 +504,19 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
       catch: (e) => new Error(`Failed to search worlds: ${e}`),
     }),
 
-  createWorldInstance: (worldId, instanceTypeStr, regionStr) =>
+  createWorldInstance: (worldId, instanceType, region) =>
     Effect.tryPromise({
       try: async () => {
+        // Every type but public is owned by someone, and the API asks who.
+        const userRes = await apiFetch('/auth/user')
+        const user = (await userRes.json()) as { id: string }
         const res = await apiFetch('/instances', {
           method: 'POST',
-          body: JSON.stringify({
-            worldId,
-            type: instanceTypeStr,
-            region: regionStr,
-          }),
+          body: JSON.stringify(
+            instanceRequestBody(worldId, instanceType, region, user.id),
+          ),
         })
-        return (await res.json()) as InstanceInfo
+        return parseInstanceInfo(await res.json())
       },
       catch: (e) => new Error(`Failed to create instance: ${e}`),
     }),
@@ -538,17 +563,48 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
             queueEnabled,
           }),
         })
-        return (await res.json()) as InstanceInfo
+        return parseInstanceInfo(await res.json())
       },
       catch: (e) => new Error(`Failed to create group instance: ${e}`),
     }),
 
-  openInstanceInClient: (worldId, instanceId) =>
+  openInstanceInClient: (worldId, instanceId, platforms) =>
     Effect.tryPromise({
       try: async () => {
-        const launchUrl = launchUrlFor(worldId, instanceId)
-        window.open(launchUrl, '_blank')
-        return launchUrl
+        const target = launchTargetFor({
+          worldId,
+          instanceId,
+          userAgent: navigator.userAgent,
+          platforms,
+        })
+        switch (target.kind) {
+          case 'client':
+            window.open(target.url, '_blank')
+            return { kind: 'client' }
+          case 'android-app': {
+            // In place, not a new tab: the intent has to be navigated to from
+            // the document that was pressed, or Chrome has no gesture to open
+            // an app with. `_self` rather than `location.assign` so a test can
+            // stand in for it the same way it does for the case above.
+            window.open(target.url, '_self')
+            // The same invite the website's "Invite Me" sends. The app shows
+            // it as a notification, which is a way in that does not depend on
+            // the intent above having been taken.
+            const invited = await apiFetch(
+              `/invite/myself/to/${worldId}:${instanceId}`,
+              { method: 'POST' },
+            ).then(
+              () => true,
+              (e) => {
+                console.error(`Failed to invite myself: ${e}`)
+                return false
+              },
+            )
+            return { kind: 'android-app', invited }
+          }
+          case 'not-on-android':
+            return target
+        }
       },
       catch: (e) => new Error(`Failed to open instance: ${e}`),
     }),

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import { DeviceOnlySettingToggle } from '@/components/device-only-setting-toggle'
 import { GoogleDriveSection } from './components/google-drive-section'
+import { MemoConflictsSection } from './components/memo-conflicts-section'
 import { WorldCardPreview } from '@/components/world-card'
 import { WorldCardFieldToggles } from '@/components/world-card-field-toggles'
 import { WorldDetailFieldToggles } from '@/components/world-detail-field-toggles'
@@ -275,6 +276,9 @@ export default function SettingsPage() {
 
         <TabsContent value="sync" className="space-y-4">
           <GoogleDriveSection />
+          {/* Renders nothing when there is nothing set aside, which is almost
+              always. */}
+          <MemoConflictsSection />
         </TabsContent>
 
         <TabsContent value="data-management" className="space-y-4">
