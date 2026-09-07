@@ -738,6 +738,24 @@ export const commands = {
     )
   },
 
+  /**
+   * Files a world into the collection, whether or not VRChat ever listed it
+   * among the favourites.
+   *
+   * `getWorld` fills the world-*details* table alone, and the list reads the
+   * world table, so nothing but this puts a world there. Without it,
+   * `addWorldToFolder` finds no row to file and returns having done nothing --
+   * which looked like a successful add until the next read.
+   */
+  async rememberWorld(world: WorldDisplayData): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* WorldService
+        yield* svc.rememberWorld(world)
+      }),
+    )
+  },
+
   async putWorld(world: WorldDisplayData): Promise<Result<null, string>> {
     return runVoid(
       Effect.gen(function* () {

@@ -59,7 +59,7 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
    * public. Here the record is written from what is known: the id, and a name.
    */
   const addUnavailableWorld = async (ref: WorldReference, name: string) => {
-    const stored = await commands.putWorld({
+    const stored = await commands.rememberWorld({
       worldId: ref.worldId,
       name,
       thumbnailUrl: '',

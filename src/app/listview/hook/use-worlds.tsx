@@ -141,6 +141,28 @@ export const useWorldsStore = create<WorldsStoreState>((set, get) => ({
       throw new Error(res.error.message)
     }
 
+    // Before filing it anywhere: `getWorld` fills the world-details table and
+    // not the one the list reads, so a world that was never among the VRChat
+    // favourites has no row yet -- and `addWorldToFolder` quietly does nothing
+    // when it finds none. The add then survived only until the next read.
+    const remembered = await commands.rememberWorld({
+      worldId: res.data.worldId,
+      name: res.data.name,
+      thumbnailUrl: res.data.thumbnailUrl,
+      authorName: res.data.authorName,
+      favorites: res.data.favorites,
+      lastUpdated: res.data.lastUpdated,
+      visits: res.data.visits,
+      dateAdded: new Date().toISOString(),
+      platform: res.data.platform,
+      folders: [],
+      tags: res.data.tags,
+      capacity: res.data.capacity,
+    })
+    if (remembered.status === 'error') {
+      throw new Error(remembered.error)
+    }
+
     // Only call addWorldToFolder command for user folders
     if (isUserFolder(folder)) {
       await commands.addWorldToFolder(folder as string, worldId)
