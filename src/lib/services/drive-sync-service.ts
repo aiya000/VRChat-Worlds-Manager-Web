@@ -103,15 +103,6 @@ export class DriveSyncService extends Context.Tag('DriveSyncService')<
       onProgress: SyncProgress,
     ) => Effect.Effect<SyncOutcome, Error>
     readonly lastSyncedAt: () => Effect.Effect<number | null, Error>
-    /**
-     * Whether the file on Drive has moved on since this device last wrote it.
-     *
-     * `false` when there is nothing to compare against -- a device that has
-     * never synced has nothing another one could have changed under it.
-     */
-    readonly remoteChanged: (
-      accessToken: string,
-    ) => Effect.Effect<boolean, Error>
   }
 >() {}
 
@@ -126,17 +117,6 @@ async function rememberSyncedAt(at: number): Promise<void> {
 async function rememberRemote(file: DriveFile): Promise<void> {
   await db.syncState.put({ key: REMOTE_FILE_ID_KEY, value: file.id })
   await db.syncState.put({ key: REMOTE_VERSION_KEY, value: file.version })
-}
-
-async function lastKnownRemote(): Promise<DriveFile | null> {
-  const [id, version] = await Promise.all([
-    db.syncState.get(REMOTE_FILE_ID_KEY),
-    db.syncState.get(REMOTE_VERSION_KEY),
-  ])
-  if (id === undefined || version === undefined) {
-    return null
-  }
-  return { id: id.value, version: version.value }
 }
 
 /**
@@ -244,27 +224,6 @@ export const DriveSyncServiceLive = Layer.succeed(DriveSyncService, {
         return e instanceof SyncRaceLostError
           ? e
           : new Error(`Failed to sync with Google Drive: ${e}`)
-      },
-    }),
-
-  remoteChanged: (accessToken) =>
-    Effect.tryPromise({
-      try: async () => {
-        const known = await lastKnownRemote()
-        if (known === null) {
-          return false
-        }
-        const current = await fileVersion(accessToken, known.id)
-        // Gone means someone deleted or replaced the file, which a sync has to
-        // find out about rather than keep polling a file that is not there.
-        return current !== known.version
-      },
-      catch: (e) => {
-        if (e instanceof DriveApiError && e.status === 401) {
-          forgetAccessToken()
-          return new GoogleAuthExpiredError('The Google access token expired')
-        }
-        return new Error(`Failed to check Google Drive for changes: ${e}`)
       },
     }),
 

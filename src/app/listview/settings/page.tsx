@@ -20,6 +20,7 @@ import { WorldDetailPreview } from '@/components/world-detail-preview'
 
 import { FolderRemovalPreference } from '@/lib/commands'
 import { LogOut, Trash2, Upload, FolderOpen, Save, Users } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { Card } from '../../../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -31,9 +32,20 @@ import { ImportFavoritesFromAccountDialog } from '@/app/listview/settings/compon
 import { useSettingsPage } from './hook'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 
+const TABS = ['preferences', 'sync', 'data-management', 'others'] as const
+type Tab = (typeof TABS)[number]
+
+function isTab(value: string | null): value is Tab {
+  return TABS.some((tab) => tab === value)
+}
+
 export default function SettingsPage() {
   const [showImportFavoritesDialog, setShowImportFavoritesDialog] =
     useState(false)
+  // `?tab=sync` is how the list's sync button lands someone on the connect
+  // button, rather than on the first tab with the right one three taps away.
+  const requestedTab = useSearchParams().get('tab')
+  const initialTab: Tab = isTab(requestedTab) ? requestedTab : 'preferences'
   const {
     cardSize,
     language,
@@ -72,7 +84,7 @@ export default function SettingsPage() {
         <SidebarTrigger className="h-10 w-10 shrink-0" />
         <h1 className="text-2xl font-bold">{t('general:settings')}</h1>
       </div>
-      <Tabs defaultValue="preferences" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <div className="sticky top-0 z-10 bg-background pt-2 pb-2">
           <TabsList className="grid grid-cols-4">
             <TabsTrigger value="preferences">
