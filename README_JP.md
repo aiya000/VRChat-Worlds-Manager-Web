@@ -1,6 +1,6 @@
 # VRChat Worlds Manager Web (VRCWW)
 
-> **VRCWW** は「**ぶいあーるしーわらわら**」と読みます。冗談です。でも、ワールドがわらわら集まってくるので、わりと的を射ています。
+> **VRCWW** は「**ぶいあーるしーわらわら**」（[bɯi aːɾɯ ɕiː waɾawaɾa]）と読みます。冗談です。でも、ワールドがわらわら集まってくるので、わりと的を射ています。
 
 [![Tests](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml/badge.svg)](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml)
 [![Web App](https://img.shields.io/badge/Web%20App-vrchat--worlds--manager--web.pages.dev-blue?logo=cloudflarepages)](https://vrchat-worlds-manager-web.pages.dev)

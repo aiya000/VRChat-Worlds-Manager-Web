@@ -1,6 +1,6 @@
 # VRChat Worlds Manager Web (VRCWW)
 
-> **VRCWW** is read "**ぶいあーるしーわらわら**" -- _v-r-c-warawara_. It is a joke. It is also not entirely wrong: _warawara_ is the sound of a crowd piling in, which is what the worlds do.
+> **VRCWW** is read "**ぶいあーるしーわらわら**" -- [bɯi aːɾɯ ɕiː waɾawaɾa], which is _V-R-C-warawara_. It is a joke. It is also not entirely wrong: _warawara_ is the sound of a crowd piling in, which is what the worlds do.
 
 [![Tests](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml/badge.svg)](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml)
 [![Web App](https://img.shields.io/badge/Web%20App-vrchat--worlds--manager--web.pages.dev-blue?logo=cloudflarepages)](https://vrchat-worlds-manager-web.pages.dev)
