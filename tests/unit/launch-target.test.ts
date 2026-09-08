@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  androidLaunchUrlFor,
-  isAndroidBrowser,
-  launchTargetFor,
-  VRCHAT_ANDROID_PACKAGE,
-} from '@/lib/launch-target'
-import { launchUrlFor } from '@/lib/sync/launched-instances'
+import { isAndroidBrowser, launchTargetFor } from '@/lib/launch-target'
 
 const WORLD = 'wrld_1234'
 const INSTANCE = '12345~region(jp)'
@@ -35,27 +29,6 @@ describe('telling an Android browser apart', () => {
   })
 })
 
-describe('the Android intent URL', () => {
-  const url = androidLaunchUrlFor(WORLD, INSTANCE)
-
-  it('names the app rather than leaving the scheme to be resolved', () => {
-    expect(url).toContain(`package=${VRCHAT_ANDROID_PACKAGE};`)
-    expect(url).toContain('#Intent;scheme=vrchat;')
-    expect(url).toMatch(/;end$/)
-  })
-
-  it('carries the very link the desktop client takes', () => {
-    const data = url.replace(/^intent:/, 'vrchat:').split('#Intent')[0]
-    expect(data).toBe(launchUrlFor(WORLD, INSTANCE))
-  })
-
-  it('has no fallback page to mistake for an answer from the app', () => {
-    // `vrchat.com/home/launch` as the fallback opened a page saying the
-    // instance did not exist, which looked like the app had spoken.
-    expect(url).not.toContain('browser_fallback_url')
-  })
-})
-
 describe('where "open in VRChat" goes', () => {
   it('opens the desktop client anywhere that is not Android', () => {
     expect(
@@ -71,7 +44,9 @@ describe('where "open in VRChat" goes', () => {
     })
   })
 
-  it('hands an Android phone the app when the world has an Android build', () => {
+  it('carries no URL on Android, where no link opens the app', () => {
+    // An intent naming the package reached the Play Store page (#150), and
+    // one without it did nothing; the self-invite is the only way in.
     expect(
       launchTargetFor({
         worldId: WORLD,
@@ -79,10 +54,7 @@ describe('where "open in VRChat" goes', () => {
         userAgent: ANDROID_CHROME,
         platforms: ['standalonewindows', 'android'],
       }),
-    ).toEqual({
-      kind: 'android-app',
-      url: androidLaunchUrlFor(WORLD, INSTANCE),
-    })
+    ).toEqual({ kind: 'android-app' })
   })
 
   it('says so on an Android phone when the world has no Android build', () => {
