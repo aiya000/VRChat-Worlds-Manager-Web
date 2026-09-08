@@ -12,8 +12,15 @@ import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, ExternalLink, Pencil, Plus, X } from 'lucide-react'
-import { ChevronRight } from 'lucide-react'
+import {
+  AlertCircle,
+  ChevronRight,
+  ExternalLink,
+  LoaderCircle,
+  Pencil,
+  Plus,
+  X,
+} from 'lucide-react'
 import {
   GroupInstanceCreatePermission,
   UserGroup,
@@ -104,6 +111,7 @@ export function WorldDetailPopup({
   const {
     createInstance,
     createGroupInstance,
+    isCreatingInstance,
     getGroups,
     getGroupPermissions,
     deleteWorld,
@@ -1045,6 +1053,9 @@ export function WorldDetailPopup({
                         <div className="pt-2">
                           <Button
                             className="w-full"
+                            data-testid="create-instance"
+                            disabled={isCreatingInstance}
+                            aria-busy={isCreatingInstance}
                             onClick={() => {
                               if (selectedInstanceType === 'group') {
                                 handleGroupInstanceClick()
@@ -1053,9 +1064,19 @@ export function WorldDetailPopup({
                               }
                             }}
                           >
-                            {selectedInstanceType === 'group'
-                              ? t('general:select-group')
-                              : t('general:create-instance')}
+                            {isCreatingInstance ? (
+                              <>
+                                <LoaderCircle
+                                  className="h-4 w-4 animate-spin"
+                                  aria-hidden
+                                />
+                                {t('listview-page:creating-instance')}
+                              </>
+                            ) : selectedInstanceType === 'group' ? (
+                              t('general:select-group')
+                            ) : (
+                              t('general:create-instance')
+                            )}
                           </Button>
                         </div>
                         <LaunchedInstances

@@ -143,6 +143,7 @@
   "listview-page:error-undo-folder-changes": "フォルダの変更の取り消しに失敗しました",
   "listview-page:error-update-folders": "フォルダの更新に失敗しました",
   "listview-page:created-instance": "{0} インスタンスを作成しました",
+  "listview-page:creating-instance": "作成中...",
   "listview-page:error-create-instance": "インスタンスの作成に失敗しました",
   "listview-page:error-create-group-instance": "グループインスタンスの作成に失敗しました",
   "listview-page:error-get-groups": "グループの取得に失敗しました",

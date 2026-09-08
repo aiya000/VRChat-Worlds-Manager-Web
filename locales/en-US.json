@@ -143,6 +143,7 @@
   "listview-page:error-undo-folder-changes": "Failed to undo folder changes",
   "listview-page:error-update-folders": "Failed to update folders",
   "listview-page:created-instance": "Created {0} instance",
+  "listview-page:creating-instance": "Creating...",
   "listview-page:error-create-instance": "Failed to create instance",
   "listview-page:error-create-group-instance": "Failed to create group instance",
   "listview-page:error-get-groups": "Failed to get groups",
