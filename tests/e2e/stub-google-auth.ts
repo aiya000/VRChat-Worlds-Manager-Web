@@ -20,6 +20,20 @@ export async function stubGoogleAuth(
     // What Google sends in place of a token: `access_denied` when the consent
     // screen is cancelled, and the rest of its error codes the same way.
     | { denied: string },
+  options: {
+    /**
+     * Answer this departure -- counted from one -- with "no content", which
+     * leaves the browser on the page it was leaving: JavaScript context,
+     * module state and busy buttons all still there.
+     *
+     * That is the state the back/forward cache hands back when someone
+     * presses back from Google's sign-in (#159), and the only way to reach it
+     * here: Playwright's Chromium does not keep pages in that cache, so a
+     * real `goBack()` gives a fresh load, which is the one case where nothing
+     * is left to go wrong.
+     */
+    staysPutOnTrip?: number
+  } = {},
 ): Promise<{ trips: () => number }> {
   let trips = 0
 
@@ -27,6 +41,10 @@ export async function stubGoogleAuth(
     'https://accounts.google.com/o/oauth2/v2/auth**',
     async (route) => {
       trips += 1
+      if (trips === options.staysPutOnTrip) {
+        await route.fulfill({ status: 204 })
+        return
+      }
       const asked = new URL(route.request().url())
       const redirectUri = asked.searchParams.get('redirect_uri')
       const state = asked.searchParams.get('state')

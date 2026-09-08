@@ -9,6 +9,7 @@ import {
   SyncExplanationDialog,
   type SyncExplanationMode,
 } from '@/components/sync-explanation-dialog'
+import { useAbandonedGoogleTrip } from '@/hooks/use-abandoned-google-trip'
 import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
 import {
@@ -68,6 +69,10 @@ export const DriveSyncButton: FC = () => {
   )
 
   useEffect(() => subscribeToUnsyncedChanges(setLocalChangedAt), [])
+
+  // The press below leaves this button spinning on the way to Google. Back
+  // from there without going, it is still spinning.
+  useAbandonedGoogleTrip(() => setSyncing(false))
 
   useEffect(() => {
     if (lastSyncedAt === null) {
