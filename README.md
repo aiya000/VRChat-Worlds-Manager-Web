@@ -2,7 +2,7 @@
 
 # VRChat Worlds Manager Web (VRCWW)
 
-**ぶいあーるしーわらわら** -- [bɯi aːɾɯ ɕiː waɾawaɾa]
+**VRCWW** -- [bɯi aːɾɯ ɕiː waɾawaɾa]
 
 [![Tests](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml/badge.svg)](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml)
 [![Web App](https://img.shields.io/badge/Web%20App-vrchat--worlds--manager--web.pages.dev-blue?logo=cloudflarepages)](https://vrchat-worlds-manager-web.pages.dev)
