@@ -534,12 +534,13 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
       catch: (e) => new Error(`Failed to check world: ${e}`),
     }),
 
+  // `/worlds?user=me` is VRChat's "worlds I have uploaded", not "worlds I have
+  // been to", so it answers with nothing at all for an account that publishes
+  // no worlds. The visit history has an endpoint of its own.
   getRecentlyVisitedWorlds: () =>
     Effect.tryPromise({
       try: async () => {
-        const res = await apiFetch(
-          '/worlds?sort=updated&user=me&releaseStatus=public&n=100',
-        )
+        const res = await apiFetch('/worlds/recent?n=100')
         const fetchedAt = new Date().toISOString()
         return ((await res.json()) as unknown[]).map((raw) =>
           toWorldDisplayData(parseVRChatWorld(raw), fetchedAt, []),

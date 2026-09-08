@@ -18,7 +18,7 @@ test.use({ serviceWorkers: 'block' })
 /** Answers the recently-visited request, and counts how often it was asked. */
 async function answerRecentWith(page: Page, body: unknown) {
   let requests = 0
-  await page.route('**/api/1/worlds?**', async (route) => {
+  await page.route('**/api/1/worlds/recent**', async (route) => {
     requests += 1
     await route.fulfill({
       status: 200,

@@ -43,6 +43,13 @@ describe('isRouteAllowed', () => {
   it('leaves a world id that merely contains dots alone', () => {
     expect(isRouteAllowed('GET', '/worlds/wrld_1.2.3')).toBe(true)
   })
+
+  // The visit history rides the world-by-id pattern. A Worker change cannot be
+  // tried anywhere but production, so this is asserted here rather than found
+  // out at the next release.
+  it('lets the recently visited worlds through', () => {
+    expect(isRouteAllowed('GET', '/worlds/recent')).toBe(true)
+  })
 })
 
 describe('isCredentialAttempt', () => {
