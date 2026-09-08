@@ -12,8 +12,6 @@
 
 </div>
 
-> The reading is a joke. It is also not entirely wrong: _warawara_ is the sound of a crowd piling in, which is what the worlds do.
-
 **VRChat Worlds Manager Web (VRCWW)** is a Progressive Web App (PWA) that helps VRChat users organize, store, and explore their favorite worlds. It is based on the original [VRC Worlds Manager v2](https://github.com/Raifa21/VRC-Worlds-Manager-v2) desktop application, rewritten to run entirely in modern web browsers, mobile devices, and VR overlays.
 
 🌐 **Live Web App**: [https://vrchat-worlds-manager-web.pages.dev](https://vrchat-worlds-manager-web.pages.dev)
