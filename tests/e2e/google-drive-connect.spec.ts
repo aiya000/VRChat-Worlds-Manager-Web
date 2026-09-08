@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
-import { stubGoogleIdentityServices } from './stub-google-identity'
+import { stubGoogleAuth } from './stub-google-auth'
 
 const SETTINGS = '/listview/settings'
 
@@ -21,7 +21,7 @@ async function openSyncTab(page: Page) {
 
 test.describe('connecting to Google Drive', () => {
   test('starts out disconnected', async ({ page }) => {
-    await stubGoogleIdentityServices(page, { token: 'unused' })
+    await stubGoogleAuth(page, { token: 'unused' })
     await openSyncTab(page)
 
     await expect(
@@ -32,7 +32,7 @@ test.describe('connecting to Google Drive', () => {
   })
 
   test('shows connected once the token comes back', async ({ page }) => {
-    await stubGoogleIdentityServices(page, { token: 'a-fake-token' })
+    await stubGoogleAuth(page, { token: 'a-fake-token' })
     await openSyncTab(page)
 
     await page
@@ -52,7 +52,7 @@ test.describe('connecting to Google Drive', () => {
   })
 
   test('stays connected across a reload', async ({ page }) => {
-    await stubGoogleIdentityServices(page, { token: 'a-fake-token' })
+    await stubGoogleAuth(page, { token: 'a-fake-token' })
     await openSyncTab(page)
     await page
       .getByRole('button', { name: jaJP['settings-page:google-drive-connect'] })
@@ -81,7 +81,7 @@ test.describe('connecting to Google Drive', () => {
   })
 
   test('goes back to disconnected when asked', async ({ page }) => {
-    await stubGoogleIdentityServices(page, { token: 'a-fake-token' })
+    await stubGoogleAuth(page, { token: 'a-fake-token' })
     await openSyncTab(page)
     await page
       .getByRole('button', { name: jaJP['settings-page:google-drive-connect'] })
@@ -105,17 +105,19 @@ test.describe('connecting to Google Drive', () => {
     ).toBeVisible()
   })
 
-  test('surfaces the error rather than claiming a connection that failed', async ({
+  test('surfaces the refusal rather than claiming a connection that failed', async ({
     page,
   }) => {
-    await stubGoogleIdentityServices(page, { error: 'access_denied' })
+    await stubGoogleAuth(page, { denied: 'access_denied' })
     await openSyncTab(page)
 
     await page
       .getByRole('button', { name: jaJP['settings-page:google-drive-connect'] })
       .click()
 
-    await expect(page.getByText('access_denied')).toBeVisible()
+    await expect(
+      page.getByText(jaJP['settings-page:google-drive-denied']),
+    ).toBeVisible()
     await expect(
       page.getByRole('button', {
         name: jaJP['settings-page:google-drive-connect'],

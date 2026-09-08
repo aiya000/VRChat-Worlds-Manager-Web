@@ -270,17 +270,34 @@ both sync buttons do -- or the folder list and the grid keep showing what they l
 - **The access token lives in memory only.** `currentAccessToken` in
   `src/lib/services/google-auth-service.ts` is a module variable and is never persisted, so
   a reload loses it. Being asked to sign in again after a reload is the design, not a bug
-- **Only a press syncs, and only a press may open Google's window.** There is no automatic
-  sync any more (#124): the app once synced on startup, after edits, on returning to the tab
-  and on a poll, but every one of those could only run on a token a press had already
-  obtained, so after a reload nothing synced until someone found the button in the settings.
-  Now the list view carries the button, a dot on it says a local change is waiting
-  (`unsynced-changes.ts`), and the first press shows what syncing is. A window opened
-  without a press is a popup block waiting to happen, so keep every sync behind a click
-- **`requestSettingsOverride()` must stay synchronous.** The Google token request runs
-  immediately after it, and an `await` in between loses the user gesture, after which the
-  browser refuses to open the window. Anything needing `await` belongs in `readSnapshot()`,
-  where awaiting costs nothing
+- **A token is fetched by leaving the page, not by opening one (#104).** The app navigates
+  to Google's consent screen and Google navigates back to `/google-auth` with the token in
+  the fragment (the implicit flow, `response_type=token`). It used to open a popup through
+  Google Identity Services, and installed as a PWA that popup was a Chrome Custom Tab that
+  could not hand its answer back, so the screen sat on "syncing" until a timeout. Three
+  things follow:
+  - **`https://<origin>/google-auth` has to be registered as an authorised redirect URI** of
+    the OAuth client, character for character, for every origin the app is served from --
+    production, `develop`, and `http://localhost:3456`. Google refuses an unregistered one
+    with `redirect_uri_mismatch` before showing any consent screen
+  - **The page that presses has to be one that resumes.** What the press wanted (`connect` or
+    `sync`), where to come back to, and a random `state` are written to local storage before
+    leaving; `/google-auth` checks the `state`, records the connection, and `router.replace`s
+    to that page, which picks the outcome up with `takeGoogleAuthResume()` in its mount
+    effect and carries on -- the list's sync button runs the sync, the settings card opens on
+    the sync tab (`?tab=sync`), and the first-run setup reopens on its Drive step
+    (`/setup?resume=drive`). A new button that asks for a token needs its return path to do
+    the same, or the trip ends on a page that does nothing with it
+  - **Nothing about a user gesture matters any more.** The old flow had to call Google
+    synchronously inside the click; a navigation has no such rule. What remains is the
+    product rule below: a press is still the only thing that starts a sync
+- **Only a press syncs.** There is no automatic sync any more (#124): the app once synced on
+  startup, after edits, on returning to the tab and on a poll, but every one of those could
+  only run on a token a press had already obtained, so after a reload nothing synced until
+  someone found the button in the settings. Now the list view carries the button, a dot on
+  it says a local change is waiting (`unsynced-changes.ts`), and the first press shows what
+  syncing is. A sync without a press would now leave the page for Google with nobody having
+  asked, which is worse than a blocked popup, so keep every sync behind a click
 - **A pulled change must not be pushed straight back.** `asRemoteWrite()` in
   `local-changes.ts` marks writes that came from the remote so the change signal does not
   start another push
@@ -707,6 +724,18 @@ Two things follow:
   simultaneous requests all read the same number and the limit can be overrun by however many
   are in flight. That is a coarse cap on purpose; do not build anything finer on top of it
   without moving to a Rate Limiting binding or a Durable Object
+- **A credential attempt has to bring a Cloudflare Turnstile token** (#61), sent by the
+  frontend as `X-Turnstile-Token` from `src/lib/services/turnstile.ts` and checked by the
+  Worker's `checkTurnstile()` against `siteverify` before the sign-in allowance is spent.
+  Both halves are off until configured: the frontend asks for no challenge without
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (a repository variable, baked in at build time), and the
+  Worker asks for no token without the `TURNSTILE_SECRET_KEY` secret (`wrangler secret put`,
+  never `wrangler.toml`). Set the secret only once the site key has shipped, or every sign-in
+  is refused with `bot-check-required`. A token is single-use and good for five minutes, so
+  the frontend runs a fresh challenge per attempt -- the password and the two-factor code are
+  two. The e2e server is built with Cloudflare's "always passes, invisible" test key
+  (`playwright.config.ts`), so a spec that signs in has to answer the challenge with
+  `tests/e2e/stub-turnstile.ts`, or it waits on Cloudflare
 
 ### Releases are announced through GitHub Releases
 

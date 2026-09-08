@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { stubGoogleDrive } from './stub-google-drive'
-import { stubGoogleIdentityServices } from './stub-google-identity'
+import { stubGoogleAuth } from './stub-google-auth'
 
 const BACKUP_ONLY_FOLDER = 'バックアップにだけあるフォルダ'
 
@@ -136,7 +136,7 @@ test.describe('where the setup gets its data from', () => {
   })
 
   test('offers the Google Drive connection right here', async ({ page }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleAuth(page, { token: 'test-access-token' })
     await stubGoogleDrive(page)
 
     await openTheRestoreStep(page)
@@ -159,7 +159,7 @@ test.describe('where the setup gets its data from', () => {
   test('says how the syncing will work before anything is connected', async ({
     page,
   }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleAuth(page, { token: 'test-access-token' })
     await stubGoogleDrive(page)
 
     await openTheRestoreStep(page)
@@ -181,7 +181,7 @@ test.describe('where the setup gets its data from', () => {
   test('ends the setup rather than asking about appearance again', async ({
     page,
   }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleAuth(page, { token: 'test-access-token' })
     await stubGoogleDrive(page)
 
     await openTheRestoreStep(page)

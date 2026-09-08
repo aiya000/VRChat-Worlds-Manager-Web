@@ -1,7 +1,7 @@
 'use client'
 
 import { Cloud, RefreshCw, Unlink } from 'lucide-react'
-import { useEffect, useState, type FC } from 'react'
+import { useEffect, useEffectEvent, useState, type FC } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -10,8 +10,10 @@ import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
 import { notifyDriveConnectionChanged } from '@/lib/services/drive-connection-changed'
 import { VrProjectionNotice } from '@/components/vr-projection-notice'
-import { isRunningInstalled } from '@/lib/pwa'
-import { preloadGoogleIdentityScript } from '@/lib/services/google-auth-service'
+import {
+  takeGoogleAuthResume,
+  type GoogleAuthResume,
+} from '@/lib/services/google-auth-service'
 import { refreshViews } from '@/lib/services/refresh-views'
 import {
   syncStepPercentage,
@@ -28,6 +30,9 @@ import {
   relativeTime,
 } from '@/lib/sync/relative-time'
 
+/** The settings screen, opened on this card, which is where a press here comes back to. */
+const SYNC_SETTINGS_PATH = '/listview/settings?tab=sync'
+
 /**
  * Connect, disconnect, and one button that syncs.
  *
@@ -37,9 +42,17 @@ import {
  * notice when that one moves the "last synced" line underneath it.
  *
  * A press is also the only way back from an expired hour: a token cannot be
- * renewed without a gesture, and this is one of the two.
+ * renewed without leaving for Google, and this is one of the two buttons that
+ * leave. Whichever press left, the browser comes back to `returnTo`, and this
+ * card picks the trip's result up when it mounts there (`takeGoogleAuthResume`).
  */
-export const GoogleDriveSection: FC = () => {
+export const GoogleDriveSection: FC<{
+  /**
+   * Where Google's consent screen returns to. The settings screen by default;
+   * the first-run setup passes its own, so that it reopens on the Drive step.
+   */
+  returnTo?: string
+}> = ({ returnTo = SYNC_SETTINGS_PATH }) => {
   const { t } = useLocalization()
   /**
    * Moved on whenever "3 minutes ago" would stop being true, so the line ages
@@ -52,17 +65,83 @@ export const GoogleDriveSection: FC = () => {
   const [syncing, setSyncing] = useState(false)
   const [step, setStep] = useState<SyncStep | null>(null)
   const [unreadable, setUnreadable] = useState<string | null>(null)
-  const [installed, setInstalled] = useState(false)
   const [syncingElsewhere, setSyncingElsewhere] = useState(false)
   const [explaining, setExplaining] = useState(false)
 
-  useEffect(() => {
-    // Loaded ahead of the click that needs it: Google requires the token
-    // request to happen synchronously within a user gesture, which an await
-    // on the script tag's own load would break.
-    preloadGoogleIdentityScript()
-    setInstalled(isRunningInstalled())
+  /**
+   * One press of the button: which failures are worth a sentence, and which
+   * of them are not failures at all.
+   */
+  const sync = async () => {
+    // Refused rather than queued: the list's button may already be doing
+    // exactly this, and a second one would only merge against a file the
+    // first is about to replace.
+    if (!tryBeginSync()) {
+      return
+    }
+    setSyncing(true)
+    setStep('authorizing')
+    let syncedAt: number | null = null
+    // Left "syncing" on purpose when the page is leaving for Google, so the
+    // button does not flash back to idle for the last frame before it goes.
+    let leaving = false
+    try {
+      const result = await commands.syncGoogleDriveNow(returnTo, setStep)
+      if (result.status === 'error') {
+        toast(t('general:error-title'), { description: result.error })
+        return
+      }
+      if (result.data.kind === 'redirecting') {
+        leaving = true
+        return
+      }
+      if (result.data.kind === 'reauth-needed') {
+        toast(t('settings-page:google-drive-reauth-needed'))
+        return
+      }
 
+      syncedAt = result.data.syncedAt
+      setLastSyncedAt(syncedAt)
+      toast(t('general:success-title'), {
+        description:
+          result.data.memoConflicts > 0
+            ? t(
+                'settings-page:google-drive-sync-conflicts',
+                result.data.memoConflicts,
+              )
+            : t('settings-page:google-drive-sync-success'),
+      })
+      // What came down is in the database; the lists behind this screen do
+      // not read it again on their own.
+      await refreshViews()
+    } finally {
+      if (!leaving) {
+        endSync(syncedAt)
+        setSyncing(false)
+        setStep(null)
+      }
+    }
+  }
+
+  /**
+   * What the trip to Google came to. Granted, the connection is already
+   * recorded and only the intent is left to carry out; denied, there is a
+   * sentence to say and nothing else to do.
+   */
+  const resume = useEffectEvent((outcome: GoogleAuthResume) => {
+    if (outcome.outcome === 'denied') {
+      toast(t('settings-page:google-drive-denied'))
+      return
+    }
+    setConnected(true)
+    notifyDriveConnectionChanged()
+    if (outcome.intent === 'sync') {
+      void sync()
+    }
+  })
+
+  useEffect(() => {
+    const outcome = takeGoogleAuthResume()
     commands.isGoogleDriveConnected().then((result) => {
       // Not `false`: "we could not read it" is a different thing to say than
       // "you are not connected", and showing the second for the first invites
@@ -72,6 +151,11 @@ export const GoogleDriveSection: FC = () => {
         return
       }
       setConnected(result.data)
+      // Only once the state is known, so a sync that resumes finds the card
+      // already showing the connection it is about to use.
+      if (outcome !== null) {
+        resume(outcome)
+      }
     })
     commands.googleDriveLastSyncedAt().then((result) => {
       setLastSyncedAt(result.status === 'ok' ? result.data : null)
@@ -109,25 +193,19 @@ export const GoogleDriveSection: FC = () => {
 
   const connect = async () => {
     setBusy(true)
-    try {
-      const result = await commands.connectGoogleDrive()
-      if (result.status === 'error') {
-        toast(t('general:error-title'), { description: result.error })
-        return
-      }
-      if (result.data.kind === 'no-window') {
-        // The one failure with advice attached: nothing opened, which is what
-        // happens where a window cannot open at all.
-        toast(t('settings-page:google-drive-no-window'), {
-          description: t('vr-setup:projection-recommended'),
-        })
-        return
-      }
-      setConnected(true)
-      notifyDriveConnectionChanged()
-    } finally {
+    const result = await commands.connectGoogleDrive(returnTo)
+    if (result.status === 'error') {
+      toast(t('general:error-title'), { description: result.error })
       setBusy(false)
+      return
     }
+    if (result.data.kind === 'redirecting') {
+      // Still busy: the page is on its way to Google.
+      return
+    }
+    setConnected(true)
+    notifyDriveConnectionChanged()
+    setBusy(false)
   }
 
   const disconnect = async () => {
@@ -142,63 +220,6 @@ export const GoogleDriveSection: FC = () => {
       notifyDriveConnectionChanged()
     } finally {
       setBusy(false)
-    }
-  }
-
-  /**
-   * One press of the button: which failures are worth a sentence, and which
-   * of them are not failures at all.
-   */
-  const sync = async () => {
-    // Refused rather than queued: the list's button may already be doing
-    // exactly this, and a second one would only merge against a file the
-    // first is about to replace.
-    if (!tryBeginSync()) {
-      return
-    }
-    setSyncing(true)
-    setStep('authorizing')
-    let syncedAt: number | null = null
-    try {
-      const result = await commands.syncGoogleDriveNow(setStep)
-      if (result.status === 'error') {
-        toast(t('general:error-title'), { description: result.error })
-        return
-      }
-
-      if (result.data.kind === 'reauth-needed') {
-        toast(t('settings-page:google-drive-reauth-needed'))
-        return
-      }
-      if (result.data.kind === 'dismissed') {
-        toast(t('settings-page:google-drive-dismissed'))
-        return
-      }
-      if (result.data.kind === 'unanswered') {
-        toast(t('general:error-title'), {
-          description: t('settings-page:google-drive-unanswered'),
-        })
-        return
-      }
-
-      syncedAt = result.data.syncedAt
-      setLastSyncedAt(syncedAt)
-      toast(t('general:success-title'), {
-        description:
-          result.data.memoConflicts > 0
-            ? t(
-                'settings-page:google-drive-sync-conflicts',
-                result.data.memoConflicts,
-              )
-            : t('settings-page:google-drive-sync-success'),
-      })
-      // What came down is in the database; the lists behind this screen do
-      // not read it again on their own.
-      await refreshViews()
-    } finally {
-      endSync(syncedAt)
-      setSyncing(false)
-      setStep(null)
     }
   }
 
@@ -231,14 +252,6 @@ export const GoogleDriveSection: FC = () => {
       className="flex flex-col gap-4 rounded-lg border p-4"
       data-testid="google-drive-section"
     >
-      {installed && (
-        // Said before the button rather than after the wait: from the home
-        // screen, pressing it can end on a blank page that never comes back.
-        // #104 removes the second window that causes this.
-        <div className="rounded-md border border-amber-500/50 p-3 text-sm">
-          {t('settings-page:google-drive-installed-warning')}
-        </div>
-      )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col space-y-1.5">
           <Label className="text-base font-medium">
@@ -280,9 +293,9 @@ export const GoogleDriveSection: FC = () => {
       </div>
 
       {/* Beside the connect button, and only while there is one: connecting is
-          the step that needs a window to open, and this says where to open the
-          app so that one can. This card is also the Drive step of the first-run
-          setup, so the same words appear there. */}
+          the step that goes to Google's sign-in, and this says where to open
+          the app so that Google will answer. This card is also the Drive step
+          of the first-run setup, so the same words appear there. */}
       {connected !== true && <VrProjectionNotice />}
 
       {/* Outside the connected block on purpose. It describes what connecting

@@ -1,7 +1,7 @@
 'use client'
 
 import { CloudOff, RefreshCw } from 'lucide-react'
-import { useEffect, useState, type FC } from 'react'
+import { useEffect, useEffectEvent, useState, type FC } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { HelpBadge } from '@/components/help-badge'
@@ -11,7 +11,10 @@ import {
 } from '@/components/sync-explanation-dialog'
 import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
-import { preloadGoogleIdentityScript } from '@/lib/services/google-auth-service'
+import {
+  takeGoogleAuthResume,
+  type GoogleAuthResume,
+} from '@/lib/services/google-auth-service'
 import { refreshViews } from '@/lib/services/refresh-views'
 import {
   endSync,
@@ -53,19 +56,6 @@ export const DriveSyncButton: FC = () => {
   const [now, setNow] = useState(() => Date.now())
   const [explaining, setExplaining] = useState<SyncExplanationMode | null>(null)
 
-  useEffect(() => {
-    // Ahead of the click that needs it: Google's token request has to run
-    // synchronously inside the gesture, which awaiting the script would break.
-    preloadGoogleIdentityScript()
-    commands.isGoogleDriveConnected().then((result) => {
-      setConnected(result.status === 'ok' ? result.data : false)
-    })
-    commands.googleDriveLastSyncedAt().then((result) => {
-      setLastSyncedAt(result.status === 'ok' ? result.data : null)
-    })
-    setLocalChangedAt(lastLocalChangeAt())
-  }, [])
-
   useEffect(
     () =>
       subscribeToSyncActivity((activity) => {
@@ -105,24 +95,24 @@ export const DriveSyncButton: FC = () => {
       return
     }
     let syncedAt: number | null = null
+    // Left spinning on purpose when the page is leaving for Google, so the
+    // button does not flash back to idle for the last frame before it goes.
+    let leaving = false
     try {
-      const result = await commands.syncGoogleDriveNow()
+      // Back to this very list afterwards, filters and all.
+      const result = await commands.syncGoogleDriveNow(
+        window.location.pathname + window.location.search,
+      )
       if (result.status === 'error') {
         toast(t('general:error-title'), { description: result.error })
         return
       }
+      if (result.data.kind === 'redirecting') {
+        leaving = true
+        return
+      }
       if (result.data.kind === 'reauth-needed') {
         toast(t('settings-page:google-drive-reauth-needed'))
-        return
-      }
-      if (result.data.kind === 'dismissed') {
-        toast(t('settings-page:google-drive-dismissed'))
-        return
-      }
-      if (result.data.kind === 'unanswered') {
-        toast(t('general:error-title'), {
-          description: t('settings-page:google-drive-unanswered'),
-        })
         return
       }
 
@@ -140,9 +130,41 @@ export const DriveSyncButton: FC = () => {
       // on its own.
       await refreshViews()
     } finally {
-      endSync(syncedAt)
+      if (!leaving) {
+        endSync(syncedAt)
+      }
     }
   }
+
+  /**
+   * What the trip to Google came to. Granted, the connection is already
+   * recorded and the sync that was asked for runs now; denied, there is a
+   * sentence to say and nothing else to do.
+   */
+  const resume = useEffectEvent((outcome: GoogleAuthResume) => {
+    if (outcome.outcome === 'denied') {
+      toast(t('settings-page:google-drive-denied'))
+      return
+    }
+    setConnected(true)
+    if (outcome.intent === 'sync') {
+      void sync()
+    }
+  })
+
+  useEffect(() => {
+    const outcome = takeGoogleAuthResume()
+    commands.isGoogleDriveConnected().then((result) => {
+      setConnected(result.status === 'ok' ? result.data : false)
+      if (outcome !== null) {
+        resume(outcome)
+      }
+    })
+    commands.googleDriveLastSyncedAt().then((result) => {
+      setLastSyncedAt(result.status === 'ok' ? result.data : null)
+    })
+    setLocalChangedAt(lastLocalChangeAt())
+  }, [])
 
   const press = () => {
     if (connected !== true) {

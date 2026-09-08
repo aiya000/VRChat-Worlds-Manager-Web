@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import enUS from '../../locales/en-US.json'
 import jaJP from '../../locales/ja-JP.json'
 import { stubGoogleDrive, type FakeDriveFile } from './stub-google-drive'
-import { stubGoogleIdentityServices } from './stub-google-identity'
+import { stubGoogleAuth } from './stub-google-auth'
 
 const SETTINGS = '/listview/settings'
 
@@ -138,7 +138,7 @@ async function pushSettingsToAllDevices(page: Page) {
 
 test.describe('pushing this device’s settings to every device', () => {
   test.beforeEach(async ({ page }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleAuth(page, { token: 'test-access-token' })
   })
 
   test('sends up even the settings this device keeps to itself', async ({
@@ -230,7 +230,7 @@ test.describe('pushing this device’s settings to every device', () => {
 
 test.describe('receiving a demand from another device', () => {
   test.beforeEach(async ({ page }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleAuth(page, { token: 'test-access-token' })
   })
 
   test('takes a setting this device had kept to itself, and shows it without a reload', async ({

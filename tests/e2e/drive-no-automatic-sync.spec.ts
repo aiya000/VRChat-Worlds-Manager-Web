@@ -2,10 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { seedFolders } from './seed-folders'
 import { stubGoogleDrive, type FakeDriveFile } from './stub-google-drive'
-import {
-  stubGoogleIdentityServices,
-  tokenRequestCount,
-} from './stub-google-identity'
+import { stubGoogleAuth } from './stub-google-auth'
 
 const SETTINGS = '/listview/settings'
 const LIST_VIEW = '/listview/folders/special/all'
@@ -111,7 +108,7 @@ test.describe('nothing syncs without a press', () => {
   test('a connected device that changed something waits to be asked', async ({
     page,
   }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    const google = await stubGoogleAuth(page, { token: 'test-access-token' })
     const drive = await stubGoogleDrive(
       page,
       driveHolding(JSON.stringify(REMOTE_SNAPSHOT)),
@@ -123,13 +120,14 @@ test.describe('nothing syncs without a press', () => {
     // Back on the list, with the token gone the way a reload takes it.
     await page.goto(LIST_VIEW)
     await hideDevOverlay(page)
-    expect(await tokenRequestCount(page)).toBe(0)
+    const tripsToConnect = google.trips()
+    expect(tripsToConnect).toBe(1)
 
     await createFolder(page, MADE_AFTER_CONNECTING)
     // Longer than any of the old triggers ever waited.
     await page.waitForTimeout(13_000)
 
-    expect(await tokenRequestCount(page)).toBe(0)
+    expect(google.trips()).toBe(tripsToConnect)
     expect(
       (
         JSON.parse(drive.named(SYNC_FILE)!.content).folders as {
@@ -147,7 +145,7 @@ test.describe('nothing syncs without a press', () => {
   test('a device that never connected leaves Drive alone entirely', async ({
     page,
   }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleAuth(page, { token: 'test-access-token' })
     const drive = await stubGoogleDrive(page)
 
     let calls = 0
