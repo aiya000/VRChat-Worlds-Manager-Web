@@ -314,8 +314,40 @@ export class VRChatApiService extends Context.Tag('VRChatApiService')<
       instanceId: string,
       platforms: Platform[] | null,
     ) => Effect.Effect<LaunchOutcome, Error>
+    /**
+     * The same invite the VRChat website's "Invite Me" sends. The app shows it
+     * as a notification, which is a way into an instance that does not depend
+     * on a link opening anything.
+     *
+     * Answers whether it went rather than failing: an instance that was made
+     * is still there to be entered by hand.
+     */
+    readonly inviteMyselfToInstance: (
+      worldId: string,
+      instanceId: string,
+    ) => Effect.Effect<boolean, Error>
   }
 >() {}
+
+/**
+ * Asks VRChat to invite the signed-in account to an instance, and says whether
+ * it went. A refusal is reported rather than thrown: the instance still
+ * exists, and the screen has other things to say about it.
+ */
+async function sendSelfInvite(
+  worldId: string,
+  instanceId: string,
+): Promise<boolean> {
+  return apiFetch(`/invite/myself/to/${worldId}:${instanceId}`, {
+    method: 'POST',
+  }).then(
+    () => true,
+    (e) => {
+      console.error(`Failed to invite myself: ${e}`)
+      return false
+    },
+  )
+}
 
 export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
   tryLogin: () =>
@@ -616,6 +648,9 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
       catch: (e) => new Error(`Failed to create group instance: ${e}`),
     }),
 
+  inviteMyselfToInstance: (worldId, instanceId) =>
+    Effect.promise(() => sendSelfInvite(worldId, instanceId)),
+
   openInstanceInClient: (worldId, instanceId, platforms) =>
     Effect.tryPromise({
       try: async () => {
@@ -635,19 +670,7 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
             // an app with. `_self` rather than `location.assign` so a test can
             // stand in for it the same way it does for the case above.
             window.open(target.url, '_self')
-            // The same invite the website's "Invite Me" sends. The app shows
-            // it as a notification, which is a way in that does not depend on
-            // the intent above having been taken.
-            const invited = await apiFetch(
-              `/invite/myself/to/${worldId}:${instanceId}`,
-              { method: 'POST' },
-            ).then(
-              () => true,
-              (e) => {
-                console.error(`Failed to invite myself: ${e}`)
-                return false
-              },
-            )
+            const invited = await sendSelfInvite(worldId, instanceId)
             return { kind: 'android-app', invited }
           }
           case 'not-on-android':

@@ -24,6 +24,7 @@ export const DEFAULT_SETTING_SYNC_CLASSES = {
   instanceType: 'synced',
   sortPreferences: 'synced',
   folderRemovalPreference: 'synced',
+  skipSelfInviteOnCreate: 'synced',
   starredFilterItems_Author: 'synced',
   starredFilterItems_Tag: 'synced',
   starredFilterItems_ExcludeTag: 'synced',
