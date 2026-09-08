@@ -182,6 +182,65 @@ test.describe('entering an instance from an Android phone', () => {
     expect(invited).toBe(`/api/1/invite/myself/to/${WORLD_ID}:22222`)
   })
 
+  test('asks for the invite before it hands the phone to another app', async ({
+    page,
+  }) => {
+    // The order is the whole point. Android freezes Chrome the moment this
+    // page stops being in front, so a request begun after the navigation
+    // could die before it was ever sent -- "the invite was sent" on screen,
+    // and nothing in the VRChat app (#129).
+    await page.route('**/api/1/invite/myself/to/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 'not_1', type: 'invite' }),
+      }),
+    )
+
+    await page.goto(LIST_VIEW)
+    await seedWorldWithInstances(page, {
+      platform: ['standalonewindows', 'android'],
+    })
+    await openTheWorld(page)
+
+    // Watched where it happens rather than on the wire: what matters is which
+    // call the page made first, and a route handler only hears the request
+    // once the network layer has it -- by then the navigation has been called.
+    await page.evaluate(() => {
+      const order: string[] = []
+      ;(window as Window & { __order?: string[] }).__order = order
+      const realFetch = window.fetch.bind(window)
+      window.fetch = (input, init) => {
+        if (
+          String(typeof input === 'string' ? input : input).includes(
+            '/invite/myself/to/',
+          )
+        ) {
+          order.push('invite')
+        }
+        return realFetch(input, init)
+      }
+      window.open = () => {
+        order.push('navigate')
+        return null
+      }
+    })
+
+    await savedInstances(page)
+      .locator('button', { hasText: jaJP['world-detail:friends'] })
+      .first()
+      .click()
+    await expect(
+      page.getByText(jaJP['world-detail:android-invite-sent']),
+    ).toBeVisible()
+
+    expect(
+      await page.evaluate(
+        () => (window as Window & { __order?: string[] }).__order,
+      ),
+    ).toEqual(['invite', 'navigate'])
+  })
+
   test('says when the invite could not be sent', async ({ page }) => {
     await page.route('**/api/1/invite/myself/to/**', (route) =>
       route.fulfill({
