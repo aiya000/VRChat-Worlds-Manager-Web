@@ -116,6 +116,26 @@ test.describe('drawing the controls larger', () => {
     expect(await drawnCardWidth(page)).toBeCloseTo(before, 0)
   })
 
+  test('grows the box on each card for selecting it, though not the card', async ({
+    page,
+  }) => {
+    await page.goto(LIST_VIEW)
+    await seedWorld(page, { worldId: WORLD_ID, name: WORLD_NAME })
+    await openListView(page)
+    await page.getByTestId('selection-mode-toggle').click()
+    const box = page.getByTestId('world-select-box').first()
+    const cardBefore = await drawnCardWidth(page)
+    const boxBefore = (await box.boundingBox())!.width
+
+    await chooseScaleOnList(page, '200%')
+
+    await expect.poll(() => controlScale(page)).toBe('2')
+    expect(await drawnCardWidth(page)).toBeCloseTo(cardBefore, 0)
+    // The box is the one thing on a card that is pressed, so it is drawn at
+    // the control scale like the rows and buttons around the grid.
+    expect((await box.boundingBox())!.width).toBeCloseTo(boxBefore * 2, 0)
+  })
+
   test('reflows rather than spilling off the side of the page', async ({
     page,
   }) => {
