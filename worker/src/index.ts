@@ -3,22 +3,36 @@
  *
  * - Proxies requests to api.vrchat.cloud with CORS headers
  * - Relays authentication cookies/tokens
- * - Validates Service Token (CF-Access-Client-Id / CF-Access-Client-Secret)
- * - Rate limits by IP (hourly) and daily quota via KV
- * - Whitelists only API endpoints used by the app
+ * - Rate limits by IP (hourly), with a far tighter limit on credential
+ *   attempts, and a daily quota, all in KV
+ * - Whitelists only API endpoints used by the app, and only the headers
+ *   VRChat is meant to see
+ *
+ * What this cannot do, and why it is written down rather than assumed: the
+ * `Origin` check keeps other *websites* out, but anything that is not a
+ * browser sets whatever `Origin` it likes, so it stops nothing from `curl`.
+ * The limits below are what actually stands between this Worker and someone
+ * using it as a stepping stone. See #61.
  */
 
 interface Env {
   ALLOWED_ORIGIN: string
   VRCHAT_API_BASE: string
   QUOTA: KVNamespace
-  // Set via `wrangler secret put`. Optional: if unset, token validation is skipped.
-  CF_ACCESS_CLIENT_ID?: string
-  CF_ACCESS_CLIENT_SECRET?: string
 }
 
 const DAILY_QUOTA = 90_000
 const IP_HOURLY_LIMIT = 500
+
+/**
+ * Credential attempts get their own, much smaller allowance.
+ *
+ * A password guess and a two-factor guess both come through here, and the
+ * second is six digits -- a million codes, which 500 tries an hour would walk
+ * in a few months. Thirty an hour turns that into millennia while leaving far
+ * more room than a person mistyping a password needs.
+ */
+const LOGIN_HOURLY_LIMIT = 30
 
 interface AllowedRoute {
   method: string
@@ -45,10 +59,87 @@ const ALLOWED_ROUTES: AllowedRoute[] = [
   { method: 'GET', pattern: /^\/groups\/[^/]+\/instances\/permissions$/ },
 ]
 
+/**
+ * `[^/]+` in the patterns above matches `..`, so `/worlds/..` passed the
+ * whitelist as an approved route and then collapsed to something else when
+ * the target URL was parsed. Encoded forms have to go too, since it is the
+ * upstream server that decodes them, not us -- and by then the whitelist has
+ * already had its say.
+ */
+function hasTraversalSegment(apiPath: string): boolean {
+  return apiPath
+    .split('/')
+    .some((segment) => /^(\.|\.\.|%2e|%2e%2e)$/i.test(segment))
+}
+
 export function isRouteAllowed(method: string, apiPath: string): boolean {
+  if (hasTraversalSegment(apiPath)) {
+    return false
+  }
   return ALLOWED_ROUTES.some(
     (route) => route.method === method && route.pattern.test(apiPath),
   )
+}
+
+/**
+ * Whether this request is someone offering credentials, as opposed to using a
+ * session they already hold.
+ *
+ * `GET /auth/user` is both "log me in" and "who am I?" -- the difference is
+ * the `Basic` header, which only the login screen sends. Counting the second
+ * as an attempt would spend the allowance on ordinary page loads.
+ */
+export function isCredentialAttempt(
+  method: string,
+  apiPath: string,
+  authorization: string | null,
+): boolean {
+  if (
+    method === 'GET' &&
+    apiPath === '/auth/user' &&
+    authorization !== null &&
+    /^Basic\s/i.test(authorization)
+  ) {
+    return true
+  }
+  return (
+    method === 'POST' &&
+    /^\/auth\/twofactorauth\/(totp|emailotp|otp)\/verify$/.test(apiPath)
+  )
+}
+
+/**
+ * The only headers the upstream is meant to see.
+ *
+ * Everything the caller sent used to be forwarded, so this Worker would carry
+ * any header at all to VRChat on a stranger's behalf. `Cookie` is absent on
+ * purpose: it is rebuilt here from the tokens the app holds, never taken from
+ * the request.
+ */
+const FORWARDED_HEADERS = [
+  'accept',
+  'accept-language',
+  'authorization',
+  'content-type',
+  // VRChat's WAF rejects a request without a descriptive one.
+  'user-agent',
+]
+
+export function buildProxyHeaders(
+  requestHeaders: Headers,
+  cookieHeader: string | null,
+): Headers {
+  const headers = new Headers()
+  for (const name of FORWARDED_HEADERS) {
+    const value = requestHeaders.get(name)
+    if (value !== null) {
+      headers.set(name, value)
+    }
+  }
+  if (cookieHeader !== null) {
+    headers.set('Cookie', cookieHeader)
+  }
+  return headers
 }
 
 /**
@@ -152,7 +243,7 @@ function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
   return {
     'Access-Control-Allow-Origin': effectiveOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': `Content-Type, Authorization, Cookie, X-Requested-With, CF-Access-Client-Id, CF-Access-Client-Secret, ${AUTH_TOKEN_HEADER}, ${TWO_FACTOR_TOKEN_HEADER}`,
+    'Access-Control-Allow-Headers': `Content-Type, Authorization, Cookie, X-Requested-With, ${AUTH_TOKEN_HEADER}, ${TWO_FACTOR_TOKEN_HEADER}`,
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Expose-Headers': `X-Quota-Remaining, ${AUTH_TOKEN_HEADER}, ${TWO_FACTOR_TOKEN_HEADER}`,
   }
@@ -174,15 +265,47 @@ async function incrementQuota(env: Env): Promise<number> {
   return Math.max(0, DAILY_QUOTA - next)
 }
 
-async function checkIpRateLimit(env: Env, ip: string): Promise<boolean> {
+/**
+ * Counts one use against an hourly bucket and says whether it was within the
+ * limit.
+ *
+ * KV cannot count atomically -- this reads, compares and writes, so requests
+ * that arrive together all read the same number and the limit can be overrun
+ * by however many are in flight at once. That bounds the overrun by
+ * concurrency rather than removing it, which is enough for a coarse cap and
+ * is not enough for anything finer. Moving these counters to a Rate Limiting
+ * binding or a Durable Object is the fix, and is listed in #61.
+ */
+async function countAgainstHourlyLimit(
+  env: Env,
+  keyPrefix: string,
+  ip: string,
+  limit: number,
+): Promise<boolean> {
   const hour = new Date().toISOString().slice(0, 13) // "2025-05-03T12"
-  const key = `ip:${ip}:${hour}`
+  const key = `${keyPrefix}:${ip}:${hour}`
   const current = parseInt((await env.QUOTA.get(key)) || '0', 10)
-  if (current >= IP_HOURLY_LIMIT) {
+  if (current >= limit) {
     return false
   }
   await env.QUOTA.put(key, String(current + 1), { expirationTtl: 7200 })
   return true
+}
+
+function tooManyRequests(
+  origin: string,
+  allowedOrigin: string,
+  error: string,
+): Response {
+  return new Response(JSON.stringify({ error }), {
+    status: 429,
+    headers: {
+      ...corsHeaders(origin, allowedOrigin),
+      'Content-Type': 'application/json',
+      // The buckets are hourly, so the next one is at most an hour away.
+      'Retry-After': '3600',
+    },
+  })
 }
 
 export default {
@@ -206,34 +329,40 @@ export default {
       return new Response('Forbidden', { status: 403 })
     }
 
-    // Validate Service Token if configured
-    if (env.CF_ACCESS_CLIENT_ID && env.CF_ACCESS_CLIENT_SECRET) {
-      const clientId = request.headers.get('CF-Access-Client-Id')
-      const clientSecret = request.headers.get('CF-Access-Client-Secret')
-      if (
-        clientId !== env.CF_ACCESS_CLIENT_ID ||
-        clientSecret !== env.CF_ACCESS_CLIENT_SECRET
-      ) {
-        return new Response('Unauthorized', {
-          status: 401,
-          headers: corsHeaders(origin, env.ALLOWED_ORIGIN),
-        })
-      }
+    // Decided before anything is counted, so a path this Worker would never
+    // proxy cannot spend somebody else's allowance on its way to a 404.
+    const url = new URL(request.url)
+    const apiPath = url.pathname.replace(/^\/api\/1/, '')
+    if (!isRouteAllowed(request.method, apiPath)) {
+      return new Response('Not Found', {
+        status: 404,
+        headers: corsHeaders(origin, env.ALLOWED_ORIGIN),
+      })
     }
 
-    // IP rate limiting
+    // A caller with no `CF-Connecting-IP` used to skip every limit below.
+    // Cloudflare sets it on real traffic, so its absence is odd rather than
+    // ordinary, and one shared bucket is the safe reading of it: still
+    // counted, and never a way round the count.
     const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown'
-    if (ip !== 'unknown') {
-      const allowed = await checkIpRateLimit(env, ip)
-      if (!allowed) {
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
-          status: 429,
-          headers: {
-            ...corsHeaders(origin, env.ALLOWED_ORIGIN),
-            'Content-Type': 'application/json',
-          },
-        })
-      }
+
+    if (!(await countAgainstHourlyLimit(env, 'ip', ip, IP_HOURLY_LIMIT))) {
+      return tooManyRequests(origin, env.ALLOWED_ORIGIN, 'Rate limit exceeded')
+    }
+
+    if (
+      isCredentialAttempt(
+        request.method,
+        apiPath,
+        request.headers.get('Authorization'),
+      ) &&
+      !(await countAgainstHourlyLimit(env, 'login', ip, LOGIN_HOURLY_LIMIT))
+    ) {
+      return tooManyRequests(
+        origin,
+        env.ALLOWED_ORIGIN,
+        'Too many sign-in attempts',
+      )
     }
 
     // Daily quota check
@@ -245,42 +374,20 @@ export default {
           ...corsHeaders(origin, env.ALLOWED_ORIGIN),
           'Content-Type': 'application/json',
           'X-Quota-Remaining': '0',
+          'Retry-After': '3600',
         },
-      })
-    }
-
-    // Build proxied URL
-    const url = new URL(request.url)
-    const apiPath = url.pathname.replace(/^\/api\/1/, '')
-
-    // Whitelist check
-    if (!isRouteAllowed(request.method, apiPath)) {
-      return new Response('Not Found', {
-        status: 404,
-        headers: corsHeaders(origin, env.ALLOWED_ORIGIN),
       })
     }
 
     const targetUrl = `${env.VRCHAT_API_BASE}${apiPath}${url.search}`
 
-    const proxyHeaders = new Headers(request.headers)
-    proxyHeaders.delete('Host')
-    proxyHeaders.delete('Origin')
-    // Don't forward internal Service Token to VRChat API
-    proxyHeaders.delete('CF-Access-Client-Id')
-    proxyHeaders.delete('CF-Access-Client-Secret')
-
-    const cookieHeader = buildVRChatCookieHeader(
-      request.headers.get(AUTH_TOKEN_HEADER),
-      request.headers.get(TWO_FACTOR_TOKEN_HEADER),
+    const proxyHeaders = buildProxyHeaders(
+      request.headers,
+      buildVRChatCookieHeader(
+        request.headers.get(AUTH_TOKEN_HEADER),
+        request.headers.get(TWO_FACTOR_TOKEN_HEADER),
+      ),
     )
-    proxyHeaders.delete(AUTH_TOKEN_HEADER)
-    proxyHeaders.delete(TWO_FACTOR_TOKEN_HEADER)
-    if (cookieHeader === null) {
-      proxyHeaders.delete('Cookie')
-    } else {
-      proxyHeaders.set('Cookie', cookieHeader)
-    }
 
     const proxyRequest = new Request(targetUrl, {
       method: request.method,
