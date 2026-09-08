@@ -3,6 +3,7 @@
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -61,6 +62,8 @@ export default function SettingsPage() {
     cardSize,
     language,
     folderRemovalPreference,
+    skipSelfInviteOnCreate,
+    handleSkipSelfInviteChange,
     fieldVisibility,
     detailFieldVisibility,
     showDeleteConfirm,
@@ -503,6 +506,30 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="others" className="space-y-4">
+          {/* On by default. The invite is what puts the instance in the VRChat
+              app's notifications, which on a phone is the only way in that does
+              not depend on a link opening something (#115). */}
+          <Card className="flex flex-col gap-3 p-4 rounded-lg border">
+            <div className="flex w-full flex-row items-center justify-between gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label className="text-base font-medium">
+                  {t('settings-page:skip-self-invite-title')}
+                </Label>
+                <div className="text-sm text-muted-foreground">
+                  {t('settings-page:skip-self-invite-description')}
+                </div>
+              </div>
+              <Switch
+                id="skip-self-invite"
+                data-testid="skip-self-invite"
+                checked={skipSelfInviteOnCreate}
+                onCheckedChange={(checked) =>
+                  handleSkipSelfInviteChange(checked === true)
+                }
+              />
+            </div>
+          </Card>
+
           <Card className="flex flex-col gap-3 p-4 rounded-lg border">
             <div className="flex w-full flex-row items-center justify-between gap-4">
               <div className="flex flex-col space-y-1.5">

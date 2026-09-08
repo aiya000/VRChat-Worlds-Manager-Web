@@ -19,6 +19,31 @@ export function useWorldDetailsActions(
    * `platforms` is what the world was built for, or `null` when not known;
    * it is what decides whether an Android phone can be handed the app.
    */
+  /**
+   * Sends the invite that gets you into an instance you just made, and says
+   * how the toast should read.
+   *
+   * VRChat's own website sends one when it makes an instance; this app only
+   * ever sent it from the "open in VRChat" button, on Android, which is why an
+   * instance made here could look created and be unreachable from the app
+   * (#115). Someone who does not want the notification can turn it off.
+   */
+  const inviteMyselfIfWanted = async (
+    worldId: string,
+    instanceId: string,
+  ): Promise<boolean> => {
+    const skip = await commands.getSkipSelfInviteOnCreate()
+    if (skip.status === 'ok' && skip.data) {
+      return false
+    }
+    const invited = await commands.inviteMyselfToInstance(worldId, instanceId)
+    if (invited.status === 'error') {
+      console.error(`Failed to invite myself: ${invited.error}`)
+      return false
+    }
+    return invited.data
+  }
+
   const createInstance = async (
     worldId: string,
     instanceType: Exclude<InstanceType, 'group'>,
@@ -50,8 +75,14 @@ export function useWorldDetailsActions(
         console.error(`Failed to remember instance: ${remembered.error}`)
       }
       onInstanceRecorded?.()
+      const invited = await inviteMyselfIfWanted(
+        info.world_id,
+        info.instance_id,
+      )
       toast(t('general:success-title'), {
-        description: t('listview-page:created-instance', instanceType),
+        description: invited
+          ? `${t('listview-page:created-instance', instanceType)}\n${t('world-detail:android-invite-sent')}`
+          : t('listview-page:created-instance', instanceType),
         action: {
           label: t('listview-page:open-in-client'),
           onClick: async () => {
@@ -108,8 +139,14 @@ export function useWorldDetailsActions(
         console.error(`Failed to remember instance: ${remembered.error}`)
       }
       onInstanceRecorded?.()
+      const invited = await inviteMyselfIfWanted(
+        info.world_id,
+        info.instance_id,
+      )
       toast(t('general:success-title'), {
-        description: t('listview-page:created-instance', instanceType),
+        description: invited
+          ? `${t('listview-page:created-instance', instanceType)}\n${t('world-detail:android-invite-sent')}`
+          : t('listview-page:created-instance', instanceType),
         action: {
           label: t('listview-page:open-in-client'),
           onClick: async () => {

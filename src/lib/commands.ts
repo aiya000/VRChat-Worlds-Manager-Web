@@ -537,6 +537,42 @@ export const commands = {
     )
   },
 
+  /**
+   * Asks VRChat to invite the signed-in account to an instance. `false` means
+   * VRChat refused; the instance is still there either way.
+   */
+  async inviteMyselfToInstance(
+    worldId: string,
+    instanceId: string,
+  ): Promise<Result<boolean, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* VRChatApiService
+        return yield* svc.inviteMyselfToInstance(worldId, instanceId)
+      }),
+    )
+  },
+
+  async getSkipSelfInviteOnCreate(): Promise<Result<boolean, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        return yield* svc.getSkipSelfInviteOnCreate()
+      }),
+    )
+  },
+
+  async setSkipSelfInviteOnCreate(
+    skip: boolean,
+  ): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        yield* svc.setSkipSelfInviteOnCreate(skip)
+      }),
+    )
+  },
+
   async getFolderRemovalPreference(): Promise<
     Result<FolderRemovalPreference, string>
   > {

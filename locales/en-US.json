@@ -418,6 +418,8 @@
   "settings-page:error-logout": "Failed to logout",
   "settings-page:folder-removal-title": "Remove from current folder",
   "settings-page:folder-removal-description": "Set if a world should be removed from the current folder when adding to another folder",
+  "settings-page:skip-self-invite-title": "Do not invite me when I make an instance",
+  "settings-page:skip-self-invite-description": "Turn this on and making an instance will not send you an invite. The invite is how an instance is reached from the VRChat app's notifications, so leaving it off is the better choice on a phone.",
   "settings-page:folder-removal-ask": "Ask me every time",
   "settings-page:folder-removal-keep": "Always Keep",
   "settings-page:folder-removal-remove": "Always Remove",

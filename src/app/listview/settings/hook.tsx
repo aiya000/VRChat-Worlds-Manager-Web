@@ -30,6 +30,8 @@ export const useSettingsPage = () => {
   const [cardSize, setCardSize] = useState<CardSize>('Normal')
   const [uiScale, setUiScale] = useState<UiScale>(DEFAULT_UI_SCALE)
   const [language, setLanguage] = useState<string>('en-US')
+  const [skipSelfInviteOnCreate, setSkipSelfInviteOnCreate] =
+    useState<boolean>(false)
   const [folderRemovalPreference, setFolderRemovalPreference] =
     useState<FolderRemovalPreference | null>(null)
   const [fieldVisibility, setFieldVisibility] =
@@ -81,6 +83,7 @@ export const useSettingsPage = () => {
         const uiScaleResult = await commands.getUiScale()
         const folderRemovalPreferenceResult =
           await commands.getFolderRemovalPreference()
+        const skipSelfInviteResult = await commands.getSkipSelfInviteOnCreate()
         const fieldVisibilityResult =
           await commands.getWorldCardFieldVisibility()
         const detailFieldVisibilityResult =
@@ -100,6 +103,10 @@ export const useSettingsPage = () => {
           folderRemovalPreferenceResult.status === 'ok'
             ? folderRemovalPreferenceResult.data
             : 'ask'
+        const skipSelfInvite =
+          skipSelfInviteResult.status === 'ok'
+            ? skipSelfInviteResult.data
+            : false
         const fieldVisibility =
           fieldVisibilityResult.status === 'ok'
             ? fieldVisibilityResult.data
@@ -127,6 +134,7 @@ export const useSettingsPage = () => {
         setUiScale(uiScale)
         setSyncOverrides(readSettingSyncOverrides())
         setFolderRemovalPreference(folderRemovalPreference)
+        setSkipSelfInviteOnCreate(skipSelfInvite)
         setFieldVisibility(fieldVisibility)
         setDetailFieldVisibility(detailFieldVisibility)
         // put a toast if commands fail
@@ -454,6 +462,15 @@ export const useSettingsPage = () => {
     }
   }
 
+  const handleSkipSelfInviteChange = async (skip: boolean) => {
+    const result = await commands.setSkipSelfInviteOnCreate(skip)
+    if (result.status === 'error') {
+      toast(t('general:error-title'), { description: result.error })
+      return
+    }
+    setSkipSelfInviteOnCreate(skip)
+  }
+
   const handleFolderRemovalPreferenceChange = async (
     value: FolderRemovalPreference,
   ) => {
@@ -500,6 +517,8 @@ export const useSettingsPage = () => {
     uiScale,
     language,
     folderRemovalPreference,
+    skipSelfInviteOnCreate,
+    handleSkipSelfInviteChange,
     fieldVisibility,
     detailFieldVisibility,
     showDeleteConfirm,

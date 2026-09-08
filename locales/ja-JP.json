@@ -418,6 +418,8 @@
   "settings-page:error-logout": "ログアウトに失敗しました",
   "settings-page:folder-removal-title": "現在のフォルダから削除",
   "settings-page:folder-removal-description": "別のフォルダに追加する際、ワールドを現在のフォルダから削除するかどうかを設定します",
+  "settings-page:skip-self-invite-title": "インスタンスの作成時に、自己招待を行わない",
+  "settings-page:skip-self-invite-description": "オンにすると、インスタンスを作っても自分宛ての招待を送りません。招待はVRChatアプリの通知からインスタンスに入る手段なので、スマートフォンで使うときはオフのままをおすすめします。",
   "settings-page:folder-removal-ask": "毎回確認する",
   "settings-page:folder-removal-keep": "常に残す",
   "settings-page:folder-removal-remove": "常に削除する",

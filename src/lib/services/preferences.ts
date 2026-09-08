@@ -55,6 +55,13 @@ export class PreferencesService extends Context.Tag('PreferencesService')<
       id: FilterItemSelectorStarredType,
       values: string[],
     ) => Effect.Effect<void>
+    /**
+     * Whether making an instance should stop sending the invite that gets you
+     * into it. Off by default -- the invite is how the VRChat app is reached,
+     * and it is what the website's own "Invite Me" sends.
+     */
+    readonly getSkipSelfInviteOnCreate: () => Effect.Effect<boolean>
+    readonly setSkipSelfInviteOnCreate: (skip: boolean) => Effect.Effect<void>
     readonly getFolderRemovalPreference: () => Effect.Effect<FolderRemovalPreference>
     readonly setFolderRemovalPreference: (
       pref: FolderRemovalPreference,
@@ -123,6 +130,10 @@ export const PreferencesServiceLive = Layer.succeed(PreferencesService, {
     Effect.succeed(getItem<string[]>(`starredFilterItems_${id}`, [])),
   setStarredFilterItems: (id, values) =>
     Effect.sync(() => setItem(`starredFilterItems_${id}`, values)),
+  getSkipSelfInviteOnCreate: () =>
+    Effect.succeed(getItem<boolean>('skipSelfInviteOnCreate', false)),
+  setSkipSelfInviteOnCreate: (skip) =>
+    Effect.sync(() => setItem('skipSelfInviteOnCreate', skip)),
   getFolderRemovalPreference: () =>
     Effect.succeed(
       getItem<FolderRemovalPreference>('folderRemovalPreference', 'ask'),
