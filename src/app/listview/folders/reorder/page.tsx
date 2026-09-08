@@ -37,7 +37,7 @@ export default function ReorderFoldersPage() {
   }
 
   return (
-    <div className="container max-w-2xl mx-auto p-6 space-y-6">
+    <div className="ui-control container max-w-2xl mx-auto p-6 space-y-6">
       <div className="sticky top-0 z-20 -mx-6 flex items-center gap-2 bg-background px-6 py-2">
         <SidebarTrigger className="h-10 w-10 shrink-0" />
         <h1 className="text-2xl font-bold">

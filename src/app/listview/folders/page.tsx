@@ -116,7 +116,7 @@ export default function FoldersPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-5xl space-y-4 p-4 sm:p-6">
+    <div className="ui-control container mx-auto max-w-5xl space-y-4 p-4 sm:p-6">
       <div className="sticky top-0 z-20 -mx-4 flex items-center gap-2 bg-background px-4 py-2 sm:-mx-6 sm:px-6">
         <SidebarTrigger className="h-10 w-10 shrink-0" />
         <h1 className="min-w-0 flex-1 truncate text-2xl font-bold">

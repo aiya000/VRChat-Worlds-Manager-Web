@@ -136,6 +136,33 @@ test.describe('drawing the controls larger', () => {
     expect((await box.boundingBox())!.width).toBeCloseTo(boxBefore * 2, 0)
   })
 
+  test('draws the settings screen larger, and its switches larger still', async ({
+    page,
+  }) => {
+    await page.goto('/listview/settings?tab=others')
+    await page.addStyleTag({
+      content: 'nextjs-portal { display: none !important; }',
+    })
+    const heading = page.getByRole('heading', {
+      name: jaJP['general:settings'],
+    })
+    const toggle = page.getByTestId('skip-self-invite')
+    const headingBefore = (await heading.boundingBox())!.width
+    const toggleBefore = (await toggle.boundingBox())!.width
+
+    await chooseScale(page, '150%')
+
+    // The screen is a panel -- half the growth -- and the switch in it is a
+    // control, drawn at the full 150%.
+    await expect
+      .poll(async () => (await heading.boundingBox())!.width / headingBefore)
+      .toBeCloseTo(1.25, 1)
+    expect((await toggle.boundingBox())!.width / toggleBefore).toBeCloseTo(
+      1.5,
+      1,
+    )
+  })
+
   test('reflows rather than spilling off the side of the page', async ({
     page,
   }) => {

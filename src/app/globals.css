@@ -219,6 +219,17 @@
 }
 
 /*
+ * Every button, input, switch and the like is a control on its own, so a
+ * screen with no region of its own still gets pressable things at the right
+ * size. Inside a region that is already a control -- the sidebar, a toolbar
+ * -- the size is the region's, and the control must not multiply it again.
+ * Last, so it wins over the panel rule above at equal specificity.
+ */
+.ui-control .ui-control {
+  zoom: 1;
+}
+
+/*
  * A popover is portalled to the body, outside every zoomed region, so its
  * wrapper is positioned in the same coordinate space its trigger was measured
  * in. (When the whole document was zoomed, that measurement -- device pixels

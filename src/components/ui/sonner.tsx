@@ -15,13 +15,15 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group z-[999999] pointer-events-auto"
       toastOptions={{
         classNames: {
+          // A toast is a panel with a control in it: read at the panel scale,
+          // and its button drawn at the control scale like every other.
           toast:
-            'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
+            'ui-panel group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
           description: 'group-[.toast]:text-muted-foreground',
           actionButton:
-            'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
+            'ui-control group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
           cancelButton:
-            'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
+            'ui-control group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
         },
       }}
       {...props}

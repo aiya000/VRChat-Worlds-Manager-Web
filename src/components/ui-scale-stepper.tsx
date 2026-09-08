@@ -44,7 +44,7 @@ export const UiScaleStepper: FC<{
       // badge sits over the bottom-right corner of whatever it explains, and
       // at a narrower padding it covered a quarter of the "+" -- which a VR
       // laser then hit instead of the button.
-      className="flex h-9 shrink-0 items-center gap-1 rounded-md border px-4"
+      className="ui-control flex h-9 shrink-0 items-center gap-1 rounded-md border px-4"
       data-testid={testIdPrefix}
     >
       <Button

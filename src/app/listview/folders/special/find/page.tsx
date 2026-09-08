@@ -299,7 +299,7 @@ export default function FindWorldsPage() {
     <div className="p-1 flex flex-col h-full min-h-0">
       {/* added min-h-0 */}
       {/* Header with title and reload button */}
-      <div className="flex items-center justify-between p-4 bg-background">
+      <div className="ui-control flex items-center justify-between p-4 bg-background">
         <h1 className="text-xl font-bold">{t('general:find-worlds')}</h1>
 
         <div className="flex items-center">
@@ -351,7 +351,7 @@ export default function FindWorldsPage() {
       </div>
 
       {/* Tab bar with full-width tabs */}
-      <div className="bg-background px-4 pb-2">
+      <div className="ui-control bg-background px-4 pb-2">
         <Tabs
           defaultValue="recently-visited"
           value={activeTab}
@@ -396,7 +396,7 @@ export default function FindWorldsPage() {
         {activeTab === 'search' && (
           <div className="flex-1 min-h-0">
             {/* new scroll container for search tab */}
-            <div className="sticky top-0 z-40 bg-background border-b">
+            <div className="ui-control sticky top-0 z-40 bg-background border-b">
               {/* sticky header now inside scroller */}
               <Card className=" mx-4 border-0 shadow-none">
                 <CardContent className="pt-4 space-y-4">

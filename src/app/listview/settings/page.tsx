@@ -94,7 +94,7 @@ export default function SettingsPage() {
   } = useSettingsPage()
 
   return (
-    <div className="container max-w-4xl mx-auto p-6 space-y-6">
+    <div className="ui-panel container max-w-4xl mx-auto p-6 space-y-6">
       {/* Pinned so the sidebar stays reachable once the page scrolls. */}
       <div className="sticky top-0 z-20 -mx-6 flex items-center gap-2 bg-background px-6 py-2">
         <SidebarTrigger className="h-10 w-10 shrink-0" />
