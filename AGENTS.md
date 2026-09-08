@@ -408,6 +408,48 @@ off against another, resolve it in this order:
 Phone and VR pull in the same direction almost everywhere, so a change made for one
 usually serves the other.
 
+### The control size: what grows for a headset, and what does not
+
+The "操作の大きさ" setting (`src/lib/ui-scale.ts`) does **not** zoom the page. It used to,
+and that made the world grid show fewer cards the larger it got, turned every `vh` into
+more than the screen (the sidebar could not scroll to its own settings link at 150%), and
+needed every popover's coordinates un-zoomed and re-zoomed. What a headset needs is bigger
+things to aim at and read, with the grid as dense as it was.
+
+`applyUiScale` puts two multipliers on the document, and `globals.css` applies them:
+
+- **`--control-scale`** is the chosen size, for what is pressed. Every `Button`, `Input`,
+  `Switch`, `Checkbox`, `Select`, `Tabs` and `Toggle` carries `ui-control` itself, and so do
+  whole regions that are nothing but controls: the sidebar (`<aside>`), the list view's title
+  and search rows, the world search form, the folder view, the reorder screen
+- **`--panel-scale`** is half the growth (150% → 125%), for what surrounds the controls:
+  every `DialogContent` and `AlertDialogContent`, each toast, and the settings screen carry
+  `ui-panel`. A control inside a panel is zoomed by the ratio, so it lands at the control
+  scale rather than at the product
+- **The world grid is fixed.** The one thing on a card drawn at the control scale is the
+  selection box; nothing else on a card grows
+
+Three rules that follow, each learned the expensive way:
+
+- **A control inside a control does not multiply.** `.ui-control .ui-control { zoom: 1 }` is
+  what keeps a button in the sidebar from being 150% of 150%. Mark a region _or_ its parts,
+  never both expecting the region to win
+- **`vh` and `vw` inside a panel are multiplied by the panel's zoom**, because viewport units
+  answer in screen pixels first. Divide: `h-[calc(85vh/var(--panel-scale,1))]`, as the world
+  detail does. Inside a `ui-control` region the divisor is `--control-scale`
+- **A fixed box in screen pixels holds zoomed content**, so the box has to grow by the same
+  factor: `--sidebar-width` is `calc(17rem * var(--control-scale, 1))`, and the mobile drawer
+  is the same capped at `100vw`. `zoom` re-runs layout (`transform: scale()` does not), which
+  is why a zoomed row of buttons wraps instead of overflowing
+
+Popovers are portalled to the body, outside every zoomed region, so they are positioned in
+the coordinate space their trigger was measured in; only their content is drawn at the
+control scale (`[data-radix-popper-content-wrapper] > *`).
+
+Known limits: at 200% on a 390px-wide phone the list view's button row is wider than the
+screen even after wrapping, and on a short window the sidebar's folder list shows only a
+row or two (it scrolls). Neither has been worth fixing yet -- a phone does not need 200%.
+
 ## Testing Changes
 
 ### When Resolving Issues
