@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useContext } from 'react'
+import React, { Suspense, useState, useEffect, useContext } from 'react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from 'next-themes'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Select,
   SelectContent,
@@ -47,13 +47,19 @@ import { SiGithub } from '@icons-pack/react-simple-icons'
 
 const WelcomePage: React.FC = () => {
   const router = useRouter()
-  const { t } = useLocalization()
+  const { t, language } = useLocalization()
   const { setTheme } = useTheme()
   const { setLanguage } = useContext(LocalizationContext)
   const [selectedSize, setSelectedSize] = useState<CardSize>('Normal')
-  const [page, setPage] = useState(1)
+  // Connecting Drive from the restore step leaves the page for Google, and
+  // the whole wizard with it. `?resume=drive` is how the trip back lands on
+  // that step again rather than on the welcome screen.
+  const resumingDrive = useSearchParams().get('resume') === 'drive'
+  const [page, setPage] = useState(resumingDrive ? 3 : 1)
   /** `null` while the migration step is still asking which of the four it is. */
-  const [restoreSource, setRestoreSource] = useState<RestoreSource | null>(null)
+  const [restoreSource, setRestoreSource] = useState<RestoreSource | null>(
+    resumingDrive ? 'drive' : null,
+  )
   const [fieldVisibility, setFieldVisibility] =
     useState<WorldCardFieldVisibility>({
       name: true,
@@ -74,8 +80,10 @@ const WelcomePage: React.FC = () => {
     theme: 'system',
     // Japanese, matching the app's default language and the order the two
     // buttons are in: the first one being the one already chosen is what
-    // someone reading down the screen expects.
-    language: 'ja-JP',
+    // someone reading down the screen expects. Back from Google, the choice
+    // made before leaving is already in effect, and finishing must not
+    // write the default over it.
+    language: resumingDrive ? language : 'ja-JP',
     card_size: 'Normal' as CardSize,
   })
   const [migrationFiles, setMigrationFiles] = useState<
@@ -539,7 +547,9 @@ const WelcomePage: React.FC = () => {
                 </Button>
               )}
 
-              {restoreSource === 'drive' && <GoogleDriveSection />}
+              {restoreSource === 'drive' && (
+                <GoogleDriveSection returnTo="/setup?resume=drive" />
+              )}
               {restoreSource === 'backup' && <BackupRestoreStep />}
 
               {(restoreSource === 'drive' || restoreSource === 'backup') && (
@@ -908,4 +918,14 @@ const WelcomePage: React.FC = () => {
   )
 }
 
-export default WelcomePage
+/**
+ * The wrapper Next asks for around `useSearchParams` on a static page; the
+ * fallback is never seen, since the params are known before anything paints.
+ */
+export default function SetupPage() {
+  return (
+    <Suspense fallback={null}>
+      <WelcomePage />
+    </Suspense>
+  )
+}

@@ -88,10 +88,11 @@ export interface SyncOutcome {
 export type DriveSyncResult =
   | ({ kind: 'synced' } & SyncOutcome)
   | { kind: 'reauth-needed' }
-  /** The Google window was closed, or the browser refused to open it. */
-  | { kind: 'dismissed' }
-  /** It opened and never came back. See `GoogleAuthUnansweredError`. */
-  | { kind: 'unanswered' }
+  /**
+   * No token yet, so the page is on its way to Google for one. The sync
+   * happens on the way back, from the page that was left.
+   */
+  | { kind: 'redirecting' }
 
 export class SyncRaceLostError extends Error {}
 

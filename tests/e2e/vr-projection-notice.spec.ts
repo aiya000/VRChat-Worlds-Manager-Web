@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
-import { stubGoogleIdentityServices } from './stub-google-identity'
+import { stubGoogleAuth } from './stub-google-auth'
 
 const SETTINGS_SYNC = '/listview/settings?tab=sync'
 const ABOUT = '/listview/about'
@@ -24,7 +24,7 @@ test.describe('the recommended way to use this in VR', () => {
   test('sits beside the connect button while this device is not connected', async ({
     page,
   }) => {
-    await stubGoogleIdentityServices(page, { token: 'unused' })
+    await stubGoogleAuth(page, { token: 'unused' })
     await open(page, SETTINGS_SYNC)
 
     const notice = page.getByTestId('vr-projection-notice')
@@ -35,7 +35,7 @@ test.describe('the recommended way to use this in VR', () => {
   test('goes away once the device is connected, having done its job', async ({
     page,
   }) => {
-    await stubGoogleIdentityServices(page, { token: 'a-fake-token' })
+    await stubGoogleAuth(page, { token: 'a-fake-token' })
     await open(page, SETTINGS_SYNC)
 
     await page
@@ -51,14 +51,12 @@ test.describe('the recommended way to use this in VR', () => {
     await expect(page.getByTestId('vr-projection-notice')).toBeHidden()
   })
 
-  test('is said again when no window opened to connect with', async ({
+  test('is still there when Google sent the browser back empty-handed', async ({
     page,
   }) => {
-    // The failure the advice is for: nothing opened, which is what happens
-    // where a window cannot open at all.
-    await stubGoogleIdentityServices(page, {
-      dismissed: 'popup_failed_to_open',
-    })
+    // What a browser Google will not sign in from ends with: a refusal in
+    // place of a token, and a device that is no more connected than before.
+    await stubGoogleAuth(page, { denied: 'access_denied' })
     await open(page, SETTINGS_SYNC)
 
     await page
@@ -69,7 +67,7 @@ test.describe('the recommended way to use this in VR', () => {
       .click()
 
     await expect(
-      page.getByText(jaJP['settings-page:google-drive-no-window']),
+      page.getByText(jaJP['settings-page:google-drive-denied']),
     ).toBeVisible()
     await expect(
       page.getByText(jaJP['vr-setup:projection-recommended']).first(),

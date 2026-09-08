@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { stubGoogleDrive, type FakeDriveFile } from './stub-google-drive'
-import { stubGoogleIdentityServices } from './stub-google-identity'
+import { stubGoogleAuth } from './stub-google-auth'
 
 const SETTINGS = '/listview/settings'
 const LIST_VIEW = '/listview/folders/special/all'
@@ -183,7 +183,7 @@ async function memoOf(page: Page, worldId: string): Promise<string> {
 
 test.describe('memos that two devices wrote differently', () => {
   test.beforeEach(async ({ page }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleAuth(page, { token: 'test-access-token' })
     await stubGoogleDrive(page, driveHolding(JSON.stringify(REMOTE_SNAPSHOT)))
     await page.goto(LIST_VIEW)
     await seedWorldWithMemo(page, MEMO_HERE)
