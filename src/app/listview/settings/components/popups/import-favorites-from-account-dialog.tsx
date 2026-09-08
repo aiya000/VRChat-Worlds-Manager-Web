@@ -18,7 +18,10 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { commands } from '@/lib/commands'
 import type { WorldDisplayData } from '@/lib/types'
-import { INVALID_TWO_FACTOR_CODE_ERROR } from '@/lib/services/vrchat-api'
+import {
+  BOT_CHECK_FAILED_ERROR,
+  INVALID_TWO_FACTOR_CODE_ERROR,
+} from '@/lib/services/vrchat-api'
 import {
   fetchStepPercentage,
   importProgressPercentage,
@@ -139,7 +142,9 @@ export function ImportFavoritesFromAccountDialog({
           setStep('2fa')
         } else {
           setErrorMessage(
-            result.error || t('login-page:error-invalid-credentials'),
+            result.error === BOT_CHECK_FAILED_ERROR
+              ? t('login-page:error-bot-check')
+              : result.error || t('login-page:error-invalid-credentials'),
           )
         }
         return
@@ -166,7 +171,9 @@ export function ImportFavoritesFromAccountDialog({
         setErrorMessage(
           result.error === INVALID_TWO_FACTOR_CODE_ERROR
             ? t('login-page:error-invalid-2fa')
-            : result.error || t('login-page:error-invalid-2fa'),
+            : result.error === BOT_CHECK_FAILED_ERROR
+              ? t('login-page:error-bot-check')
+              : result.error || t('login-page:error-invalid-2fa'),
         )
         return
       }

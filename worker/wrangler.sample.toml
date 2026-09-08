@@ -9,3 +9,8 @@ VRCHAT_API_BASE = "https://api.vrchat.cloud/api/1"
 [[kv_namespaces]]
 binding = "QUOTA"
 id = "INPUT_HERE_KV_NAMESPACE_ID"
+
+# Secrets are not listed here. `TURNSTILE_SECRET_KEY` (the Turnstile widget's
+# secret, #61) is set once with `bunx wrangler secret put TURNSTILE_SECRET_KEY`
+# and survives every `wrangler deploy`. Without it the Worker asks credential
+# attempts for no bot check.

@@ -7,6 +7,9 @@
  *   attempts, and a daily quota, all in KV
  * - Whitelists only API endpoints used by the app, and only the headers
  *   VRChat is meant to see
+ * - Asks every credential attempt for a Cloudflare Turnstile token, once a
+ *   secret has been set, and checks it with Cloudflare before anything else
+ *   is spent on the request
  *
  * What this cannot do, and why it is written down rather than assumed: the
  * `Origin` check keeps other *websites* out, but anything that is not a
@@ -19,6 +22,77 @@ interface Env {
   ALLOWED_ORIGIN: string
   VRCHAT_API_BASE: string
   QUOTA: KVNamespace
+  /**
+   * The Turnstile widget's secret, set with `wrangler secret put` rather than
+   * in `wrangler.toml`. Absent, credential attempts are asked for no bot
+   * check -- which is what lets the dashboard steps of #61 and this code
+   * land in either order.
+   */
+  TURNSTILE_SECRET_KEY?: string
+}
+
+/** Sent by the frontend on credential attempts; consumed here, never forwarded. */
+const TURNSTILE_TOKEN_HEADER = 'X-Turnstile-Token'
+
+const TURNSTILE_VERIFY_URL =
+  'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+
+/**
+ * What a credential attempt's bot check came to.
+ *
+ * `skipped` is the Worker without a secret. `missing` and `failed` both end
+ * in a 403, told apart in the body so a browser that never ran the challenge
+ * can be distinguished from one whose token Cloudflare turned down.
+ */
+export type BotCheck =
+  | { kind: 'passed' }
+  | { kind: 'skipped' }
+  | { kind: 'missing' }
+  | { kind: 'failed'; codes: string[] }
+
+/**
+ * Asks Cloudflare whether a Turnstile token is one a real browser earned
+ * moments ago. A token is single-use, so the answer is not cached anywhere.
+ *
+ * `fetcher` is injectable so the tests can answer for Cloudflare.
+ */
+export async function checkTurnstile(
+  secret: string | undefined,
+  token: string | null,
+  ip: string,
+  fetcher: typeof fetch = fetch,
+): Promise<BotCheck> {
+  if (secret === undefined || secret === '') {
+    return { kind: 'skipped' }
+  }
+  if (token === null || token === '') {
+    return { kind: 'missing' }
+  }
+  try {
+    const response = await fetcher(TURNSTILE_VERIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        secret,
+        response: token,
+        // Cloudflare's own placeholder for an address it did not set.
+        ...(ip === 'unknown' ? {} : { remoteip: ip }),
+      }),
+    })
+    const verdict = (await response.json()) as {
+      success?: boolean
+      'error-codes'?: string[]
+    }
+    if (verdict.success === true) {
+      return { kind: 'passed' }
+    }
+    return { kind: 'failed', codes: verdict['error-codes'] ?? [] }
+  } catch {
+    // Cloudflare unreachable is not a pass: this is the one gate in front of
+    // VRChat's login, and open-on-failure would make it the easiest to walk
+    // through exactly when it is under load.
+    return { kind: 'failed', codes: ['internal-error'] }
+  }
 }
 
 const DAILY_QUOTA = 90_000
@@ -243,7 +317,7 @@ function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
   return {
     'Access-Control-Allow-Origin': effectiveOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': `Content-Type, Authorization, Cookie, X-Requested-With, ${AUTH_TOKEN_HEADER}, ${TWO_FACTOR_TOKEN_HEADER}`,
+    'Access-Control-Allow-Headers': `Content-Type, Authorization, Cookie, X-Requested-With, ${AUTH_TOKEN_HEADER}, ${TWO_FACTOR_TOKEN_HEADER}, ${TURNSTILE_TOKEN_HEADER}`,
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Expose-Headers': `X-Quota-Remaining, ${AUTH_TOKEN_HEADER}, ${TWO_FACTOR_TOKEN_HEADER}`,
   }
@@ -355,14 +429,42 @@ export default {
         request.method,
         apiPath,
         request.headers.get('Authorization'),
-      ) &&
-      !(await countAgainstHourlyLimit(env, 'login', ip, LOGIN_HOURLY_LIMIT))
-    ) {
-      return tooManyRequests(
-        origin,
-        env.ALLOWED_ORIGIN,
-        'Too many sign-in attempts',
       )
+    ) {
+      // The bot check comes before the sign-in allowance is spent: a request
+      // that never ran the challenge is turned away without costing the
+      // person behind that address one of their thirty tries.
+      const botCheck = await checkTurnstile(
+        env.TURNSTILE_SECRET_KEY,
+        request.headers.get(TURNSTILE_TOKEN_HEADER),
+        ip,
+      )
+      if (botCheck.kind === 'missing' || botCheck.kind === 'failed') {
+        return new Response(
+          JSON.stringify(
+            botCheck.kind === 'missing'
+              ? { error: 'bot-check-required' }
+              : { error: 'bot-check-failed', codes: botCheck.codes },
+          ),
+          {
+            status: 403,
+            headers: {
+              ...corsHeaders(origin, env.ALLOWED_ORIGIN),
+              'Content-Type': 'application/json',
+            },
+          },
+        )
+      }
+
+      if (
+        !(await countAgainstHourlyLimit(env, 'login', ip, LOGIN_HOURLY_LIMIT))
+      ) {
+        return tooManyRequests(
+          origin,
+          env.ALLOWED_ORIGIN,
+          'Too many sign-in attempts',
+        )
+      }
     }
 
     // Daily quota check

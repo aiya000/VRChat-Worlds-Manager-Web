@@ -724,6 +724,18 @@ Two things follow:
   simultaneous requests all read the same number and the limit can be overrun by however many
   are in flight. That is a coarse cap on purpose; do not build anything finer on top of it
   without moving to a Rate Limiting binding or a Durable Object
+- **A credential attempt has to bring a Cloudflare Turnstile token** (#61), sent by the
+  frontend as `X-Turnstile-Token` from `src/lib/services/turnstile.ts` and checked by the
+  Worker's `checkTurnstile()` against `siteverify` before the sign-in allowance is spent.
+  Both halves are off until configured: the frontend asks for no challenge without
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (a repository variable, baked in at build time), and the
+  Worker asks for no token without the `TURNSTILE_SECRET_KEY` secret (`wrangler secret put`,
+  never `wrangler.toml`). Set the secret only once the site key has shipped, or every sign-in
+  is refused with `bot-check-required`. A token is single-use and good for five minutes, so
+  the frontend runs a fresh challenge per attempt -- the password and the two-factor code are
+  two. The e2e server is built with Cloudflare's "always passes, invisible" test key
+  (`playwright.config.ts`), so a spec that signs in has to answer the challenge with
+  `tests/e2e/stub-turnstile.ts`, or it waits on Cloudflare
 
 ### Releases are announced through GitHub Releases
 

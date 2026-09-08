@@ -64,6 +64,7 @@
   "login-page:2fa-button": "確認",
   "login-page:error-invalid-credentials": "認証情報が無効です",
   "login-page:error-invalid-2fa": "無効な2FAコードです",
+  "login-page:error-bot-check": "ボット確認に通りませんでした。ページを再読み込みして、もう一度お試しください。",
   "setup-page:welcome-title": "VRChat Worlds Manager Web へようこそ",
   "setup-page:thank-you": "ご利用ありがとうございます！",
   "setup-page:first-time": "初回起動のため、VRChat Worlds Manager Web の初期設定を行います",
