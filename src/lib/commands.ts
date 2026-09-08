@@ -8,10 +8,8 @@ import {
 } from './services/launched-instance-service'
 import type { LaunchedInstanceRecord } from './services/db'
 import {
-  GoogleAuthDismissedError,
   GoogleAuthExpiredError,
   GoogleAuthService,
-  GoogleAuthUnansweredError,
   type DriveConnectResult,
 } from './services/google-auth-service'
 import {
@@ -997,26 +995,19 @@ export const commands = {
     )
   },
 
-  /** Must be called from inside a click handler -- see `GoogleAuthService`. */
-  async connectGoogleDrive(): Promise<Result<DriveConnectResult, string>> {
+  /**
+   * Usually leaves the page for Google's consent screen -- see
+   * `GoogleAuthService`. `returnTo` is the path to come back to afterwards,
+   * and that page picks the result up with `takeGoogleAuthResume`.
+   */
+  async connectGoogleDrive(
+    returnTo: string,
+  ): Promise<Result<DriveConnectResult, string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* GoogleAuthService
-        yield* svc.connect()
-        return { kind: 'connected' } as DriveConnectResult
-      }).pipe(
-        // A window that was closed, or that never opened at all, is not an
-        // error to report as one: it is the case the screen has advice for.
-        Effect.catchAll((e) => {
-          if (
-            e instanceof GoogleAuthDismissedError ||
-            e instanceof GoogleAuthUnansweredError
-          ) {
-            return Effect.succeed<DriveConnectResult>({ kind: 'no-window' })
-          }
-          return Effect.fail(e)
-        }),
-      ),
+        return yield* svc.connect(returnTo)
+      }),
     )
   },
 
@@ -1030,8 +1021,13 @@ export const commands = {
     )
   },
 
-  /** Must be called from inside a click handler -- see `GoogleAuthService`. */
+  /**
+   * Without a token in memory this leaves the page for Google instead of
+   * syncing -- see `GoogleAuthService`. The page at `returnTo` is what runs
+   * the sync once the browser is back, so it has to be one that resumes.
+   */
   async syncGoogleDriveNow(
+    returnTo: string,
     onProgress: SyncProgress = () => {},
   ): Promise<Result<DriveSyncResult, string>> {
     return run(
@@ -1040,28 +1036,24 @@ export const commands = {
         const sync = yield* DriveSyncService
 
         onProgress('authorizing')
-        const token = yield* auth.getAccessToken()
+        const outcome = yield* auth.getAccessToken(returnTo)
+        if (outcome.kind === 'redirecting') {
+          return { kind: 'redirecting' } as DriveSyncResult
+        }
 
         return yield* sync
-          .syncNow(token, onProgress)
+          .syncNow(outcome.token, onProgress)
           .pipe(
             Effect.map(
               (outcome): DriveSyncResult => ({ kind: 'synced', ...outcome }),
             ),
           )
       }).pipe(
-        // Three ways of not getting a token that are worth telling apart on
-        // screen: the hour ran out, the window was closed, and the window
-        // never answered.
+        // Not an error to report as one: the hour ran out under a token that
+        // looked fine, and the next press simply leaves for a fresh one.
         Effect.catchAll((e) => {
           if (e instanceof GoogleAuthExpiredError) {
             return Effect.succeed<DriveSyncResult>({ kind: 'reauth-needed' })
-          }
-          if (e instanceof GoogleAuthDismissedError) {
-            return Effect.succeed<DriveSyncResult>({ kind: 'dismissed' })
-          }
-          if (e instanceof GoogleAuthUnansweredError) {
-            return Effect.succeed<DriveSyncResult>({ kind: 'unanswered' })
           }
           return Effect.fail(e)
         }),
@@ -1076,15 +1068,16 @@ export const commands = {
    * separate upload, and everything else in the snapshot -- worlds, folders,
    * memos -- is merged exactly as it always is. Nothing is deleted anywhere.
    *
-   * Must be called from inside a click handler -- see `GoogleAuthService`.
+   * The record lives in local storage, so it survives the trip to Google
+   * when there is no token yet, and the sync that runs on the way back
+   * carries it just the same.
    */
   async pushSettingsToAllDevices(
+    returnTo: string,
     onProgress: SyncProgress = () => {},
   ): Promise<Result<DriveSyncResult, string>> {
-    // Recorded first and without an await: what follows needs the click that
-    // called this to still count as a user gesture.
     requestSettingsOverride()
-    return commands.syncGoogleDriveNow(onProgress)
+    return commands.syncGoogleDriveNow(returnTo, onProgress)
   },
 
   async googleDriveLastSyncedAt(): Promise<Result<number | null, string>> {

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { stubGoogleDrive } from './stub-google-drive'
-import { stubGoogleIdentityServices } from './stub-google-identity'
+import { stubGoogleAuth } from './stub-google-auth'
 
 const SETTINGS = '/listview/settings'
 
@@ -32,7 +32,7 @@ async function connect(page: Page) {
 test('the push sits in its own card, clear of the Drive card', async ({
   page,
 }) => {
-  await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+  await stubGoogleAuth(page, { token: 'test-access-token' })
   await stubGoogleDrive(page)
   await connect(page)
 
@@ -52,7 +52,7 @@ test('the push sits in its own card, clear of the Drive card', async ({
 test('the push is not offered before this device is connected', async ({
   page,
 }) => {
-  await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+  await stubGoogleAuth(page, { token: 'test-access-token' })
   await stubGoogleDrive(page)
   await page.goto(SETTINGS)
   await page

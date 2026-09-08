@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { seedFolders } from './seed-folders'
 import { stubGoogleDrive, type FakeDriveFile } from './stub-google-drive'
-import { stubGoogleIdentityServices } from './stub-google-identity'
+import { stubGoogleAuth } from './stub-google-auth'
 
 const SETTINGS = '/listview/settings'
 const LIST_VIEW = '/listview/folders/special/all'
@@ -127,7 +127,7 @@ async function folderNames(page: Page): Promise<string[]> {
 
 test.describe('syncing with Google Drive by hand', () => {
   test.beforeEach(async ({ page }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleAuth(page, { token: 'test-access-token' })
     await page.goto(LIST_VIEW)
     await seedFolders(page, [LOCAL_ONLY_FOLDER])
   })
@@ -294,75 +294,22 @@ test.describe('syncing with Google Drive by hand', () => {
   })
 })
 
-test.describe('opened from the home screen', () => {
-  /**
-   * There is no way to ask Playwright for an installed app, so the one signal
-   * the code reads is answered directly. `display-mode: standalone` is what a
-   * browser reports for a page launched from the home screen.
-   */
-  async function pretendInstalled(page: Page) {
-    await page.addInitScript(() => {
-      const real = window.matchMedia.bind(window)
-      window.matchMedia = (query: string) =>
-        query.includes('display-mode: standalone')
-          ? ({
-              matches: true,
-              media: query,
-              addEventListener: () => {},
-              removeEventListener: () => {},
-              addListener: () => {},
-              removeListener: () => {},
-              onchange: null,
-              dispatchEvent: () => false,
-            } as MediaQueryList)
-          : real(query)
-    })
-  }
-
-  test('warns before the button rather than after the wait', async ({
-    page,
-  }) => {
-    await pretendInstalled(page)
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
-    await stubGoogleDrive(page)
-    await page.goto(LIST_VIEW)
-    await openSyncTab(page)
-
-    await expect(
-      page.getByText(jaJP['settings-page:google-drive-installed-warning']),
-    ).toBeVisible()
-  })
-
-  test('says nothing of the sort in an ordinary tab', async ({ page }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
-    await stubGoogleDrive(page)
-    await page.goto(LIST_VIEW)
-    await openSyncTab(page)
-
-    await expect(
-      page.getByText(jaJP['settings-page:google-drive-installed-warning']),
-    ).toBeHidden()
-  })
-})
-
 test.describe('when Google never grants the token', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(LIST_VIEW)
     await seedFolders(page, [LOCAL_ONLY_FOLDER])
   })
 
-  // The failure that started all of this: with no `error_callback` and no
-  // timeout, a window that closed left the screen on "syncing" forever.
-  test('says the window was closed rather than syncing forever', async ({
-    page,
-  }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+  // The failure that started all of this: a consent screen that was cancelled
+  // once left the screen on "syncing" forever.
+  test('says Google refused rather than syncing forever', async ({ page }) => {
+    await stubGoogleAuth(page, { token: 'test-access-token' })
     await stubGoogleDrive(page)
     await connect(page)
 
-    // Connecting spent the token the stub hands out; the sync asks for another
-    // one, and this time the window closes instead of answering.
-    await stubGoogleIdentityServices(page, { dismissed: 'popup_closed' })
+    // The reload is what loses the token connecting brought back; the sync
+    // then leaves for another, and this time Google sends back a refusal.
+    await stubGoogleAuth(page, { denied: 'access_denied' })
     await page.reload()
     // The dev server's overlay comes back with the reload, and it swallows
     // clicks meant for the tab underneath it.
@@ -375,7 +322,7 @@ test.describe('when Google never grants the token', () => {
     await syncNow(page)
 
     await expect(
-      page.getByText(jaJP['settings-page:google-drive-dismissed']),
+      page.getByText(jaJP['settings-page:google-drive-denied']),
     ).toBeVisible()
     await expect(
       page.getByRole('button', {

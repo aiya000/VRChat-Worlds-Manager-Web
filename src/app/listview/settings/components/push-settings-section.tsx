@@ -30,6 +30,9 @@ import {
   tryBeginSync,
 } from '@/lib/services/sync-activity'
 
+/** This screen, on this tab: where a press here comes back to from Google. */
+const SYNC_SETTINGS_PATH = '/listview/settings?tab=sync'
+
 /**
  * The one control that overrules a promise another device was given: it
  * hands this device's settings to every other device, once.
@@ -77,24 +80,24 @@ export const PushSettingsSection: FC = () => {
     setPushing(true)
     setStep('authorizing')
     let syncedAt: number | null = null
+    // Left "syncing" on purpose when the page is leaving for Google. The
+    // Drive card above runs the sync on the way back, demand and all.
+    let leaving = false
     try {
-      const result = await commands.pushSettingsToAllDevices(setStep)
+      const result = await commands.pushSettingsToAllDevices(
+        SYNC_SETTINGS_PATH,
+        setStep,
+      )
       if (result.status === 'error') {
         toast(t('general:error-title'), { description: result.error })
         return
       }
+      if (result.data.kind === 'redirecting') {
+        leaving = true
+        return
+      }
       if (result.data.kind === 'reauth-needed') {
         toast(t('settings-page:google-drive-reauth-needed'))
-        return
-      }
-      if (result.data.kind === 'dismissed') {
-        toast(t('settings-page:google-drive-dismissed'))
-        return
-      }
-      if (result.data.kind === 'unanswered') {
-        toast(t('general:error-title'), {
-          description: t('settings-page:google-drive-unanswered'),
-        })
         return
       }
 
@@ -110,9 +113,11 @@ export const PushSettingsSection: FC = () => {
       })
       await refreshViews()
     } finally {
-      endSync(syncedAt)
-      setPushing(false)
-      setStep(null)
+      if (!leaving) {
+        endSync(syncedAt)
+        setPushing(false)
+        setStep(null)
+      }
     }
   }
 

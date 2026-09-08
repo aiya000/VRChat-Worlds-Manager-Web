@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { seedFolders } from './seed-folders'
 import { stubGoogleDrive, type FakeDriveFile } from './stub-google-drive'
-import { stubGoogleIdentityServices } from './stub-google-identity'
+import { stubGoogleAuth } from './stub-google-auth'
 
 const SETTINGS = '/listview/settings'
 const LIST_VIEW = '/listview/folders/special/all'
@@ -116,7 +116,7 @@ test.describe('the sync button on the list', () => {
   test.use({ viewport: PHONE })
 
   test.beforeEach(async ({ page }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleAuth(page, { token: 'test-access-token' })
   })
 
   test('leads to the settings when this device is not connected', async ({
@@ -244,7 +244,7 @@ test.describe('when the header actions wrap', () => {
   test('the sync button lines up under the right edge of the fetch button', async ({
     page,
   }) => {
-    await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+    await stubGoogleAuth(page, { token: 'test-access-token' })
     await stubGoogleDrive(page)
     await openTheList(page)
 

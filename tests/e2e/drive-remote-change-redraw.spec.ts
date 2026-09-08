@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { seedFolders } from './seed-folders'
 import { stubGoogleDrive } from './stub-google-drive'
-import { stubGoogleIdentityServices } from './stub-google-identity'
+import { stubGoogleAuth } from './stub-google-auth'
 
 const SETTINGS = '/listview/settings'
 const LIST_VIEW = '/listview/folders/special/all'
@@ -39,7 +39,7 @@ test.use({ viewport: { width: 1440, height: 900 } })
 test('a folder another device made appears after a press, without a reload', async ({
   page,
 }) => {
-  await stubGoogleIdentityServices(page, { token: 'test-access-token' })
+  await stubGoogleAuth(page, { token: 'test-access-token' })
   const drive = await stubGoogleDrive(page)
 
   await page.goto(LIST_VIEW)

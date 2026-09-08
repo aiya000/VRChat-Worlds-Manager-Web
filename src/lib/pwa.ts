@@ -13,11 +13,10 @@ export interface BeforeInstallPromptEvent extends Event {
 /**
  * Whether the app was opened from the home screen rather than in a browser tab.
  *
- * Two screens care. Google's consent window is a Chrome Custom Tab when it is
- * opened from here, a separate process that may not be able to hand its answer
- * back (#104), so the sync settings say so before someone presses and waits.
- * And an app already installed has no use for instructions on installing it
- * (#69).
+ * An app already installed has no use for instructions on installing it (#69).
+ * The sync settings used to read this too, to warn that Google's popup might
+ * not come back from a Custom Tab; #104 replaced the popup with a navigation,
+ * and the warning went with it.
  */
 export function isRunningInstalled(): boolean {
   if (typeof window === 'undefined') {
