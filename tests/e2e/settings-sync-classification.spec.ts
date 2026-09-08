@@ -79,6 +79,12 @@ test.describe('which settings travel with a backup', () => {
       'aria-checked',
       'true',
     )
+    // A headset wants a large interface and a phone does not, so this one
+    // belongs to the screen rather than to the person.
+    await expect(page.locator('#device-only-uiScale')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
   })
 
   test('carries the ones that follow the person and leaves the ones that belong to the screen', async ({
@@ -87,11 +93,13 @@ test.describe('which settings travel with a backup', () => {
     await openPreferences(page)
     await chooseLanguage(page)
     await choose(page, CARD_SIZE, 0)
+    await page.getByTestId('ui-scale-vr-preset').click()
 
     const settings = await backedUpSettings(page)
 
     expect(settings).toHaveProperty('language')
     expect(settings).not.toHaveProperty('cardSize')
+    expect(settings).not.toHaveProperty('uiScale')
   })
 
   test('stops carrying a setting the moment it is marked as this device only', async ({

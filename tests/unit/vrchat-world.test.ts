@@ -45,6 +45,25 @@ describe('parseVRChatWorld', () => {
     expect(world.tags).toEqual(['author_tag_a', 'system_approved'])
   })
 
+  it('reads the release status VRChat reports', () => {
+    expect(
+      parseVRChatWorld(vrchatWorld({ releaseStatus: 'private' })).releaseStatus,
+    ).toBe('private')
+    expect(
+      parseVRChatWorld(vrchatWorld({ releaseStatus: 'public' })).releaseStatus,
+    ).toBe('public')
+  })
+
+  it('calls a missing or unrecognised release status unknown, not public', () => {
+    // Absent is not the same as public: only what VRChat actually said should
+    // decide whether a world is shown as private.
+    expect(parseVRChatWorld(vrchatWorld()).releaseStatus).toBe('unknown')
+    expect(
+      parseVRChatWorld(vrchatWorld({ releaseStatus: 'somethingNew' }))
+        .releaseStatus,
+    ).toBe('unknown')
+  })
+
   it('derives the platforms from unityPackages without duplicates', () => {
     expect(parseVRChatWorld(vrchatWorld()).platform).toEqual([
       'standalonewindows',

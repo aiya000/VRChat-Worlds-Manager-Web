@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable, type Transaction } from 'dexie'
-import type { Platform } from '@/lib/types'
+import type { Platform, WorldReleaseStatus } from '@/lib/types'
 import { SEED_TIMESTAMP } from '@/lib/sync/types'
 import { notifyLocalChange } from './local-changes'
 
@@ -67,6 +67,8 @@ export interface WorldDetailRecord {
   capacity: number
   recommendedCapacity: number | null
   publicationDate: string | null
+  /** Absent on a row written before this was stored; read as `unknown`. */
+  releaseStatus?: WorldReleaseStatus
 }
 
 export interface FolderRecord extends SyncMeta {

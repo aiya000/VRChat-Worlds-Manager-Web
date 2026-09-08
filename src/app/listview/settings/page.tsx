@@ -3,6 +3,7 @@
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -11,6 +12,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DeviceOnlySettingToggle } from '@/components/device-only-setting-toggle'
+import { UiScaleStepper } from '@/components/ui-scale-stepper'
+import { VR_UI_SCALE } from '@/lib/ui-scale'
 import { GoogleDriveSection } from './components/google-drive-section'
 import { MemoConflictsSection } from './components/memo-conflicts-section'
 import { PushSettingsSection } from './components/push-settings-section'
@@ -59,6 +62,8 @@ export default function SettingsPage() {
     cardSize,
     language,
     folderRemovalPreference,
+    skipSelfInviteOnCreate,
+    handleSkipSelfInviteChange,
     fieldVisibility,
     detailFieldVisibility,
     showDeleteConfirm,
@@ -77,6 +82,8 @@ export default function SettingsPage() {
     handleThemeChange,
     handleLanguageChange,
     handleCardSizeChange,
+    uiScale,
+    handleUiScaleChange,
     handleFieldVisibilityChange,
     handleDetailFieldVisibilityChange,
     handleFolderRemovalPreferenceChange,
@@ -248,6 +255,42 @@ export default function SettingsPage() {
               checked={isDeviceOnly('cardSize')}
               onCheckedChange={(deviceOnly) =>
                 handleDeviceOnlyChange('cardSize', deviceOnly)
+              }
+            />
+          </Card>
+
+          <Card className="flex flex-col gap-3 p-4 rounded-lg border">
+            <div className="flex w-full flex-row items-center justify-between gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label className="text-base font-medium">
+                  {t('settings-page:ui-scale')}
+                </Label>
+                <div className="text-sm text-muted-foreground">
+                  {t('settings-page:ui-scale-description')}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  data-testid="ui-scale-vr-preset"
+                  onClick={() => handleUiScaleChange(VR_UI_SCALE)}
+                >
+                  {t('settings-page:ui-scale-vr-preset')}
+                </Button>
+                <UiScaleStepper
+                  value={uiScale}
+                  onChange={handleUiScaleChange}
+                  testIdPrefix="ui-scale-stepper"
+                />
+              </div>
+            </div>
+            <DeviceOnlySettingToggle
+              settingKey="uiScale"
+              label={t('settings-page:device-only-label')}
+              description={t('settings-page:device-only-description')}
+              checked={isDeviceOnly('uiScale')}
+              onCheckedChange={(deviceOnly) =>
+                handleDeviceOnlyChange('uiScale', deviceOnly)
               }
             />
           </Card>
@@ -463,6 +506,30 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="others" className="space-y-4">
+          {/* On by default. The invite is what puts the instance in the VRChat
+              app's notifications, which on a phone is the only way in that does
+              not depend on a link opening something (#115). */}
+          <Card className="flex flex-col gap-3 p-4 rounded-lg border">
+            <div className="flex w-full flex-row items-center justify-between gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label className="text-base font-medium">
+                  {t('settings-page:skip-self-invite-title')}
+                </Label>
+                <div className="text-sm text-muted-foreground">
+                  {t('settings-page:skip-self-invite-description')}
+                </div>
+              </div>
+              <Switch
+                id="skip-self-invite"
+                data-testid="skip-self-invite"
+                checked={skipSelfInviteOnCreate}
+                onCheckedChange={(checked) =>
+                  handleSkipSelfInviteChange(checked === true)
+                }
+              />
+            </div>
+          </Card>
+
           <Card className="flex flex-col gap-3 p-4 rounded-lg border">
             <div className="flex w-full flex-row items-center justify-between gap-4">
               <div className="flex flex-col space-y-1.5">

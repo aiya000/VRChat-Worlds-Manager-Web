@@ -1,4 +1,9 @@
-import type { Platform, WorldDetails, WorldDisplayData } from '@/lib/types'
+import type {
+  Platform,
+  WorldDetails,
+  WorldDisplayData,
+  WorldReleaseStatus,
+} from '@/lib/types'
 
 const platformAliases: Record<string, Platform> = {
   standalonewindows: 'standalonewindows',
@@ -52,6 +57,21 @@ function optionalStringArray(
   return value.filter((item): item is string => typeof item === 'string')
 }
 
+const releaseStatuses: WorldReleaseStatus[] = [
+  'public',
+  'private',
+  'hidden',
+  'all',
+]
+
+function parseReleaseStatus(
+  entry: Record<string, unknown>,
+): WorldReleaseStatus {
+  const value = entry['releaseStatus']
+  const known = releaseStatuses.find((status) => status === value)
+  return known ?? 'unknown'
+}
+
 // VRChat reports the supported platforms only indirectly, as one Unity package
 // per platform, so the same platform usually appears several times.
 function parsePlatforms(entry: Record<string, unknown>): Platform[] {
@@ -101,6 +121,7 @@ export function parseVRChatWorld(value: unknown): WorldDetails {
     capacity: optionalNumber(entry, 'capacity'),
     recommendedCapacity: nullableNumber(entry, 'recommendedCapacity'),
     publicationDate: nullableString(entry, 'publicationDate'),
+    releaseStatus: parseReleaseStatus(entry),
   }
 }
 

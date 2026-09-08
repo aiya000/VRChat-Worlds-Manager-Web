@@ -12,6 +12,7 @@ import {
   GoogleAuthExpiredError,
   GoogleAuthService,
   GoogleAuthUnansweredError,
+  type DriveConnectResult,
 } from './services/google-auth-service'
 import {
   DriveSyncService,
@@ -64,6 +65,7 @@ import type {
   WorldDisplayData,
   TaskStatusChanged,
 } from '@/lib/types'
+import type { UiScale } from '@/lib/ui-scale'
 
 function describeError(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
@@ -438,6 +440,24 @@ export const commands = {
     )
   },
 
+  async getUiScale(): Promise<Result<UiScale, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        return yield* svc.getUiScale()
+      }),
+    )
+  },
+
+  async setUiScale(uiScale: UiScale): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        yield* svc.setUiScale(uiScale)
+      }),
+    )
+  },
+
   async getCardSize(): Promise<Result<CardSize, string>> {
     return run(
       Effect.gen(function* () {
@@ -513,6 +533,42 @@ export const commands = {
       Effect.gen(function* () {
         const svc = yield* PreferencesService
         yield* svc.setStarredFilterItems(id, values)
+      }),
+    )
+  },
+
+  /**
+   * Asks VRChat to invite the signed-in account to an instance. `false` means
+   * VRChat refused; the instance is still there either way.
+   */
+  async inviteMyselfToInstance(
+    worldId: string,
+    instanceId: string,
+  ): Promise<Result<boolean, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* VRChatApiService
+        return yield* svc.inviteMyselfToInstance(worldId, instanceId)
+      }),
+    )
+  },
+
+  async getSkipSelfInviteOnCreate(): Promise<Result<boolean, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        return yield* svc.getSkipSelfInviteOnCreate()
+      }),
+    )
+  },
+
+  async setSkipSelfInviteOnCreate(
+    skip: boolean,
+  ): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        yield* svc.setSkipSelfInviteOnCreate(skip)
       }),
     )
   },
@@ -715,6 +771,24 @@ export const commands = {
       Effect.gen(function* () {
         const svc = yield* VRChatApiService
         return yield* svc.getCurrentUser()
+      }),
+    )
+  },
+
+  /**
+   * Files a world into the collection, whether or not VRChat ever listed it
+   * among the favourites.
+   *
+   * `getWorld` fills the world-*details* table alone, and the list reads the
+   * world table, so nothing but this puts a world there. Without it,
+   * `addWorldToFolder` finds no row to file and returns having done nothing --
+   * which looked like a successful add until the next read.
+   */
+  async rememberWorld(world: WorldDisplayData): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* WorldService
+        yield* svc.rememberWorld(world)
       }),
     )
   },
@@ -924,13 +998,25 @@ export const commands = {
   },
 
   /** Must be called from inside a click handler -- see `GoogleAuthService`. */
-  async connectGoogleDrive(): Promise<Result<null, string>> {
+  async connectGoogleDrive(): Promise<Result<DriveConnectResult, string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* GoogleAuthService
         yield* svc.connect()
-        return null
-      }),
+        return { kind: 'connected' } as DriveConnectResult
+      }).pipe(
+        // A window that was closed, or that never opened at all, is not an
+        // error to report as one: it is the case the screen has advice for.
+        Effect.catchAll((e) => {
+          if (
+            e instanceof GoogleAuthDismissedError ||
+            e instanceof GoogleAuthUnansweredError
+          ) {
+            return Effect.succeed<DriveConnectResult>({ kind: 'no-window' })
+          }
+          return Effect.fail(e)
+        }),
+      ),
     )
   },
 

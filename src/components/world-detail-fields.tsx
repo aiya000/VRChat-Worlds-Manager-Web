@@ -4,6 +4,12 @@ import { formatDate, formatDateTime } from '@/lib/utils'
 
 interface WorldDetailFieldsProps {
   visibility: WorldDetailFieldVisibility
+  /**
+   * Shown as the first row when given. Whether the author is shown at all is
+   * the caller's decision -- it is a card field, with no toggle of its own
+   * here -- but it belongs in this grid so its value lines up with the rest.
+   */
+  authorName?: string
   visits: number
   favorites: number
   capacity: number
@@ -17,6 +23,7 @@ interface WorldDetailFieldsProps {
 export function WorldDetailFields(props: WorldDetailFieldsProps) {
   const {
     visibility,
+    authorName,
     visits,
     favorites,
     capacity,
@@ -28,6 +35,13 @@ export function WorldDetailFields(props: WorldDetailFieldsProps) {
 
   return (
     <div className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+      {authorName !== undefined && (
+        <>
+          <div className="text-gray-500">{t('general:author')}</div>
+          <div className="truncate">{authorName}</div>
+        </>
+      )}
+
       {visibility.visits && (
         <>
           <div className="text-gray-500">{t('world-detail:visits')}</div>

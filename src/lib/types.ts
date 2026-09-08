@@ -146,6 +146,20 @@ export type UserGroup = {
 
 export type WorldBlacklist = { worlds: string[] }
 
+/**
+ * How VRChat has published a world.
+ *
+ * `unknown` is what a world stored before this field existed reads as, and
+ * what a world VRChat would not describe has: not knowing is not the same as
+ * being public, and only `private` should be shown as private.
+ */
+export type WorldReleaseStatus =
+  | 'public'
+  | 'private'
+  | 'hidden'
+  | 'all'
+  | 'unknown'
+
 export type WorldDetails = {
   worldId: string
   name: string
@@ -161,6 +175,7 @@ export type WorldDetails = {
   capacity: number
   recommendedCapacity: number | null
   publicationDate: string | null
+  releaseStatus: WorldReleaseStatus
 }
 
 export type WorldDisplayData = {

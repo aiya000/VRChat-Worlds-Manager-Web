@@ -24,10 +24,6 @@ const CF_WORKER_URL =
   process.env.NEXT_PUBLIC_CF_WORKER_URL ??
   ''
 
-const CF_ACCESS_CLIENT_ID = process.env.NEXT_PUBLIC_CF_ACCESS_CLIENT_ID ?? ''
-const CF_ACCESS_CLIENT_SECRET =
-  process.env.NEXT_PUBLIC_CF_ACCESS_CLIENT_SECRET ?? ''
-
 // The frontend and the Worker are served from different registrable domains
 // (`*.pages.dev` vs `*.workers.dev`), so the session cookies VRChat issues are
 // cross-site for the browser and never sent back. The Worker therefore hands
@@ -223,12 +219,6 @@ async function apiFetch(
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
   }
-  if (CF_ACCESS_CLIENT_ID) {
-    headers['CF-Access-Client-Id'] = CF_ACCESS_CLIENT_ID
-  }
-  if (CF_ACCESS_CLIENT_SECRET) {
-    headers['CF-Access-Client-Secret'] = CF_ACCESS_CLIENT_SECRET
-  }
 
   const authToken = await loadToken(AUTH_TOKEN_KEY)
   if (authToken !== null && authToken !== '') {
@@ -314,8 +304,40 @@ export class VRChatApiService extends Context.Tag('VRChatApiService')<
       instanceId: string,
       platforms: Platform[] | null,
     ) => Effect.Effect<LaunchOutcome, Error>
+    /**
+     * The same invite the VRChat website's "Invite Me" sends. The app shows it
+     * as a notification, which is a way into an instance that does not depend
+     * on a link opening anything.
+     *
+     * Answers whether it went rather than failing: an instance that was made
+     * is still there to be entered by hand.
+     */
+    readonly inviteMyselfToInstance: (
+      worldId: string,
+      instanceId: string,
+    ) => Effect.Effect<boolean, Error>
   }
 >() {}
+
+/**
+ * Asks VRChat to invite the signed-in account to an instance, and says whether
+ * it went. A refusal is reported rather than thrown: the instance still
+ * exists, and the screen has other things to say about it.
+ */
+async function sendSelfInvite(
+  worldId: string,
+  instanceId: string,
+): Promise<boolean> {
+  return apiFetch(`/invite/myself/to/${worldId}:${instanceId}`, {
+    method: 'POST',
+  }).then(
+    () => true,
+    (e) => {
+      console.error(`Failed to invite myself: ${e}`)
+      return false
+    },
+  )
+}
 
 export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
   tryLogin: () =>
@@ -616,6 +638,9 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
       catch: (e) => new Error(`Failed to create group instance: ${e}`),
     }),
 
+  inviteMyselfToInstance: (worldId, instanceId) =>
+    Effect.promise(() => sendSelfInvite(worldId, instanceId)),
+
   openInstanceInClient: (worldId, instanceId, platforms) =>
     Effect.tryPromise({
       try: async () => {
@@ -630,24 +655,17 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
             window.open(target.url, '_blank')
             return { kind: 'client' }
           case 'android-app': {
-            // In place, not a new tab: the intent has to be navigated to from
-            // the document that was pressed, or Chrome has no gesture to open
-            // an app with. `_self` rather than `location.assign` so a test can
-            // stand in for it the same way it does for the case above.
-            window.open(target.url, '_self')
-            // The same invite the website's "Invite Me" sends. The app shows
-            // it as a notification, which is a way in that does not depend on
-            // the intent above having been taken.
-            const invited = await apiFetch(
-              `/invite/myself/to/${worldId}:${instanceId}`,
-              { method: 'POST' },
-            ).then(
-              () => true,
-              (e) => {
-                console.error(`Failed to invite myself: ${e}`)
-                return false
-              },
-            )
+            // The invite alone: nothing is navigated to. An intent naming the
+            // app opened its Play Store page instead of the app (#150), and
+            // one without the package did nothing at all, because the app
+            // declares no filter for a launch URL. The invite arrives as a
+            // notification, which is the only way into the instance.
+            //
+            // Leaving this page would also have cost the invite: Android
+            // freezes Chrome the moment the page stops being in front, so a
+            // request still in flight could die before it was sent -- "the
+            // invite was sent" on screen and nothing in the app (#129).
+            const invited = await sendSelfInvite(worldId, instanceId)
             return { kind: 'android-app', invited }
           }
           case 'not-on-android':

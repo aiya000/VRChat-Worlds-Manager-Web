@@ -42,6 +42,13 @@ export class WorldService extends Context.Tag('WorldService')<
       dontSaveToLocal: boolean | null,
     ) => Effect.Effect<WorldDetails, Error>
     readonly putWorld: (world: WorldDisplayData) => Effect.Effect<void, Error>
+    /**
+     * Puts the world in the collection, keeping the date it first appeared if
+     * it is already there.
+     */
+    readonly rememberWorld: (
+      world: WorldDisplayData,
+    ) => Effect.Effect<void, Error>
     readonly putWorldDetails: (
       world: WorldDetails,
     ) => Effect.Effect<void, Error>
@@ -87,6 +94,57 @@ async function readWorlds(
     .filter(isActive)
     .filter((world) => keep(world, folderNameById))
     .map((world) => toDisplayData(world, folderNameById))
+}
+
+/**
+ * Writes the world row the list reads, keeping the folder memberships it
+ * already had.
+ */
+async function writeWorld(world: WorldDisplayData): Promise<void> {
+  const existing = await db.worlds.get(world.worldId)
+  const folders = await activeFolders()
+  const idByName = new Map(folders.map((folder) => [folder.name, folder.id]))
+  const now = Date.now()
+
+  // Refreshing from VRChat must not decide folder membership. A name the
+  // caller passes that is not a member yet is added; memberships it does
+  // not mention are left exactly as they are, because taking one away is
+  // `removeWorldFromFolder`'s job and nothing else's.
+  let folderRefs = existing?.folderRefs ?? []
+  for (const name of world.folders) {
+    const folderId = idByName.get(name)
+    if (folderId === undefined) {
+      continue
+    }
+    const alreadyAMember = folderRefs.some(
+      (ref) => ref.folderId === folderId && isMember(ref),
+    )
+    if (alreadyAMember) {
+      continue
+    }
+    folderRefs = withMember(
+      folderRefs,
+      (ref) => ref.folderId === folderId,
+      (addedAt) => folderRefFor(folderId, addedAt),
+      now,
+    )
+  }
+
+  await db.worlds.put({
+    ...(await touched()),
+    worldId: world.worldId,
+    name: world.name,
+    thumbnailUrl: world.thumbnailUrl,
+    authorName: world.authorName,
+    favorites: world.favorites,
+    lastUpdated: world.lastUpdated,
+    visits: world.visits,
+    dateAdded: world.dateAdded,
+    platform: world.platform,
+    folderRefs,
+    tags: world.tags,
+    capacity: world.capacity,
+  })
 }
 
 export const WorldServiceLive = Layer.succeed(WorldService, {
@@ -246,7 +304,12 @@ export const WorldServiceLive = Layer.succeed(WorldService, {
       try: async () => {
         const detail = await db.worldDetails.get(worldId)
         if (detail) {
-          return detail as WorldDetails
+          // A row stored before the release status was kept has none, and an
+          // absent status is not the same as a public world.
+          return {
+            ...detail,
+            releaseStatus: detail.releaseStatus ?? 'unknown',
+          } as WorldDetails
         }
         throw new Error(`World ${worldId} not found locally`)
       },
@@ -255,55 +318,23 @@ export const WorldServiceLive = Layer.succeed(WorldService, {
 
   putWorld: (world) =>
     Effect.tryPromise({
-      try: async () => {
-        const existing = await db.worlds.get(world.worldId)
-        const folders = await activeFolders()
-        const idByName = new Map(
-          folders.map((folder) => [folder.name, folder.id]),
-        )
-        const now = Date.now()
-
-        // Refreshing from VRChat must not decide folder membership. A name the
-        // caller passes that is not a member yet is added; memberships it does
-        // not mention are left exactly as they are, because taking one away is
-        // `removeWorldFromFolder`'s job and nothing else's.
-        let folderRefs = existing?.folderRefs ?? []
-        for (const name of world.folders) {
-          const folderId = idByName.get(name)
-          if (folderId === undefined) {
-            continue
-          }
-          const alreadyAMember = folderRefs.some(
-            (ref) => ref.folderId === folderId && isMember(ref),
-          )
-          if (alreadyAMember) {
-            continue
-          }
-          folderRefs = withMember(
-            folderRefs,
-            (ref) => ref.folderId === folderId,
-            (addedAt) => folderRefFor(folderId, addedAt),
-            now,
-          )
-        }
-
-        await db.worlds.put({
-          ...(await touched()),
-          worldId: world.worldId,
-          name: world.name,
-          thumbnailUrl: world.thumbnailUrl,
-          authorName: world.authorName,
-          favorites: world.favorites,
-          lastUpdated: world.lastUpdated,
-          visits: world.visits,
-          dateAdded: world.dateAdded,
-          platform: world.platform,
-          folderRefs,
-          tags: world.tags,
-          capacity: world.capacity,
-        })
-      },
+      try: () => writeWorld(world),
       catch: (e) => new Error(`Failed to put world: ${e}`),
+    }),
+
+  rememberWorld: (world) =>
+    Effect.tryPromise({
+      try: async () => {
+        // `dateAdded` is when this collection first had the world, and adding
+        // it again -- to a second folder, or from a link -- is not that moment.
+        const existing = await db.worlds.get(world.worldId)
+        await writeWorld(
+          existing === undefined
+            ? world
+            : { ...world, dateAdded: existing.dateAdded },
+        )
+      },
+      catch: (e) => new Error(`Failed to remember world: ${e}`),
     }),
 
   putWorldDetails: (world) =>
@@ -324,6 +355,7 @@ export const WorldServiceLive = Layer.succeed(WorldService, {
           capacity: world.capacity,
           recommendedCapacity: world.recommendedCapacity,
           publicationDate: world.publicationDate,
+          releaseStatus: world.releaseStatus,
         })
       },
       catch: (e) => new Error(`Failed to put world details: ${e}`),

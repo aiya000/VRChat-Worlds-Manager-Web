@@ -114,4 +114,5 @@ bun run build
 - オリジナルアプリ: [VRC Worlds Manager v2](https://github.com/Raifa21/VRC-Worlds-Manager-v2) by Raifa & siloneco
 - VRChatおよびVRChat APIコミュニティの皆様、APIドキュメントの提供に感謝します。
 - サイドバーアイコンは黒音キト様よりCC-BY-NC-4.0ライセンスで提供されています。
-- アプリケーションアイコンはCiel-chanを使用、ArmoireLepus様の許可を得ています。
+- 旧アプリケーションアイコンはCiel-chanを使用。ArmoireLepus様の許可を得ています。ただし現在は未使用。スペシャルサンクスとして、ここに情報を残させて頂いています。
+- 皆様、ありがとうございます。

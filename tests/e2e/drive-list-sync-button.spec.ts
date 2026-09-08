@@ -258,11 +258,17 @@ test.describe('when the header actions wrap', () => {
     const fetchBox = (await fetch.boundingBox())!
     const syncBox = (await syncButton(page).boundingBox())!
     expect(syncBox.y).toBeGreaterThan(fetchBox.y + fetchBox.height - 1)
+    // The scale control follows the sync button, so it is the one that ends
+    // the wrapped line; what is being checked is that the line ends where the
+    // one above it does rather than starting a left margin of its own.
+    const scaleBox = (await page.getByTestId('ui-scale-quick').boundingBox())!
+    expect(scaleBox.y).toBe(syncBox.y)
     expect(
-      Math.abs(syncBox.x + syncBox.width - (fetchBox.x + fetchBox.width)),
+      Math.abs(scaleBox.x + scaleBox.width - (fetchBox.x + fetchBox.width)),
     ).toBeLessThanOrEqual(1)
-    // ...and it is the same height, or it would sit visibly lower on the
-    // widths where the two share a line.
+    // ...and both are the same height, or they would sit visibly lower on the
+    // widths where they share a line with it.
     expect(syncBox.height).toBe(fetchBox.height)
+    expect(scaleBox.height).toBe(fetchBox.height)
   })
 })

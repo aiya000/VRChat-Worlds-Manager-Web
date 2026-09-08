@@ -9,6 +9,7 @@ import { DeepLinkProvider } from '@/components/deep-link-provider'
 import { PatreonProvider } from '@/contexts/patreon-context'
 import { SwRegister } from '@/components/sw-register'
 import { StaleBundleNotice } from '@/components/stale-bundle-notice'
+import { UiScaleEffect } from '@/components/ui-scale-effect'
 
 const _geistSans = Geist({
   variable: '--font-geist-sans',
@@ -82,6 +83,7 @@ export default function RootLayout({
                 <main>{children}</main>
               </PatreonProvider>
               <StaleBundleNotice />
+              <UiScaleEffect />
             </LocalizationContextProvider>
           </ThemeProvider>
           <Toaster richColors />

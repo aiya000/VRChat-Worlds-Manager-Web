@@ -11,13 +11,50 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { commands, WorldDetails } from '@/lib/commands'
+import {
+  commands,
+  WorldDetails,
+  type WorldCardFieldVisibility,
+  type WorldDetailFieldVisibility,
+} from '@/lib/commands'
+import {
+  instanceTypeIn,
+  parseWorldReference,
+  regionIn,
+  type WorldReference,
+} from '@/lib/world-input'
+import { instanceTypeLabelKey } from '@/lib/sync/launched-instances'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { WorldDetailFields } from '@/components/world-detail-fields'
+import { WorldReleaseStatusBadge } from '@/components/world-release-status-badge'
 import { WorldCardPreview } from '@/components/world-card'
 import { useLocalization } from '@/hooks/use-localization'
-import { formatDate } from '@/lib/utils'
 import { useWorlds } from '../../hook/use-worlds'
-import { FolderType } from '@/types/folders'
+import { FolderType, isUserFolder } from '@/types/folders'
+import { toast } from 'sonner'
+
+/**
+ * Everything on. What the checkbox switches to, and what stands in until the
+ * stored choice has been read -- a field that flickers away is worse than one
+ * that appears.
+ */
+const ALL_CARD_FIELDS: WorldCardFieldVisibility = {
+  name: true,
+  authorName: true,
+  visits: true,
+  lastUpdated: true,
+  favorites: true,
+}
+
+const ALL_DETAIL_FIELDS: WorldDetailFieldVisibility = {
+  visits: true,
+  favorites: true,
+  capacity: true,
+  published: true,
+  lastUpdated: true,
+}
 
 interface AddWorldPopupProps {
   currentFolder: FolderType
@@ -25,15 +62,73 @@ interface AddWorldPopupProps {
 }
 
 export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
-  const { t, language } = useLocalization()
+  const { t } = useLocalization()
   const [worldInput, setWorldInput] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [previewWorld, setPreviewWorld] = useState<WorldDetails | null>(null)
   const [isDuplicate, setIsDuplicate] = useState<boolean>(false)
   const [existingWorlds, setExistingWorlds] = useState<string[]>([])
+  // Set when VRChat answered with nothing for a world that was named clearly
+  // enough to be added anyway -- see `handleConfirm`.
+  const [unavailable, setUnavailable] = useState<WorldReference | null>(null)
+  const [manualName, setManualName] = useState<string>('')
+  // What the last check resolved to, kept so the instance in it survives the
+  // trip to the confirm button.
+  const [reference, setReference] = useState<WorldReference | null>(null)
+  // What the reader chose to see on a card and in a world's details. The
+  // preview is a promise about those screens, so it has to keep the same one.
+  const [cardFields, setCardFields] =
+    useState<WorldCardFieldVisibility>(ALL_CARD_FIELDS)
+  const [detailFields, setDetailFields] =
+    useState<WorldDetailFieldVisibility>(ALL_DETAIL_FIELDS)
+  const [showHiddenFields, setShowHiddenFields] = useState<boolean>(false)
 
-  const { addWorld, getAllWorlds } = useWorlds(currentFolder)
+  const shownCardFields = showHiddenFields ? ALL_CARD_FIELDS : cardFields
+  const shownDetailFields = showHiddenFields ? ALL_DETAIL_FIELDS : detailFields
+  const somethingIsHidden =
+    Object.values(cardFields).includes(false) ||
+    Object.values(detailFields).includes(false)
+
+  const { addWorld, getAllWorlds, refresh } = useWorlds(currentFolder)
+
+  /**
+   * Saves a world VRChat would not describe, under the name the reader gave it.
+   *
+   * The usual path asks VRChat for the world first and fails when it answers
+   * with nothing, which is exactly what happens for a world that is not
+   * public. Here the record is written from what is known: the id, and a name.
+   */
+  const addUnavailableWorld = async (ref: WorldReference, name: string) => {
+    const stored = await commands.rememberWorld({
+      worldId: ref.worldId,
+      name,
+      thumbnailUrl: '',
+      authorName: '',
+      favorites: 0,
+      lastUpdated: '',
+      visits: 0,
+      dateAdded: new Date().toISOString(),
+      platform: [],
+      folders: [],
+      tags: [],
+      capacity: 0,
+    })
+    if (stored.status === 'error') {
+      toast(t('general:error-title'), {
+        description: t('listview-page:error-add-world'),
+      })
+      return
+    }
+
+    if (isUserFolder(currentFolder)) {
+      await commands.addWorldToFolder(currentFolder, ref.worldId)
+    }
+    await refresh()
+    toast(t('listview-page:world-added-title'), {
+      description: t('listview-page:world-added-description'),
+    })
+  }
 
   useEffect(() => {
     async function fetchWorlds() {
@@ -49,75 +144,49 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
     fetchWorlds()
   }, [getAllWorlds])
 
-  // Parse input to extract world ID
-  const parseWorldId = (input: string): string | null => {
-    // Remove trailing slashes and whitespace
-    const cleaned = input.trim()
-
-    // Extract world ID from URL or direct input
-    const worldIdMatch = cleaned.match(
-      /wrld_[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}/,
-    )
-
-    if (worldIdMatch) {
-      return worldIdMatch[0]
-    }
-
-    // If there's a slash, try extracting from a URL pattern
-    if (cleaned.includes('/')) {
-      // Handle URLs like vrchat.com/home/world/wrld_1234...
-      const parts = cleaned.split('/')
-      for (const part of parts) {
-        if (part.startsWith('wrld_')) {
-          // Further clean up any query parameters
-          return part.split('?')[0]
-        }
+  useEffect(() => {
+    commands.getWorldCardFieldVisibility().then((result) => {
+      if (result.status === 'ok') {
+        setCardFields(result.data)
       }
-    }
-
-    // Check if it's just a simple wrld_ ID
-    if (cleaned.startsWith('wrld_')) {
-      return cleaned
-    }
-
-    return null
-  }
+    })
+    commands.getWorldDetailFieldVisibility().then((result) => {
+      if (result.status === 'ok') {
+        setDetailFields(result.data)
+      }
+    })
+  }, [])
 
   const handleCheckWorldId = async (input: string) => {
     setIsLoading(true)
     setError(null)
     setPreviewWorld(null)
+    setUnavailable(null)
+    setManualName('')
     setIsDuplicate(false)
 
-    const parsedWorldId = parseWorldId(input)
-    console.info(`Checking world ID: ${parsedWorldId}`)
+    const reference = parseWorldReference(input)
 
-    if (!parsedWorldId) {
-      setError(
-        'Invalid world ID format. Please enter a valid VRChat world ID (wrld_...)',
-      )
-      console.error('Invalid world ID format')
+    if (reference === null) {
+      setError(t('add-world-dialog:invalid-input'))
       setIsLoading(false)
       return
     }
 
-    // Check if the world is already in the collection
-    if (existingWorlds.includes(parsedWorldId)) {
+    if (existingWorlds.includes(reference.worldId)) {
       setIsDuplicate(true)
     }
 
     try {
-      const worldDetails = await commands.checkWorldInfo(parsedWorldId)
-      if (!worldDetails) {
-        setError('World not found. Please check the ID or URL.')
-        setIsLoading(false)
-        return
-      }
-
+      const worldDetails = await commands.checkWorldInfo(reference.worldId)
       if (worldDetails.status === 'ok') {
         setPreviewWorld(worldDetails.data)
+        setReference(reference)
       } else {
-        setError(worldDetails.error)
+        // A world VRChat will not describe is still a world someone can be in,
+        // and the launch URL needs no more than the ids. So rather than
+        // refusing, ask for a name and add it with what is known.
+        setUnavailable(reference)
       }
     } catch (err) {
       setError(`Failed to fetch world details: ${err}`)
@@ -126,21 +195,55 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
     }
   }
 
-  const handleConfirm = () => {
-    // If we have a preview world, use its ID
-    if (previewWorld) {
-      addWorld(previewWorld.worldId)
-      setWorldInput('')
-      setPreviewWorld(null)
-      onClose()
+  /**
+   * Keeps the instance with the world, so it can be entered from the world
+   * detail afterwards. Nothing is asked of VRChat: the row is the two ids.
+   */
+  const rememberInstance = async (ref: WorldReference) => {
+    if (ref.instanceId === null) {
       return
     }
+    const result = await commands.recordLaunchedInstance({
+      worldId: ref.worldId,
+      instanceId: ref.instanceId,
+      shortName: null,
+      instanceType: instanceTypeIn(ref.instanceId),
+      region: regionIn(ref.instanceId),
+    })
+    if (result.status === 'error') {
+      console.error(`Failed to remember instance: ${result.error}`)
+    }
+  }
+
+  const handleConfirm = async () => {
+    if (previewWorld !== null && reference !== null) {
+      await addWorld(previewWorld.worldId)
+      await rememberInstance(reference)
+      handleCancel()
+      return
+    }
+
+    if (unavailable !== null) {
+      await addUnavailableWorld(unavailable, manualName.trim())
+      await rememberInstance(unavailable)
+      handleCancel()
+    }
+  }
+
+  /** The instance's kind in the app's own words, falling back to VRChat's. */
+  const labelForInstance = (instanceId: string): string => {
+    const instanceType = instanceTypeIn(instanceId)
+    const key = instanceTypeLabelKey(instanceType)
+    return key === null ? instanceType : t(key)
   }
 
   const handleCancel = () => {
     setWorldInput('')
     setError(null)
     setPreviewWorld(null)
+    setUnavailable(null)
+    setManualName('')
+    setReference(null)
     setIsDuplicate(false)
     onClose()
   }
@@ -194,6 +297,47 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
             </Alert>
           )}
 
+          {/* A world VRChat would not describe: named by hand, added anyway */}
+          {unavailable !== null && (
+            <Card className="col-span-4" data-testid="world-unavailable">
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {t('add-world-dialog:unavailable-title')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <div className="text-sm text-muted-foreground">
+                  {t('add-world-dialog:unavailable-description')}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="manual-world-name">
+                    {t('add-world-dialog:name-label')}
+                  </Label>
+                  <Input
+                    id="manual-world-name"
+                    data-testid="manual-world-name"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    placeholder={t('add-world-dialog:name-placeholder')}
+                    autoFocus
+                  />
+                </div>
+                {unavailable.instanceId !== null && (
+                  <div
+                    className="flex flex-col gap-1 text-sm text-muted-foreground"
+                    data-testid="instance-found"
+                  >
+                    <div>{t('add-world-dialog:instance-found')}</div>
+                    <div>
+                      {t('add-world-dialog:instance-type')}:{' '}
+                      {labelForInstance(unavailable.instanceId)}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* World preview card */}
           {previewWorld && (
             <Card className="col-span-4">
@@ -204,6 +348,7 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
                 <div className="flex justify-between">
                   <WorldCardPreview
                     size="Normal"
+                    fieldVisibility={shownCardFields}
                     world={{
                       worldId: previewWorld.worldId,
                       name: previewWorld.name,
@@ -221,51 +366,54 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
                   />
                   <div className="flex flex-col gap-4">
                     <div>
-                      <div className="text-sm font-semibold mb-2">
-                        {t('world-detail:details')}
+                      <div className="mb-2 flex items-center gap-2">
+                        <div className="text-sm font-semibold">
+                          {t('world-detail:details')}
+                        </div>
+                        <WorldReleaseStatusBadge
+                          status={previewWorld.releaseStatus}
+                        />
                       </div>
-                      <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-                        <div className="text-gray-500">
-                          {' '}
-                          {t('add-world-dialog:author')}{' '}
-                        </div>
-                        <div className="truncate w-[100px]">
-                          {previewWorld.authorName}
-                        </div>
-
-                        <div className="text-gray-500">
-                          {t('world-detail:visits')}
-                        </div>
-                        <div>{previewWorld.visits}</div>
-
-                        <div className="text-gray-500">
-                          {t('world-detail:capacity')}
-                        </div>
-                        <div>
-                          {previewWorld.recommendedCapacity
-                            ? `${previewWorld.recommendedCapacity} (${t('world-detail:max')} ${previewWorld.capacity})`
-                            : previewWorld.capacity}
-                        </div>
-
-                        {previewWorld.publicationDate && (
-                          <>
-                            <div className="text-gray-500">
-                              {t('world-detail:published')}
-                            </div>
-                            <div>
-                              {formatDate(
-                                previewWorld.publicationDate,
-                                language,
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      {/* The same component the world detail uses, so what is
+                          shown here is what will be shown there. */}
+                      <WorldDetailFields
+                        visibility={shownDetailFields}
+                        authorName={
+                          shownCardFields.authorName
+                            ? previewWorld.authorName
+                            : undefined
+                        }
+                        visits={previewWorld.visits}
+                        favorites={previewWorld.favorites}
+                        capacity={previewWorld.capacity}
+                        recommendedCapacity={previewWorld.recommendedCapacity}
+                        publicationDate={previewWorld.publicationDate}
+                        lastUpdated={previewWorld.lastUpdated}
+                      />
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {previewWorld && somethingIsHidden && (
+            <div className="col-span-4 flex items-center gap-2">
+              <Checkbox
+                id="show-hidden-fields"
+                data-testid="show-hidden-fields"
+                checked={showHiddenFields}
+                onCheckedChange={(checked) =>
+                  setShowHiddenFields(checked === true)
+                }
+              />
+              <Label
+                htmlFor="show-hidden-fields"
+                className="text-sm font-normal"
+              >
+                {t('add-world-dialog:show-hidden-fields')}
+              </Label>
+            </div>
           )}
 
           {/* Duplicate warning */}
@@ -288,9 +436,10 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
             disabled={
               isLoading ||
               !worldInput ||
-              !!error ||
-              !!isDuplicate ||
-              !previewWorld
+              error !== null ||
+              isDuplicate ||
+              (previewWorld === null &&
+                (unavailable === null || manualName.trim() === ''))
             }
           >
             {t('add-world-dialog:add')}

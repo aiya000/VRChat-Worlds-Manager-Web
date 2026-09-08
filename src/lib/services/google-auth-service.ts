@@ -123,6 +123,15 @@ export function preloadGoogleIdentityScript(): void {
 export class GoogleAuthDismissedError extends Error {}
 
 /**
+ * What came of asking Google for permission.
+ *
+ * `no-window` covers the two ways of never being asked at all -- the window
+ * was closed, or it could not be opened -- because the screen says the same
+ * thing to both: this app is being viewed somewhere a window cannot open.
+ */
+export type DriveConnectResult = { kind: 'connected' } | { kind: 'no-window' }
+
+/**
  * The consent window opened but nothing ever came back from it.
  *
  * The case this exists for is being installed as a PWA, where the window is a
@@ -241,7 +250,14 @@ export const GoogleAuthServiceLive = Layer.succeed(GoogleAuthService, {
         currentAccessToken = await requestAccessToken()
         await db.googleAuthState.put({ key: CONNECTED_KEY, value: 'true' })
       },
-      catch: (e) => new Error(`Failed to connect to Google Drive: ${e}`),
+      // Kept apart for the same reason `getAccessToken` keeps them apart: a
+      // window that never opened is the one failure this app can do something
+      // about, by saying how to open the app where a window can open.
+      catch: (e) =>
+        e instanceof GoogleAuthDismissedError ||
+        e instanceof GoogleAuthUnansweredError
+          ? e
+          : new Error(`Failed to connect to Google Drive: ${e}`),
     }),
 
   getAccessToken: () =>

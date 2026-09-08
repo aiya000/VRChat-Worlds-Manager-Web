@@ -378,6 +378,12 @@ What a link does instead, seen on a real device:
   "This instance not found" and looked like the app had answered. `vrch.at/<shortName>` is
   only a 302 to `vrchat.com/i/<shortName>`, so it inherits whatever is true of the latter
 
+**So "open in VRChat" navigates to nothing at all on Android (#150): it sends the self-invite
+and says to enter from the notification.** Every link was tried and each one either showed the
+Play Store, showed a page pretending to be the app, or did nothing. Adding a new one back means
+finding a URL filter the app has actually declared — check `dumpsys` on a real device first, and
+do not restore an intent on the strength of the well-known files alone.
+
 ## UI Target Environments
 
 This app is meant to be used **while in VR**. When a UI decision trades one environment
@@ -608,6 +614,30 @@ the Google OAuth client).
 external verifier fetches, a file at a known path — is only true once it reaches
 `main`.** Merging to `develop` does not put it on the production URL.
 
+### Cloudflare Pages redirects `.html` to the extensionless path
+
+Measured against production: `/privacy.html` answers `308` to `/privacy`, which answers `200`.
+Pages does this for every `.html` in `out/`, so **nothing is served at the exact URL its path
+under `public/` suggests** -- only one redirect away from it.
+
+Fine for a fetcher that follows redirects, a trap for one that does not. Google's Search
+Console verifier does follow it -- the HTML-file method verified through the 308 -- but when
+an external service is told to look for a file at a literal path, expect the redirect and keep
+the meta-tag equivalent ready as a fallback.
+
+### `public/google1115d8bfd0d506b1.html` proves the domain is ours
+
+It is the Google Search Console site-ownership token, and the ownership it proves is what
+Google's brand verification for the OAuth consent screen rests on. `pages.dev` gives us no DNS
+to prove ownership with, so the HTML-file method is the only one open to us.
+
+- **Deleting it revokes the domain ownership, and the brand verification with it.** It stays
+  even after Search Console says "verified"
+- It is in `.prettierignore` deliberately. Google compares the bytes verbatim, including the
+  absent trailing newline, so formatting the file breaks it
+- If the file method is ever rejected, the fallback is Search Console's "HTML tag" method:
+  `verification: { google: '...' }` in the `metadata` of `src/app/layout.tsx`
+
 ### The Worker deploys from `main` alone
 
 `.github/workflows/deploy-backend.yml` is wired to `main` and deliberately not to `develop`:
@@ -618,9 +648,23 @@ production Worker with whatever is on it.
 goes live at the next release and not before, so plan for that rather than discovering it
 while trying to test on a phone.
 
-The Worker also caps itself: `IP_HOURLY_LIMIT` is 500 requests per IP per hour and
-`DAILY_QUOTA` is 90,000 overall. Anything that walks a list has to page rather than fan out —
-favourites come from `/worlds/favorites`, 100 per request.
+The Worker also caps itself: `IP_HOURLY_LIMIT` is 500 requests per IP per hour,
+`LOGIN_HOURLY_LIMIT` is 30 credential attempts per IP per hour, and `DAILY_QUOTA` is 90,000
+overall. Anything that walks a list has to page rather than fan out — favourites come from
+`/worlds/favorites`, 100 per request.
+
+**The `Origin` check is not a defence against anything that is not a browser.** `curl` sends
+whatever `Origin` it likes, so the limits above, the route whitelist, and the header allowlist
+are the whole of what stops this Worker being used as a stepping stone into VRChat's login.
+Two things follow:
+
+- **`GET /auth/user` is both "log me in" and "who am I?"** — the `Authorization: Basic` header is
+  the only thing that tells them apart, and `isCredentialAttempt()` is where that is decided. A
+  new endpoint that accepts credentials has to be added there as well as to the route whitelist
+- **KV cannot count atomically.** `countAgainstHourlyLimit()` reads, compares and writes, so
+  simultaneous requests all read the same number and the limit can be overrun by however many
+  are in flight. That is a coarse cap on purpose; do not build anything finer on top of it
+  without moving to a Rate Limiting binding or a Durable Object
 
 ### Releases are announced through GitHub Releases
 
@@ -642,6 +686,39 @@ one or two things people will notice in bold, and **no technical section** — t
 the technical record. Lead with the note that Drive sync is still limited to registered
 test users for as long as that is true. A change that has not been checked on a real
 device does not go in the notes; leave it for the release after it is confirmed.
+
+### A release PR re-runs CI that has already passed
+
+Everything on `develop` arrived through a PR whose checks passed, and the `develop` -> `main`
+release PR runs those same checks over the same tree. **Do not wait on them before merging a
+release PR** -- merge once it is open.
+
+### This repository is worked in several git worktrees at once
+
+The main checkout sits on a throwaway `dummy` branch, and the real work happens in sibling
+worktrees (`develop/`, plus others added per task), so more than one agent session can be
+editing this repository at the same moment.
+
+- **Never `git switch` in a worktree you do not own.** It moves the branch out from under
+  whoever is working there
+- Stage explicit paths, never `git add -A`. That is what keeps another session's uncommitted
+  work out of your commit
+- **`gh pr merge --delete-branch` switches the current worktree to the base branch** once it
+  has deleted the head branch. Run from a worktree, that worktree is left holding `develop`,
+  which then stops every other worktree from checking `develop` out
+
+### `git pull` must not make a merge commit
+
+The history here is the record of which Issue a change came from, and a merge commit made by
+a `git pull` says nothing at all -- it only records that two copies of the same branch drifted
+apart for a moment.
+
+- **`pull.rebase` is set to `true` in this repository's config**, so a plain `git pull` rebases.
+  That config lives in `.git/config`, which is not tracked, so a fresh clone does not have it:
+  set it there too, with `git config pull.rebase true`
+- Where the intent is "take what is on the remote and go no further", `git fetch` followed by
+  `git merge --ff-only origin/<branch>` says exactly that, and stops loudly instead of merging
+  when the branches have diverged
 
 ## Say When the Session Has Grown Too Long
 
