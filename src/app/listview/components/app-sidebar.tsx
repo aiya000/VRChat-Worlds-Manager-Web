@@ -2,7 +2,14 @@
 
 import { SaturnIcon } from '../../../components/icons/saturn-icon'
 import { GearIcon } from '../../../components/icons/gear-icon'
-import { Info, FileQuestion, History, Plus, ArrowUpDown } from 'lucide-react'
+import {
+  Info,
+  FileQuestion,
+  History,
+  Plus,
+  ArrowUpDown,
+  ChevronRight,
+} from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useLocalization } from '@/hooks/use-localization'
 
@@ -250,12 +257,27 @@ export function AppSidebar() {
                 : 'border-border/60 bg-muted/20',
             )}
           >
-            <div className="flex items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground">
-              <span className="text-sm font-medium">
-                {isDropActive
-                  ? t('world-drag:drop-hint')
-                  : t('general:folders')}
-              </span>
+            <div className="flex items-center justify-between gap-1 px-1 py-1 text-xs font-medium text-muted-foreground">
+              {/* The heading opens the folder view; the chevron is what says
+                  it goes somewhere, since the words alone did not. */}
+              <button
+                type="button"
+                data-testid="folders-heading"
+                className={cn(
+                  'flex min-w-0 flex-1 items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium transition-all',
+                  pathname === '/listview/folders'
+                    ? sidebarStyles.activeLink
+                    : 'hover:bg-accent/50 hover:text-accent-foreground',
+                )}
+                onClick={() => navigate('/listview/folders')}
+              >
+                <span className="truncate">
+                  {isDropActive
+                    ? t('world-drag:drop-hint')
+                    : t('general:folders')}
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+              </button>
               {folders.length > 1 && (
                 <button
                   type="button"
