@@ -3,6 +3,12 @@ import { launchTargetFor, type LaunchOutcome } from '@/lib/launch-target'
 import { instanceRequestBody, parseInstanceInfo } from '@/lib/vrchat-instances'
 import type { InstanceType } from '@/types/instances'
 import { db } from './db'
+import {
+  isTurnstileEnabled,
+  obtainTurnstileToken,
+  TURNSTILE_TOKEN_HEADER,
+  TurnstileError,
+} from './turnstile'
 import { parseVRChatWorld, toWorldDisplayData } from './vrchat-world'
 import type {
   WorldDetails,
@@ -189,6 +195,45 @@ export function toWorldFetchError(e: unknown): WorldFetchError {
 
 export const INVALID_TWO_FACTOR_CODE_ERROR = 'invalid-2fa-code'
 
+/**
+ * The bot check in front of a sign-in did not pass: the challenge could not
+ * be run here, or the Worker turned its token down. Either way the person
+ * typing is told to try again rather than shown the raw reason.
+ */
+export const BOT_CHECK_FAILED_ERROR = 'bot-check-failed'
+
+/**
+ * Whether this request offers credentials -- the same question the Worker
+ * asks (`isCredentialAttempt` there), answered the same way: the one
+ * `GET /auth/user` that carries `Basic`, and a two-factor code.
+ */
+function isCredentialAttempt(
+  method: string,
+  path: string,
+  authorization: string | undefined,
+): boolean {
+  if (
+    method === 'GET' &&
+    path === '/auth/user' &&
+    authorization !== undefined &&
+    /^Basic\s/i.test(authorization)
+  ) {
+    return true
+  }
+  return (
+    method === 'POST' && /^\/auth\/twofactorauth\/[^/]+\/verify$/.test(path)
+  )
+}
+
+function isBotCheckRefusal(e: unknown): boolean {
+  return (
+    e instanceof TurnstileError ||
+    (e instanceof VRChatApiError &&
+      e.status === 403 &&
+      e.body.includes('bot-check'))
+  )
+}
+
 class InvalidTwoFactorCodeError extends Error {}
 
 function apiUrl(path: string): string {
@@ -227,6 +272,15 @@ async function apiFetch(
   const twoFactorToken = await loadToken(TWO_FACTOR_TOKEN_KEY)
   if (twoFactorToken !== null && twoFactorToken !== '') {
     headers[TWO_FACTOR_TOKEN_HEADER] = twoFactorToken
+  }
+
+  // A fresh challenge for each attempt: the token is single-use, and the
+  // Worker refuses a credential attempt without one once it holds a secret.
+  if (
+    isTurnstileEnabled() &&
+    isCredentialAttempt(options?.method ?? 'GET', path, headers.Authorization)
+  ) {
+    headers[TURNSTILE_TOKEN_HEADER] = await obtainTurnstileToken()
   }
 
   const res = await fetch(apiUrl(path), {
@@ -367,10 +421,15 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
           throw new TwoFactorRequiredError(requirement)
         }
       },
-      catch: (e) =>
-        e instanceof TwoFactorRequiredError
-          ? e
-          : new Error(`Login failed: ${e}`),
+      catch: (e) => {
+        if (e instanceof TwoFactorRequiredError) {
+          return e
+        }
+        if (isBotCheckRefusal(e)) {
+          return new Error(BOT_CHECK_FAILED_ERROR)
+        }
+        return new Error(`Login failed: ${e}`)
+      },
     }),
 
   loginWith2fa: (code, twoFactorType) =>
@@ -394,6 +453,9 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
         }
         if (e instanceof VRChatApiError && e.status === 400) {
           return new Error(INVALID_TWO_FACTOR_CODE_ERROR)
+        }
+        if (isBotCheckRefusal(e)) {
+          return new Error(BOT_CHECK_FAILED_ERROR)
         }
         return new Error(`2FA failed: ${e}`)
       },

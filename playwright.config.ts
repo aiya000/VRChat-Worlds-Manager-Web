@@ -18,6 +18,10 @@ export default defineConfig({
   },
   webServer: {
     command: `bunx next dev --turbopack --port ${PORT}`,
+    // Cloudflare's "always passes, invisible" test key. With a key baked in,
+    // a sign-in asks for a challenge token the way production does; the specs
+    // that sign in answer the challenge with `stub-turnstile.ts`.
+    env: { NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000BB' },
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

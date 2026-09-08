@@ -64,6 +64,7 @@
   "login-page:2fa-button": "Verify",
   "login-page:error-invalid-credentials": "Invalid credentials",
   "login-page:error-invalid-2fa": "Invalid 2FA code",
+  "login-page:error-bot-check": "The bot check did not pass. Please reload the page and try again.",
   "setup-page:welcome-title": "Welcome to VRChat Worlds Manager Web",
   "setup-page:thank-you": "Thank you for using VRChat Worlds Manager Web!",
   "setup-page:first-time": "Since this is your first time here, let's take a moment to set up VRChat Worlds Manager Web just the way you like it.",

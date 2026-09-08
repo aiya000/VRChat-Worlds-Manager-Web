@@ -11,7 +11,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { commands } from '@/lib/commands'
-import { INVALID_TWO_FACTOR_CODE_ERROR } from '@/lib/services/vrchat-api'
+import {
+  BOT_CHECK_FAILED_ERROR,
+  INVALID_TWO_FACTOR_CODE_ERROR,
+} from '@/lib/services/vrchat-api'
 import { useLocalization } from '@/hooks/use-localization'
 import { Loader2 } from 'lucide-react'
 export default function Login() {
@@ -45,7 +48,9 @@ export default function Login() {
           setTwoFactorCodeType('emailOtp')
         } else {
           const errorMessage =
-            result.error || t('login-page:error-invalid-credentials')
+            result.error === BOT_CHECK_FAILED_ERROR
+              ? t('login-page:error-bot-check')
+              : result.error || t('login-page:error-invalid-credentials')
           console.error(`Login failed: ${errorMessage}`)
           setE(errorMessage)
         }
@@ -75,7 +80,9 @@ export default function Login() {
         setE(
           result.error === INVALID_TWO_FACTOR_CODE_ERROR
             ? t('login-page:error-invalid-2fa')
-            : result.error || t('login-page:error-invalid-2fa'),
+            : result.error === BOT_CHECK_FAILED_ERROR
+              ? t('login-page:error-bot-check')
+              : result.error || t('login-page:error-invalid-2fa'),
         )
         return
       }

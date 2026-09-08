@@ -23,6 +23,9 @@ jobs:
         run: bun run build
         env:
           NEXT_PUBLIC_CF_WORKER_URL: https://vrchat-worlds-manager-web-backend.vrchat-worlds-manager-web.workers.dev
+          # A public identifier, kept as a repository variable rather than a
+          # secret. Unset, the app asks for no bot check (#61).
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
       - name: Deploy
         run: bun run deploy -- --branch ${{ github.ref_name }}
         env:

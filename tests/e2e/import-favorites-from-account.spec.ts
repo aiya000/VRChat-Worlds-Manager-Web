@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
+import { stubTurnstile } from './stub-turnstile'
 
 const SETTINGS = '/listview/settings'
 
@@ -162,6 +163,9 @@ async function seedOwnSession(page: Page) {
 }
 
 async function signIn(page: Page) {
+  // The e2e server is built with a Turnstile site key, so a sign-in asks for
+  // a challenge token first; this answers it without reaching Cloudflare.
+  await stubTurnstile(page)
   await page
     .getByPlaceholder(jaJP['login-page:username-placeholder'])
     .fill('someone')
