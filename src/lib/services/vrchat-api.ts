@@ -24,10 +24,6 @@ const CF_WORKER_URL =
   process.env.NEXT_PUBLIC_CF_WORKER_URL ??
   ''
 
-const CF_ACCESS_CLIENT_ID = process.env.NEXT_PUBLIC_CF_ACCESS_CLIENT_ID ?? ''
-const CF_ACCESS_CLIENT_SECRET =
-  process.env.NEXT_PUBLIC_CF_ACCESS_CLIENT_SECRET ?? ''
-
 // The frontend and the Worker are served from different registrable domains
 // (`*.pages.dev` vs `*.workers.dev`), so the session cookies VRChat issues are
 // cross-site for the browser and never sent back. The Worker therefore hands
@@ -222,12 +218,6 @@ async function apiFetch(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
-  }
-  if (CF_ACCESS_CLIENT_ID) {
-    headers['CF-Access-Client-Id'] = CF_ACCESS_CLIENT_ID
-  }
-  if (CF_ACCESS_CLIENT_SECRET) {
-    headers['CF-Access-Client-Secret'] = CF_ACCESS_CLIENT_SECRET
   }
 
   const authToken = await loadToken(AUTH_TOKEN_KEY)

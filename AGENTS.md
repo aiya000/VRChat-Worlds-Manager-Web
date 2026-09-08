@@ -648,9 +648,23 @@ production Worker with whatever is on it.
 goes live at the next release and not before, so plan for that rather than discovering it
 while trying to test on a phone.
 
-The Worker also caps itself: `IP_HOURLY_LIMIT` is 500 requests per IP per hour and
-`DAILY_QUOTA` is 90,000 overall. Anything that walks a list has to page rather than fan out —
-favourites come from `/worlds/favorites`, 100 per request.
+The Worker also caps itself: `IP_HOURLY_LIMIT` is 500 requests per IP per hour,
+`LOGIN_HOURLY_LIMIT` is 30 credential attempts per IP per hour, and `DAILY_QUOTA` is 90,000
+overall. Anything that walks a list has to page rather than fan out — favourites come from
+`/worlds/favorites`, 100 per request.
+
+**The `Origin` check is not a defence against anything that is not a browser.** `curl` sends
+whatever `Origin` it likes, so the limits above, the route whitelist, and the header allowlist
+are the whole of what stops this Worker being used as a stepping stone into VRChat's login.
+Two things follow:
+
+- **`GET /auth/user` is both "log me in" and "who am I?"** — the `Authorization: Basic` header is
+  the only thing that tells them apart, and `isCredentialAttempt()` is where that is decided. A
+  new endpoint that accepts credentials has to be added there as well as to the route whitelist
+- **KV cannot count atomically.** `countAgainstHourlyLimit()` reads, compares and writes, so
+  simultaneous requests all read the same number and the limit can be overrun by however many
+  are in flight. That is a coarse cap on purpose; do not build anything finer on top of it
+  without moving to a Rate Limiting binding or a Durable Object
 
 ### Releases are announced through GitHub Releases
 

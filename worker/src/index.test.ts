@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildProxyHeaders,
   buildVRChatCookieHeader,
+  isCredentialAttempt,
   isOriginAllowed,
   isRouteAllowed,
   parseSetCookieValue,
@@ -27,6 +29,93 @@ describe('isRouteAllowed', () => {
   it('still refuses what the app never asks for', () => {
     expect(isRouteAllowed('POST', '/invite/usr_someone')).toBe(false)
     expect(isRouteAllowed('DELETE', '/instances')).toBe(false)
+  })
+
+  it('does not let a traversal segment pass as an approved route', () => {
+    // `[^/]+` matches `..`, so these read as approved routes and then became
+    // a different path when the target URL was parsed.
+    expect(isRouteAllowed('GET', '/worlds/..')).toBe(false)
+    expect(isRouteAllowed('GET', '/worlds/.')).toBe(false)
+    expect(isRouteAllowed('GET', '/worlds/%2e%2e')).toBe(false)
+    expect(isRouteAllowed('GET', '/worlds/%2E%2E')).toBe(false)
+  })
+
+  it('leaves a world id that merely contains dots alone', () => {
+    expect(isRouteAllowed('GET', '/worlds/wrld_1.2.3')).toBe(true)
+  })
+})
+
+describe('isCredentialAttempt', () => {
+  it('counts a sign-in, which is the one `GET /auth/user` that carries Basic', () => {
+    expect(isCredentialAttempt('GET', '/auth/user', 'Basic dXNlcjpwYXNz')).toBe(
+      true,
+    )
+  })
+
+  it('does not count the "who am I?" every page load makes', () => {
+    expect(isCredentialAttempt('GET', '/auth/user', null)).toBe(false)
+  })
+
+  it('counts a two-factor guess, which is only six digits wide', () => {
+    expect(
+      isCredentialAttempt('POST', '/auth/twofactorauth/totp/verify', null),
+    ).toBe(true)
+    expect(
+      isCredentialAttempt('POST', '/auth/twofactorauth/emailotp/verify', null),
+    ).toBe(true)
+  })
+
+  it('leaves ordinary requests out of the sign-in allowance', () => {
+    expect(isCredentialAttempt('GET', '/worlds/wrld_1', null)).toBe(false)
+    expect(isCredentialAttempt('PUT', '/logout', 'Basic dXNlcjpwYXNz')).toBe(
+      false,
+    )
+  })
+})
+
+describe('buildProxyHeaders', () => {
+  it('carries what VRChat needs, and rebuilds the cookie itself', () => {
+    const headers = buildProxyHeaders(
+      new Headers({
+        Authorization: 'Basic dXNlcjpwYXNz',
+        'Content-Type': 'application/json',
+        'User-Agent': 'VRChatWorldsManagerWeb/1.0',
+      }),
+      'auth=authcookie_abc',
+    )
+
+    expect(headers.get('Authorization')).toBe('Basic dXNlcjpwYXNz')
+    expect(headers.get('Content-Type')).toBe('application/json')
+    expect(headers.get('User-Agent')).toBe('VRChatWorldsManagerWeb/1.0')
+    expect(headers.get('Cookie')).toBe('auth=authcookie_abc')
+  })
+
+  it('does not carry a header the caller made up', () => {
+    // Everything the caller sent used to be forwarded, so this Worker would
+    // put any header at all in front of VRChat on a stranger's behalf.
+    const headers = buildProxyHeaders(
+      new Headers({
+        'X-Forwarded-For': '10.0.0.1',
+        'X-Made-Up': 'whatever',
+        Host: 'api.vrchat.cloud',
+        Origin: 'https://example.com',
+      }),
+      null,
+    )
+
+    expect(headers.get('X-Forwarded-For')).toBe(null)
+    expect(headers.get('X-Made-Up')).toBe(null)
+    expect(headers.get('Origin')).toBe(null)
+  })
+
+  it('never takes a cookie from the request itself', () => {
+    // The session is held as headers and rebuilt here; a `Cookie` the caller
+    // sent is not the app's session and has no business upstream.
+    const headers = buildProxyHeaders(
+      new Headers({ Cookie: 'auth=someone_elses' }),
+      null,
+    )
+    expect(headers.get('Cookie')).toBe(null)
   })
 })
 
