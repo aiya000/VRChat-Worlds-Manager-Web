@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import { useAbandonedGoogleTrip } from '@/hooks/use-abandoned-google-trip'
 import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
 import { subscribeToDriveConnectionChanged } from '@/lib/services/drive-connection-changed'
@@ -70,6 +71,13 @@ export const PushSettingsSection: FC = () => {
       }),
     [],
   )
+
+  // The press below leaves this button busy on the way to Google. Back from
+  // there without going, it is still busy.
+  useAbandonedGoogleTrip(() => {
+    setPushing(false)
+    setStep(null)
+  })
 
   const push = async () => {
     // Refused rather than queued: a sync started from another button would
