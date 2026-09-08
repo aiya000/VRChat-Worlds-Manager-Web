@@ -378,6 +378,12 @@ What a link does instead, seen on a real device:
   "This instance not found" and looked like the app had answered. `vrch.at/<shortName>` is
   only a 302 to `vrchat.com/i/<shortName>`, so it inherits whatever is true of the latter
 
+**So "open in VRChat" navigates to nothing at all on Android (#150): it sends the self-invite
+and says to enter from the notification.** Every link was tried and each one either showed the
+Play Store, showed a page pretending to be the app, or did nothing. Adding a new one back means
+finding a URL filter the app has actually declared — check `dumpsys` on a real device first, and
+do not restore an intent on the strength of the well-known files alone.
+
 ## UI Target Environments
 
 This app is meant to be used **while in VR**. When a UI decision trades one environment
