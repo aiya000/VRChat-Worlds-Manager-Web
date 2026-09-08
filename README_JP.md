@@ -12,8 +12,6 @@
 
 </div>
 
-> 読み方は冗談です。でも、ワールドがわらわら集まってくるので、わりと的を射ています。
-
 **VRChat Worlds Manager Web (VRCWW)** は、好きなワールドを簡単に整理・保存するためのVRChat向けプログレッシブウェブアプリ（PWA）です。オリジナルのデスクトップアプリ [VRC Worlds Manager v2](https://github.com/Raifa21/VRC-Worlds-Manager-v2) をベースに、PCブラウザ・スマートフォン・VRオーバーレイ（XSOverlay等）からシームレスに利用できるようWebアプリとして再構築されています。
 
 🌐 **公開Webアプリ**: [https://vrchat-worlds-manager-web.pages.dev](https://vrchat-worlds-manager-web.pages.dev)
