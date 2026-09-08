@@ -173,6 +173,38 @@ test.describe('the sync button on the list', () => {
     await expect(successToast(page)).toBeVisible()
   })
 
+  test('counts how far along it is while it works', async ({ page }) => {
+    await stubGoogleDrive(page, driveHolding(JSON.stringify(REMOTE_SNAPSHOT)))
+    // Registered after the Drive stub, so it wins: every call is slowed to
+    // what a sync feels like on a bad connection, which is the case the
+    // count exists for and the only way to read a step before it is gone.
+    await page.route('https://www.googleapis.com/**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 400))
+      await route.fallback()
+    })
+    await openTheList(page)
+    await connect(page)
+    await openTheList(page)
+
+    await syncButton(page).click()
+    await dontShowAgain(page).click()
+    await proceed(page).click()
+
+    // The word the button carries gives way to the count, and only to the
+    // count: the row has no width to spare for the step's own sentence at
+    // 200% on a phone.
+    await expect(page.getByTestId('drive-sync-progress')).toHaveText(/^\d+%$/)
+    // The sentence is not lost -- it is in the name the button answers to,
+    // where there is room for it.
+    await expect(syncButton(page)).toHaveAttribute('aria-label', /^\d+% — .+/)
+
+    await expect(successToast(page)).toBeVisible()
+    // ...and the word comes back once it is done.
+    await expect(page.getByTestId('drive-sync-progress')).toHaveText(
+      jaJP['list-view:sync'],
+    )
+  })
+
   test('the "?" shows the explanation on demand, without the checkbox', async ({
     page,
   }) => {
