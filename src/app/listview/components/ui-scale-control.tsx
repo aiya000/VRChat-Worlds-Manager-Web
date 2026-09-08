@@ -14,10 +14,10 @@ import { applyUiScale, DEFAULT_UI_SCALE, type UiScale } from '@/lib/ui-scale'
  *
  * It lived only in the settings screen at first, and that turned out to be a
  * one-way door: the settings entry is down a sidebar that has grown along with
- * everything else, and the control waiting at the end of it was a `Select`,
- * whose options are drawn off-screen once the page is zoomed (see
- * `UiScaleStepper`). Here it is reachable and pressable at any scale, and
- * stepping back down to 100% is the way out.
+ * everything else, and the control waiting at the end of it was a `Select`
+ * that the zoom of the time drew off-screen (see `UiScaleStepper`). Here it is
+ * reachable and pressable at any scale, and stepping back down to 100% is the
+ * way out.
  *
  * The "?" carries what the settings screen says in prose, because a bare
  * percentage beside the sync button does not say what it scales.

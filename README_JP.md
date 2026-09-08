@@ -1,10 +1,16 @@
+<div align="center">
+
 # VRChat Worlds Manager Web (VRCWW)
+
+\- **[bɯi aːɾɯ ɕiː waɾawaɾa]** \-
 
 [![Tests](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml/badge.svg)](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml)
 [![Web App](https://img.shields.io/badge/Web%20App-vrchat--worlds--manager--web.pages.dev-blue?logo=cloudflarepages)](https://vrchat-worlds-manager-web.pages.dev)
 [![Bun](https://img.shields.io/badge/Bun-%23000000.svg?logo=bun&logoColor=white)](https://bun.sh)
 
 [English README is here / 英語のREADMEはこちら。](./README.md)
+
+</div>
 
 **VRChat Worlds Manager Web (VRCWW)** は、好きなワールドを簡単に整理・保存するためのVRChat向けプログレッシブウェブアプリ（PWA）です。オリジナルのデスクトップアプリ [VRC Worlds Manager v2](https://github.com/Raifa21/VRC-Worlds-Manager-v2) をベースに、PCブラウザ・スマートフォン・VRオーバーレイ（XSOverlay等）からシームレスに利用できるようWebアプリとして再構築されています。
 

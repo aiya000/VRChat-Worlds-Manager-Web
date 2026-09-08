@@ -20,7 +20,8 @@ const VIEWPORTS = [
 
 async function openSidebar(page: Page) {
   await page.goto(LIST_VIEW)
-  await page.locator('[data-sidebar="trigger"]').click()
+  // `.first()`: CI once saw two of these for a moment, mid-navigation.
+  await page.locator('[data-sidebar="trigger"]').first().click()
   const drawer = page.getByRole('dialog')
   await expect(drawer).toBeVisible()
   await expect(drawer.getByText(SEEDED[0], { exact: true })).toBeVisible()

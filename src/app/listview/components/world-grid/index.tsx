@@ -155,9 +155,13 @@ export function WorldGrid({
                   )}
                 </div>
                 {(isSelectionMode || alwaysShowSelection) && (
-                  <div className="absolute top-2 left-2 z-10 flex items-center gap-2">
+                  // The card stays the size it is at any scale; the box on it
+                  // is the one thing on a card that is pressed, so it grows
+                  // with the other controls.
+                  <div className="ui-control absolute top-2 left-2 z-10 flex items-center gap-2">
                     <div
-                      className="relative w-10 h-10 flex items-center justify-center cursor-pointer"
+                      className="relative w-12 h-12 flex items-center justify-center cursor-pointer"
+                      data-testid="world-select-box"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleSelect(world.worldId, e)
@@ -166,12 +170,12 @@ export function WorldGrid({
                       {/* The thumbnail behind this box can be any colour, so an
                           outline on its own disappears against a busy one. Give
                           the box an opaque backing in both states. */}
-                      <div className="absolute h-6 w-6 rounded bg-background ring-1 ring-foreground/40 shadow-sm" />
+                      <div className="absolute h-8 w-8 rounded bg-background ring-1 ring-foreground/40 shadow-sm" />
                       <Square
-                        className={`relative w-5 h-5 ${isSelected ? 'text-primary' : 'text-foreground'}`}
+                        className={`relative w-7 h-7 ${isSelected ? 'text-primary' : 'text-foreground'}`}
                       />
                       {isSelected && (
-                        <Check className="absolute inset-0 m-auto w-3.5 h-3.5 text-primary" />
+                        <Check className="absolute inset-0 m-auto w-5 h-5 text-primary" />
                       )}
                     </div>
                   </div>

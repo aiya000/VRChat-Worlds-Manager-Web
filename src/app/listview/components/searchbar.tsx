@@ -180,6 +180,8 @@ export function SearchBar({ currentFolder }: SearchBarProps) {
               }
             }}
             className="h-10 w-10 shrink-0"
+            data-testid="selection-mode-toggle"
+            aria-pressed={isSelectionMode}
           >
             {isSelectionMode ? (
               <CheckSquare className="h-4 w-4" />

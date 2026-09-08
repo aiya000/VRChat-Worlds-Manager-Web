@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { UI_SCALES } from '../../src/lib/ui-scale'
+import { seedWorld } from './seed-world'
 
 const SETTINGS = '/listview/settings'
 const LIST_VIEW = '/listview/folders/special/all'
@@ -39,22 +40,42 @@ async function stepTowards(page: Page, prefix: string, label: string) {
   throw new Error(`could not reach ${label} with ${prefix}`)
 }
 
-/** How wide the settings heading is actually drawn, in device pixels. */
-async function drawnHeadingWidth(page: Page) {
+/** The multiplier the controls are drawn at, as the document carries it. */
+const controlScale = (page: Page) =>
+  page.evaluate(() =>
+    document.documentElement.style.getPropertyValue('--control-scale'),
+  )
+
+/** How wide the list view's title is actually drawn, in device pixels. */
+async function drawnTitleWidth(page: Page) {
   const box = await page
-    .getByRole('heading', { name: jaJP['general:settings'] })
+    .getByRole('heading', { name: jaJP['general:all-worlds'] })
+    .boundingBox()
+  return box!.width
+}
+
+const WORLD_ID = 'wrld_ui_scale'
+const WORLD_NAME = 'ScaleWorld'
+
+/**
+ * How wide a world card is actually drawn, in device pixels: its picture
+ * spans the card.
+ */
+async function drawnCardWidth(page: Page) {
+  const box = await page
+    .getByRole('img', { name: WORLD_NAME })
+    .first()
     .boundingBox()
   return box!.width
 }
 
 /**
- * A VR overlay is read at a distance and pointed at with a laser, so the whole
- * interface has to be able to grow. It grows by `zoom`, which reflows the page
- * into its narrower self rather than pushing it off the edge -- so what
- * appears at a larger size is the layout this app already has for narrow
- * screens, not a second one built for VR.
+ * A VR overlay is read at a distance and pointed at with a laser, so what is
+ * pressed has to be able to grow: the sidebar, the buttons, the dialogs. The
+ * world grid does not -- larger cards would only mean fewer of them -- so the
+ * scale is applied to those regions and never to the page as a whole.
  */
-test.describe('drawing the interface larger', () => {
+test.describe('drawing the controls larger', () => {
   test('starts at full size and leaves the document alone', async ({
     page,
   }) => {
@@ -64,31 +85,89 @@ test.describe('drawing the interface larger', () => {
     expect(await page.evaluate(() => document.documentElement.style.zoom)).toBe(
       '',
     )
+    await expect.poll(() => controlScale(page)).toBe('1')
   })
 
-  test('magnifies what is on screen when a larger size is chosen', async ({
+  test('magnifies the controls, and never zooms the document', async ({
+    page,
+  }) => {
+    await openListView(page)
+    const before = await drawnTitleWidth(page)
+
+    await chooseScaleOnList(page, '150%')
+
+    await expect.poll(() => controlScale(page)).toBe('1.5')
+    expect(await page.evaluate(() => document.documentElement.style.zoom)).toBe(
+      '',
+    )
+    const after = await drawnTitleWidth(page)
+    expect(after).toBeGreaterThan(before * 1.3)
+  })
+
+  test('leaves the world grid at the size it was', async ({ page }) => {
+    await page.goto(LIST_VIEW)
+    await seedWorld(page, { worldId: WORLD_ID, name: WORLD_NAME })
+    await openListView(page)
+    const before = await drawnCardWidth(page)
+
+    await chooseScaleOnList(page, '200%')
+
+    await expect.poll(() => controlScale(page)).toBe('2')
+    expect(await drawnCardWidth(page)).toBeCloseTo(before, 0)
+  })
+
+  test('grows the box on each card for selecting it, though not the card', async ({
+    page,
+  }) => {
+    await page.goto(LIST_VIEW)
+    await seedWorld(page, { worldId: WORLD_ID, name: WORLD_NAME })
+    await openListView(page)
+    await page.getByTestId('selection-mode-toggle').click()
+    const box = page.getByTestId('world-select-box').first()
+    const cardBefore = await drawnCardWidth(page)
+    const boxBefore = (await box.boundingBox())!.width
+
+    await chooseScaleOnList(page, '200%')
+
+    await expect.poll(() => controlScale(page)).toBe('2')
+    expect(await drawnCardWidth(page)).toBeCloseTo(cardBefore, 0)
+    // The box is the one thing on a card that is pressed, so it is drawn at
+    // the control scale like the rows and buttons around the grid.
+    expect((await box.boundingBox())!.width).toBeCloseTo(boxBefore * 2, 0)
+  })
+
+  test('draws the settings screen larger, and its buttons larger still', async ({
     page,
   }) => {
     await openSettings(page)
-    const before = await drawnHeadingWidth(page)
+    const heading = page.getByRole('heading', {
+      name: jaJP['general:settings'],
+    })
+    const button = page.getByTestId('ui-scale-vr-preset')
+    const headingBefore = (await heading.boundingBox())!.width
+    const buttonBefore = (await button.boundingBox())!.width
 
     await chooseScale(page, '150%')
 
-    expect(await page.evaluate(() => document.documentElement.style.zoom)).toBe(
-      '150%',
+    // The screen is a panel -- half the growth -- and a button in it is a
+    // control, drawn at the full 150%.
+    await expect
+      .poll(async () => (await heading.boundingBox())!.width / headingBefore)
+      .toBeCloseTo(1.25, 1)
+    expect((await button.boundingBox())!.width / buttonBefore).toBeCloseTo(
+      1.5,
+      1,
     )
-    const after = await drawnHeadingWidth(page)
-    expect(after).toBeGreaterThan(before * 1.3)
   })
 
   test('reflows rather than spilling off the side of the page', async ({
     page,
   }) => {
-    await openSettings(page)
-    await chooseScale(page, '200%')
+    await openListView(page)
+    await chooseScaleOnList(page, '200%')
 
-    // The point of `zoom` over `transform: scale()`: the page lays out again
-    // at the narrower effective width instead of overflowing it.
+    // The point of `zoom` over `transform: scale()`: a row lays out again at
+    // its narrower effective width instead of overflowing it.
     const overflows = await page.evaluate(
       () =>
         document.documentElement.scrollWidth >
@@ -103,9 +182,7 @@ test.describe('drawing the interface larger', () => {
     await page.getByTestId('ui-scale-vr-preset').click()
 
     await expect(page.getByTestId('ui-scale-stepper')).toHaveText('150%')
-    expect(await page.evaluate(() => document.documentElement.style.zoom)).toBe(
-      '150%',
-    )
+    await expect.poll(() => controlScale(page)).toBe('1.5')
   })
 
   test('is still in force on the next page, and after a reload', async ({
@@ -115,14 +192,10 @@ test.describe('drawing the interface larger', () => {
     await chooseScale(page, '125%')
 
     await page.goto(LIST_VIEW)
-    await expect
-      .poll(() => page.evaluate(() => document.documentElement.style.zoom))
-      .toBe('125%')
+    await expect.poll(() => controlScale(page)).toBe('1.25')
 
     await page.reload()
-    await expect
-      .poll(() => page.evaluate(() => document.documentElement.style.zoom))
-      .toBe('125%')
+    await expect.poll(() => controlScale(page)).toBe('1.25')
   })
 })
 
@@ -152,9 +225,7 @@ test.describe('changing the size from the list view', () => {
 
     await chooseScaleOnList(page, '150%')
 
-    await expect
-      .poll(() => page.evaluate(() => document.documentElement.style.zoom))
-      .toBe('150%')
+    await expect.poll(() => controlScale(page)).toBe('1.5')
   })
 
   test('takes the interface back to its original size', async ({ page }) => {
@@ -165,9 +236,7 @@ test.describe('changing the size from the list view', () => {
 
     await chooseScaleOnList(page, '100%')
 
-    await expect
-      .poll(() => page.evaluate(() => document.documentElement.style.zoom))
-      .toBe('')
+    await expect.poll(() => controlScale(page)).toBe('1')
   })
 
   test('survives a reload, and the settings screen agrees', async ({

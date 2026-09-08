@@ -1,12 +1,45 @@
+import { useState } from 'react'
 import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
 import { InstanceRegion } from '@/lib/commands'
-import type { Platform } from '@/lib/types'
+import { isAndroidBrowser } from '@/lib/launch-target'
+import type { InstanceInfo, Platform } from '@/lib/types'
 import { GroupInstanceType, InstanceType } from '@/types/instances'
 import { toast } from 'sonner'
 import { useWorldFiltersStore } from '@/app/listview/hook/use-filters'
 import { UserGroup, GroupInstancePermissionInfo } from '@/lib/commands'
 import { openInClient } from './open-in-client'
+
+type Translate = ReturnType<typeof useLocalization>['t']
+
+/**
+ * The "open in VRChat" button on the toast that says an instance was made --
+ * or nothing, on Android.
+ *
+ * On Android no link opens the app, into an instance or at all: the launcher
+ * intent did nothing from Chrome either (see `launchTargetFor`). The invite
+ * has just been sent, and the saved instance below the form can send it
+ * again, so a button here would only promise what the phone cannot do.
+ */
+function openInClientToastAction(
+  info: InstanceInfo,
+  platforms: Platform[] | null,
+  t: Translate,
+): { label: string; onClick: () => void } | undefined {
+  if (isAndroidBrowser(navigator.userAgent)) {
+    return undefined
+  }
+  return {
+    label: t('listview-page:open-in-client'),
+    onClick: async () => {
+      try {
+        await openInClient(info.world_id, info.instance_id, platforms, t)
+      } catch (e) {
+        console.error(`Failed to open instance in client: ${e}`)
+      }
+    },
+  }
+}
 
 export function useWorldDetailsActions(
   onOpenChange: (open: boolean) => void,
@@ -14,6 +47,9 @@ export function useWorldDetailsActions(
 ) {
   const { t } = useLocalization()
   const { setAuthorFilter, setTagFilters } = useWorldFiltersStore()
+  // VRChat takes a few seconds to make an instance, and the button used to
+  // sit there as if nothing had been pressed.
+  const [isCreatingInstance, setIsCreatingInstance] = useState(false)
 
   /**
    * `platforms` is what the world was built for, or `null` when not known;
@@ -50,6 +86,7 @@ export function useWorldDetailsActions(
     region: InstanceRegion,
     platforms: Platform[] | null,
   ) => {
+    setIsCreatingInstance(true)
     try {
       const result = await commands.createWorldInstance(
         worldId,
@@ -83,22 +120,15 @@ export function useWorldDetailsActions(
         description: invited
           ? `${t('listview-page:created-instance', instanceType)}\n${t('world-detail:android-invite-sent')}`
           : t('listview-page:created-instance', instanceType),
-        action: {
-          label: t('listview-page:open-in-client'),
-          onClick: async () => {
-            try {
-              await openInClient(info.world_id, info.instance_id, platforms, t)
-            } catch (e) {
-              console.error(`Failed to open instance in client: ${e}`)
-            }
-          },
-        },
+        action: openInClientToastAction(info, platforms, t),
       })
     } catch (e) {
       console.error(`Failed to create instance: ${e}`)
       toast(t('general:error-title'), {
         description: t('listview-page:error-create-instance'),
       })
+    } finally {
+      setIsCreatingInstance(false)
     }
   }
 
@@ -111,6 +141,7 @@ export function useWorldDetailsActions(
     platforms: Platform[] | null,
     selectedRoles?: string[],
   ) => {
+    setIsCreatingInstance(true)
     try {
       const result = await commands.createGroupInstance(
         worldId,
@@ -147,22 +178,15 @@ export function useWorldDetailsActions(
         description: invited
           ? `${t('listview-page:created-instance', instanceType)}\n${t('world-detail:android-invite-sent')}`
           : t('listview-page:created-instance', instanceType),
-        action: {
-          label: t('listview-page:open-in-client'),
-          onClick: async () => {
-            try {
-              await openInClient(info.world_id, info.instance_id, platforms, t)
-            } catch (e) {
-              console.error(`Failed to open instance in client: ${e}`)
-            }
-          },
-        },
+        action: openInClientToastAction(info, platforms, t),
       })
     } catch (e) {
       console.error(`Failed to create group instance: ${e}`)
       toast(t('general:error-title'), {
         description: t('listview-page:error-create-group-instance'),
       })
+    } finally {
+      setIsCreatingInstance(false)
     }
   }
 
@@ -255,6 +279,7 @@ export function useWorldDetailsActions(
   return {
     createInstance,
     createGroupInstance,
+    isCreatingInstance,
     getGroups,
     getGroupPermissions,
     deleteWorld,

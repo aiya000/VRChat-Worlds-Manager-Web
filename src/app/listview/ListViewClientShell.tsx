@@ -32,9 +32,15 @@ export function ListViewClientShell({
           and neither can operate the drag-to-resize handle this used to carry
           (a VR laser pointer cannot hit a 1px target, and touch never could).
         */}
-        {/* Wide enough for the product name to stay on one line. */}
+        {/* Wide enough for the product name to stay on one line, and then as
+            much wider as the sidebar's contents are drawn: the fixed box is
+            in screen pixels while everything inside it is zoomed. */}
         <SidebarProvider
-          style={{ '--sidebar-width': '17rem' } as CSSProperties}
+          style={
+            {
+              '--sidebar-width': 'calc(17rem * var(--control-scale, 1))',
+            } as CSSProperties
+          }
         >
           {/* Around both the sidebar and the grid: a card picked up in one is
               dropped in the other. */}

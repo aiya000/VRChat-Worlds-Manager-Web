@@ -5,13 +5,7 @@ import { useLocalization } from '@/hooks/use-localization'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { FetchWorldsButton } from '@/app/listview/components/fetch-worlds-button'
-import {
-  CircleHelpIcon,
-  Loader2,
-  Search,
-  Square,
-  CheckSquare,
-} from 'lucide-react'
+import { Loader2, Search, Square, CheckSquare } from 'lucide-react'
 import { commands, WorldDisplayData } from '@/lib/commands'
 import { SpecialFolders } from '@/types/folders'
 import { toast } from 'sonner'
@@ -29,12 +23,7 @@ import { WorldGrid } from '../../../components/world-grid'
 import { WorldGridSkeleton } from '../../../components/world-grid/skeleton'
 import MultiFilterItemSelector from '@/components/multi-filter-item-selector'
 import { useSelectedWorldsStore } from '../../../hook/use-selected-worlds'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { HelpHint } from '@/components/help-hint'
 import { useFolders } from '@/app/listview/hook/use-folders'
 
 export default function FindWorldsPage() {
@@ -310,7 +299,7 @@ export default function FindWorldsPage() {
     <div className="p-1 flex flex-col h-full min-h-0">
       {/* added min-h-0 */}
       {/* Header with title and reload button */}
-      <div className="flex items-center justify-between p-4 bg-background">
+      <div className="ui-control flex items-center justify-between p-4 bg-background">
         <h1 className="text-xl font-bold">{t('general:find-worlds')}</h1>
 
         <div className="flex items-center">
@@ -362,7 +351,7 @@ export default function FindWorldsPage() {
       </div>
 
       {/* Tab bar with full-width tabs */}
-      <div className="bg-background px-4 pb-2">
+      <div className="ui-control bg-background px-4 pb-2">
         <Tabs
           defaultValue="recently-visited"
           value={activeTab}
@@ -407,7 +396,7 @@ export default function FindWorldsPage() {
         {activeTab === 'search' && (
           <div className="flex-1 min-h-0">
             {/* new scroll container for search tab */}
-            <div className="sticky top-0 z-40 bg-background border-b">
+            <div className="ui-control sticky top-0 z-40 bg-background border-b">
               {/* sticky header now inside scroller */}
               <Card className=" mx-4 border-0 shadow-none">
                 <CardContent className="pt-4 space-y-4">
@@ -431,16 +420,22 @@ export default function FindWorldsPage() {
                       <div className="flex items-center gap-2">
                         <Label htmlFor="sort">{t('find-page:sort-by')}</Label>
                         {searchQuery.trim() !== '' && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <CircleHelpIcon className="w-3 h-3 m-0" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {t('find-page:sort-relevant-tooltip')}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <HelpHint
+                            label={t('find-page:sort-by')}
+                            tooltip={t('find-page:sort-relevant-tooltip')}
+                            title={t('find-page:sort-help-title')}
+                            sections={[
+                              {
+                                title: t('find-page:sort-help-what-title'),
+                                body: t('find-page:sort-help-what'),
+                              },
+                              {
+                                title: t('find-page:sort-help-why-title'),
+                                body: t('find-page:sort-help-why'),
+                              },
+                            ]}
+                            testId="find-sort"
+                          />
                         )}
                       </div>
                       <Select
@@ -508,16 +503,22 @@ export default function FindWorldsPage() {
                         <Label htmlFor="exclude-tag">
                           {t('find-page:exclude-tag')}
                         </Label>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <CircleHelpIcon className="w-3 h-3 m-0" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {t('find-page:exclude-tag-tooltip')}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <HelpHint
+                          label={t('find-page:exclude-tag')}
+                          tooltip={t('find-page:exclude-tag-tooltip')}
+                          title={t('find-page:exclude-tag-help-title')}
+                          sections={[
+                            {
+                              title: t('find-page:exclude-tag-help-what-title'),
+                              body: t('find-page:exclude-tag-help-what'),
+                            },
+                            {
+                              title: t('find-page:exclude-tag-help-how-title'),
+                              body: t('find-page:exclude-tag-help-how'),
+                            },
+                          ]}
+                          testId="find-exclude-tag"
+                        />
                       </div>
                       <MultiFilterItemSelector
                         placeholder={t('find-page:exclude-tag-placeholder')}

@@ -60,7 +60,9 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
   return (
     <div className="flex h-full">
       <div ref={gridScrollRef} className="flex-1 flex flex-col overflow-auto">
-        <div className="p-4 flex flex-wrap items-center justify-between gap-2">
+        {/* The title row and the search row are controls; the grid below them
+            is not, and stays as dense as it is at any scale. */}
+        <div className="ui-control p-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="text-xl font-bold truncate">{title}</h1>
           </div>
@@ -101,7 +103,9 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
           </div>
         </div>
         <div>
-          <SearchBar currentFolder={folderId} />
+          <div className="ui-control">
+            <SearchBar currentFolder={folderId} />
+          </div>
           <div className="flex-1">
             {isLoading && worlds.length === 0 ? (
               <WorldGridSkeleton />

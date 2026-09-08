@@ -12,8 +12,15 @@ import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, ExternalLink, Pencil, Plus, X } from 'lucide-react'
-import { ChevronRight } from 'lucide-react'
+import {
+  AlertCircle,
+  ChevronRight,
+  ExternalLink,
+  LoaderCircle,
+  Pencil,
+  Plus,
+  X,
+} from 'lucide-react'
 import {
   GroupInstanceCreatePermission,
   UserGroup,
@@ -104,6 +111,7 @@ export function WorldDetailPopup({
   const {
     createInstance,
     createGroupInstance,
+    isCreatingInstance,
     getGroups,
     getGroupPermissions,
     deleteWorld,
@@ -710,12 +718,17 @@ export function WorldDetailPopup({
         onOpenChange(open)
       }}
     >
-      {/* `70vh` answers in the screen's own pixels and is then multiplied by
-          the zoom, so at 200% this box was 140% of the screen and the heading
-          and close button sat above the top of it. Divided by the scale, it is
-          70% of the screen whatever the scale, and the content inside is drawn
-          larger as it should be. */}
-      <DialogContent className="max-w-[800px] h-[calc(70vh/var(--ui-scale,1))] overflow-y-auto no-webview-scroll-bar">
+      {/* The box is a panel: drawn at the panel scale, with the controls
+          inside it stepped up to the control scale.
+
+          `vh` and `vw` answer in the screen's own pixels and are then
+          multiplied by the zoom, so at 200% this box was 140% of the screen
+          and the heading and close button sat above the top of it. Divided by
+          the scale, it is the same share of the screen whatever the scale.
+
+          A wide screen gets more of the height: the two columns beside each
+          other are each long, and the taller the box the less they scroll. */}
+      <DialogContent className="ui-panel flex flex-col overflow-hidden w-[calc(100vw/var(--panel-scale,1)-2rem)] max-w-[920px] h-[calc(70vh/var(--panel-scale,1))] sm:h-[calc(85vh/var(--panel-scale,1))]">
         <DialogHeader>
           <DialogTitle>
             {isLoading
@@ -726,234 +739,248 @@ export function WorldDetailPopup({
           </DialogTitle>
         </DialogHeader>
 
-        {instanceCreationType === 'group' ? (
-          <GroupInstanceCreator
-            groups={groupInstanceState.groups}
-            selectedGroupId={groupInstanceState.selectedGroupId}
-            permission={groupInstanceState.permission}
-            onBack={() => setInstanceCreationType('normal')}
-            onGroupSelect={handleGroupSelect}
-            onCreateInstance={handleCreateGroupInstance}
-            roles={groupInstanceState.roles}
-            isLoading={groupInstanceState.isLoading}
-          />
-        ) : (
-          <>
-            {isLoading ? (
-              <div className="flex items-center justify-center p-4">
-                <span>{t('world-detail:loading-details')}</span>
-              </div>
-            ) : isWorldUnavailable &&
-              cachedWorldData &&
-              fetchFailure !== null ? (
-              // Combined display for both blacklisted and not public worlds
-              <div className="flex flex-col gap-4">
-                <Card className="w-full">
-                  <CardHeader>
-                    <Alert
-                      variant={isWorldBlacklisted ? 'destructive' : undefined}
-                      className="flex"
-                    >
-                      <span className="flex items-center h-full mr-2">
-                        <AlertCircle className="h-5 w-5" />
-                      </span>
-                      <AlertDescription>
-                        {isWorldBlacklisted
-                          ? t('world-detail:world-blacklisted')
-                          : t(worldFetchFailureMessageKey(fetchFailure.kind))}
-                        {isWorldBlacklisted && (
-                          <div className="font-bold mt-1">
-                            {t('world-detail:closing-in', countdownSeconds)}
-                          </div>
-                        )}
-                      </AlertDescription>
-                    </Alert>
-                    {!isWorldBlacklisted && (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        {t('world-detail:unavailable-next-steps')}
-                      </p>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col sm:flex-row gap-6 justify-between">
-                      <div className="flex justify-center items-center pl-8 w-full sm:w-1/3">
-                        <WorldCardPreview
-                          size="Normal"
-                          fieldVisibility={cardFields}
-                          world={{
-                            worldId: cachedWorldData.worldId,
-                            name: cachedWorldData.name,
-                            thumbnailUrl: cachedWorldData.thumbnailUrl,
-                            authorName: cachedWorldData.authorName,
-                            favorites: cachedWorldData.favorites,
-                            lastUpdated: cachedWorldData.lastUpdated,
-                            visits: cachedWorldData.visits,
-                            dateAdded: cachedWorldData.dateAdded,
-                            platform: cachedWorldData.platform,
-                            folders: [],
-                            tags: cachedWorldData.tags,
-                            capacity: cachedWorldData.capacity,
-                          }}
-                        />
-                      </div>
-                      <div className="ml-8 sm:pl-8 sm:border-l border-border sm:w-2/3">
-                        <div className="flex flex-col gap-4">
-                          <div>
-                            <div className="text-sm font-semibold mb-3">
-                              {t('world-detail:details')}
-                            </div>
-                            <div className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
-                              <div className="text-gray-500">
-                                {t('world-detail:world-name')}:
-                              </div>
-                              <div className="truncate">
-                                {cachedWorldData.name}
-                              </div>
-
-                              {cardFields.authorName && (
-                                <>
-                                  <div className="text-gray-500">
-                                    {t('general:author')}:
-                                  </div>
-                                  <div
-                                    className={`truncate ${supporters.has(cachedWorldData.authorName) ? 'text-pink-500 dark:text-pink-400' : ''}`}
-                                  >
-                                    {cachedWorldData.authorName}
-                                  </div>
-                                </>
-                              )}
-
-                              <div className="text-gray-500">
-                                {t('general:date-added')}:
-                              </div>
-                              <div>
-                                {formatDateTime(
-                                  cachedWorldData.dateAdded,
-                                  language,
-                                )}
-                              </div>
-
-                              <div className="text-gray-500">
-                                {t('world-detail:last-updated')}
-                              </div>
-                              <div>
-                                {formatDateTime(
-                                  cachedWorldData.lastUpdated,
-                                  language,
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="mt-1 flex gap-2 flex-wrap">
-                            {/* Only show the website link for non-blacklisted worlds */}
-                            {!isWorldBlacklisted && (
-                              <Button
-                                variant="outline"
-                                className="flex items-center gap-1"
-                                asChild
-                              >
-                                <a
-                                  href={`https://vrchat.com/home/world/${cachedWorldData.worldId}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  title={t('world-detail:show-on-website')}
-                                >
-                                  {t('world-detail:show-on-website')}
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
-                            {!isWorldBlacklisted && !isWorldHidden && (
-                              <Button
-                                variant="outline"
-                                className="flex items-center gap-1"
-                                onClick={() => handleHideWorld(cachedWorldData)}
-                              >
-                                {t('general:hide-title')}
-                              </Button>
-                            )}
-                            <Button
-                              variant="destructive"
-                              className="flex items-center gap-1 ml-auto"
-                              onClick={() =>
-                                handleDeleteWorld(cachedWorldData.worldId)
-                              }
-                            >
-                              {t('general:delete')}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    {!isWorldBlacklisted && (
-                      <LaunchedInstances
-                        worldId={cachedWorldData.worldId}
-                        platforms={worldPlatforms}
-                      />
-                    )}
-                    <div className="mt-4">
-                      <RawErrorDetails failure={fetchFailure} />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : fetchFailure !== null ? (
-              <WorldFetchFailureNotice failure={fetchFailure} />
-            ) : (
-              worldDetails && (
+        {/* On a wide screen the two columns scroll on their own, so the
+            folders and the details stay beside the rest instead of below it.
+            Every other state is one column and scrolls as a whole. */}
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto no-webview-scroll-bar ${
+            !isLoading &&
+            instanceCreationType !== 'group' &&
+            fetchFailure === null &&
+            worldDetails !== null
+              ? 'sm:overflow-hidden'
+              : ''
+          }`}
+        >
+          {instanceCreationType === 'group' ? (
+            <GroupInstanceCreator
+              groups={groupInstanceState.groups}
+              selectedGroupId={groupInstanceState.selectedGroupId}
+              permission={groupInstanceState.permission}
+              onBack={() => setInstanceCreationType('normal')}
+              onGroupSelect={handleGroupSelect}
+              onCreateInstance={handleCreateGroupInstance}
+              roles={groupInstanceState.roles}
+              isLoading={groupInstanceState.isLoading}
+            />
+          ) : (
+            <>
+              {isLoading ? (
+                <div className="flex items-center justify-center p-4">
+                  <span>{t('world-detail:loading-details')}</span>
+                </div>
+              ) : isWorldUnavailable &&
+                cachedWorldData &&
+                fetchFailure !== null ? (
+                // Combined display for both blacklisted and not public worlds
                 <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-4 py-4 sm:flex-row">
-                    <div className="w-full sm:w-[60%]">
-                      <div className="h-[220px] relative overflow-hidden rounded-lg mb-4 bg-black">
-                        <a
-                          href={`https://vrchat.com/home/world/${worldDetails.worldId}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block h-full"
-                        >
-                          <div className="absolute top-2 right-2 z-10 bg-black/50 rounded-full p-1">
-                            <PlatformIndicator
-                              platform={worldDetails.platform}
-                            />
-                          </div>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={worldDetails.thumbnailUrl}
-                            alt={worldDetails.name}
-                            className="object-cover w-full h-full"
-                            style={{
-                              backgroundColor: 'black',
-                              maxWidth: '100%', // Add max-width constraint
+                  <Card className="w-full">
+                    <CardHeader>
+                      <Alert
+                        variant={isWorldBlacklisted ? 'destructive' : undefined}
+                        className="flex"
+                      >
+                        <span className="flex items-center h-full mr-2">
+                          <AlertCircle className="h-5 w-5" />
+                        </span>
+                        <AlertDescription>
+                          {isWorldBlacklisted
+                            ? t('world-detail:world-blacklisted')
+                            : t(worldFetchFailureMessageKey(fetchFailure.kind))}
+                          {isWorldBlacklisted && (
+                            <div className="font-bold mt-1">
+                              {t('world-detail:closing-in', countdownSeconds)}
+                            </div>
+                          )}
+                        </AlertDescription>
+                      </Alert>
+                      {!isWorldBlacklisted && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {t('world-detail:unavailable-next-steps')}
+                        </p>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-col sm:flex-row gap-6 justify-between">
+                        <div className="flex justify-center items-center pl-8 w-full sm:w-1/3">
+                          <WorldCardPreview
+                            size="Normal"
+                            fieldVisibility={cardFields}
+                            world={{
+                              worldId: cachedWorldData.worldId,
+                              name: cachedWorldData.name,
+                              thumbnailUrl: cachedWorldData.thumbnailUrl,
+                              authorName: cachedWorldData.authorName,
+                              favorites: cachedWorldData.favorites,
+                              lastUpdated: cachedWorldData.lastUpdated,
+                              visits: cachedWorldData.visits,
+                              dateAdded: cachedWorldData.dateAdded,
+                              platform: cachedWorldData.platform,
+                              folders: [],
+                              tags: cachedWorldData.tags,
+                              capacity: cachedWorldData.capacity,
                             }}
                           />
-                        </a>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-md font-semibold cursor-default">
-                          {worldDetails.name}
                         </div>
-                        <WorldReleaseStatusBadge
-                          status={worldDetails.releaseStatus}
+                        <div className="ml-8 sm:pl-8 sm:border-l border-border sm:w-2/3">
+                          <div className="flex flex-col gap-4">
+                            <div>
+                              <div className="text-sm font-semibold mb-3">
+                                {t('world-detail:details')}
+                              </div>
+                              <div className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
+                                <div className="text-gray-500">
+                                  {t('world-detail:world-name')}:
+                                </div>
+                                <div className="truncate">
+                                  {cachedWorldData.name}
+                                </div>
+
+                                {cardFields.authorName && (
+                                  <>
+                                    <div className="text-gray-500">
+                                      {t('general:author')}:
+                                    </div>
+                                    <div
+                                      className={`truncate ${supporters.has(cachedWorldData.authorName) ? 'text-pink-500 dark:text-pink-400' : ''}`}
+                                    >
+                                      {cachedWorldData.authorName}
+                                    </div>
+                                  </>
+                                )}
+
+                                <div className="text-gray-500">
+                                  {t('general:date-added')}:
+                                </div>
+                                <div>
+                                  {formatDateTime(
+                                    cachedWorldData.dateAdded,
+                                    language,
+                                  )}
+                                </div>
+
+                                <div className="text-gray-500">
+                                  {t('world-detail:last-updated')}
+                                </div>
+                                <div>
+                                  {formatDateTime(
+                                    cachedWorldData.lastUpdated,
+                                    language,
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-1 flex gap-2 flex-wrap">
+                              {/* Only show the website link for non-blacklisted worlds */}
+                              {!isWorldBlacklisted && (
+                                <Button
+                                  variant="outline"
+                                  className="flex items-center gap-1"
+                                  asChild
+                                >
+                                  <a
+                                    href={`https://vrchat.com/home/world/${cachedWorldData.worldId}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title={t('world-detail:show-on-website')}
+                                  >
+                                    {t('world-detail:show-on-website')}
+                                    <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              )}
+                              {!isWorldBlacklisted && !isWorldHidden && (
+                                <Button
+                                  variant="outline"
+                                  className="flex items-center gap-1"
+                                  onClick={() =>
+                                    handleHideWorld(cachedWorldData)
+                                  }
+                                >
+                                  {t('general:hide-title')}
+                                </Button>
+                              )}
+                              <Button
+                                variant="destructive"
+                                className="flex items-center gap-1 ml-auto"
+                                onClick={() =>
+                                  handleDeleteWorld(cachedWorldData.worldId)
+                                }
+                              >
+                                {t('general:delete')}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {!isWorldBlacklisted && (
+                        <LaunchedInstances
+                          worldId={cachedWorldData.worldId}
+                          platforms={worldPlatforms}
                         />
-                      </div>
-                      {cardFields.authorName && (
-                        <div className="text-sm text-gray-500">
-                          {t('world-detail:by')}{' '}
-                          <span
-                            className={`text-sm cursor-pointer hover:underline ${supporters.has(worldDetails.authorName) ? 'text-pink-500 dark:text-pink-400' : 'text-gray-500'}`}
-                            onClick={() => {
-                              // set author filter and close via hook
-                              // selectAuthor handles closing
-                              selectAuthor(worldDetails.authorName)
-                            }}
-                          >
-                            {worldDetails.authorName}
-                          </span>
-                        </div>
                       )}
-                    </div>
-                    <div className="w-full sm:w-2/5">
-                      <div className="space-y-3">
+                      <div className="mt-4">
+                        <RawErrorDetails failure={fetchFailure} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : fetchFailure !== null ? (
+                <WorldFetchFailureNotice failure={fetchFailure} />
+              ) : (
+                worldDetails && (
+                  <div className="flex flex-col gap-4 py-4 sm:h-full sm:flex-row sm:py-0">
+                    <div className="flex w-full flex-col gap-4 no-webview-scroll-bar sm:min-h-0 sm:w-[60%] sm:overflow-y-auto sm:pr-4">
+                      <div>
+                        <div className="h-[220px] relative overflow-hidden rounded-lg mb-4 bg-black">
+                          <a
+                            href={`https://vrchat.com/home/world/${worldDetails.worldId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block h-full"
+                          >
+                            <div className="absolute top-2 right-2 z-10 bg-black/50 rounded-full p-1">
+                              <PlatformIndicator
+                                platform={worldDetails.platform}
+                              />
+                            </div>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={worldDetails.thumbnailUrl}
+                              alt={worldDetails.name}
+                              className="object-cover w-full h-full"
+                              style={{
+                                backgroundColor: 'black',
+                                maxWidth: '100%', // Add max-width constraint
+                              }}
+                            />
+                          </a>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-md font-semibold cursor-default">
+                            {worldDetails.name}
+                          </div>
+                          <WorldReleaseStatusBadge
+                            status={worldDetails.releaseStatus}
+                          />
+                        </div>
+                        {cardFields.authorName && (
+                          <div className="text-sm text-gray-500">
+                            {t('world-detail:by')}{' '}
+                            <span
+                              className={`text-sm cursor-pointer hover:underline ${supporters.has(worldDetails.authorName) ? 'text-pink-500 dark:text-pink-400' : 'text-gray-500'}`}
+                              onClick={() => {
+                                // set author filter and close via hook
+                                // selectAuthor handles closing
+                                selectAuthor(worldDetails.authorName)
+                              }}
+                            >
+                              {worldDetails.authorName}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="ui-control space-y-3">
                         <div>
                           <Label className="text-sm font-medium mb-1 block">
                             {t('general:instance-type')}
@@ -1045,6 +1072,9 @@ export function WorldDetailPopup({
                         <div className="pt-2">
                           <Button
                             className="w-full"
+                            data-testid="create-instance"
+                            disabled={isCreatingInstance}
+                            aria-busy={isCreatingInstance}
                             onClick={() => {
                               if (selectedInstanceType === 'group') {
                                 handleGroupInstanceClick()
@@ -1053,9 +1083,19 @@ export function WorldDetailPopup({
                               }
                             }}
                           >
-                            {selectedInstanceType === 'group'
-                              ? t('general:select-group')
-                              : t('general:create-instance')}
+                            {isCreatingInstance ? (
+                              <>
+                                <LoaderCircle
+                                  className="h-4 w-4 animate-spin"
+                                  aria-hidden
+                                />
+                                {t('listview-page:creating-instance')}
+                              </>
+                            ) : selectedInstanceType === 'group' ? (
+                              t('general:select-group')
+                            ) : (
+                              t('general:create-instance')
+                            )}
                           </Button>
                         </div>
                         <LaunchedInstances
@@ -1064,119 +1104,175 @@ export function WorldDetailPopup({
                           platforms={worldPlatforms}
                         />
                       </div>
-                    </div>
-                  </div>
-                  <Separator className="my-4" />
-                  <div className="flex flex-col gap-4 sm:flex-row">
-                    <div className="flex flex-col gap-4 w-full sm:w-2/3">
-                      <div>
-                        <div className="text-sm font-semibold mb-2">
-                          {t('world-detail:description')}
+                      <Separator className="my-4" />
+                      <div className="flex flex-col gap-4">
+                        <div>
+                          <div className="text-sm font-semibold mb-2">
+                            {t('world-detail:description')}
+                          </div>
+                          <div className="text-sm break-words overflow-wrap-anywhere">
+                            {worldDetails.description}
+                          </div>
                         </div>
-                        <div className="text-sm break-words overflow-wrap-anywhere">
-                          {worldDetails.description}
-                        </div>
-                      </div>
-                      <Separator className="my-2" />
-                      <div>
-                        <div className="text-sm font-semibold mb-2">
-                          {t('general:tags')}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 ">
-                          {worldDetails.tags
-                            .filter((tag) => tag.startsWith('author_tag_'))
-                            .map((tag) => {
-                              const label = tag.replace('author_tag_', '')
+                        <Separator className="my-2" />
+                        <div>
+                          <div className="text-sm font-semibold mb-2">
+                            {t('general:tags')}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 ">
+                            {worldDetails.tags
+                              .filter((tag) => tag.startsWith('author_tag_'))
+                              .map((tag) => {
+                                const label = tag.replace('author_tag_', '')
+                                return (
+                                  <button
+                                    key={tag}
+                                    type="button"
+                                    className="inline-flex items-center h-6 px-1.5 py-0.5 text-xs bg-gray-500 text-white rounded-full max-w-[250px] whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-600"
+                                    title={label}
+                                    onClick={() => {
+                                      // set tag filter and close via hook
+                                      selectTag(label)
+                                    }}
+                                  >
+                                    {label}
+                                  </button>
+                                )
+                              })}
+                            {customTags.map((tag) => {
+                              const label = tag.replace(/^custom:/i, '')
                               return (
-                                <button
+                                <div
                                   key={tag}
-                                  type="button"
-                                  className="inline-flex items-center h-6 px-1.5 py-0.5 text-xs bg-gray-500 text-white rounded-full max-w-[250px] whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-600"
-                                  title={label}
-                                  onClick={() => {
-                                    // set tag filter and close via hook
-                                    selectTag(label)
-                                  }}
+                                  className={
+                                    'inline-flex h-6 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold shadow bg-cyan-700'
+                                  }
                                 >
-                                  {label}
-                                </button>
+                                  <button
+                                    type="button"
+                                    className="flex items-center gap-1"
+                                    onClick={() => selectTag(tag)}
+                                    title={label}
+                                  >
+                                    <span className="max-w-[140px] truncate">
+                                      {label}
+                                    </span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="grid place-items-center rounded-full bg-black/20 hover:bg-black/30 transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleRemoveCustomTag(tag)
+                                    }}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </div>
                               )
                             })}
-                          {customTags.map((tag) => {
-                            const label = tag.replace(/^custom:/i, '')
-                            return (
-                              <div
-                                key={tag}
-                                className={
-                                  'inline-flex h-6 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold shadow bg-cyan-700'
-                                }
-                              >
-                                <button
-                                  type="button"
-                                  className="flex items-center gap-1"
-                                  onClick={() => selectTag(tag)}
-                                  title={label}
-                                >
-                                  <span className="max-w-[140px] truncate">
-                                    {label}
-                                  </span>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="grid place-items-center rounded-full bg-black/20 hover:bg-black/30 transition-colors"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleRemoveCustomTag(tag)
-                                  }}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </div>
-                            )
-                          })}
-                        </div>
-                        {!dontSaveToLocal && (
-                          <div className="flex flex-row items-center gap-2 mt-4">
-                            <Input
-                              className="inline-flex px-2 py-0 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                              value={customTagInput}
-                              onChange={(e) =>
-                                setCustomTagInput(e.target.value)
-                              }
-                              onCompositionStart={() => setIsComposing(true)}
-                              onCompositionEnd={() => {
-                                setTimeout(() => {
-                                  setIsComposing(false)
-                                }, 150)
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !isComposing) {
-                                  e.preventDefault()
-                                  handleAddCustomTag()
-                                }
-                              }}
-                              placeholder={t(
-                                'world-detail:custom-tag-placeholder',
-                              )}
-                            />
-                            <Button
-                              variant="secondary"
-                              size="icon"
-                              className="inline-flex p-0"
-                              onClick={handleAddCustomTag}
-                              disabled={isSavingCustomTags}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
                           </div>
-                        )}
+                          {!dontSaveToLocal && (
+                            <div className="flex flex-row items-center gap-2 mt-4">
+                              <Input
+                                className="inline-flex px-2 py-0 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                                value={customTagInput}
+                                onChange={(e) =>
+                                  setCustomTagInput(e.target.value)
+                                }
+                                onCompositionStart={() => setIsComposing(true)}
+                                onCompositionEnd={() => {
+                                  setTimeout(() => {
+                                    setIsComposing(false)
+                                  }, 150)
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !isComposing) {
+                                    e.preventDefault()
+                                    handleAddCustomTag()
+                                  }
+                                }}
+                                placeholder={t(
+                                  'world-detail:custom-tag-placeholder',
+                                )}
+                              />
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                className="inline-flex p-0"
+                                onClick={handleAddCustomTag}
+                                disabled={isSavingCustomTags}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
+
+                      {!dontSaveToLocal && (
+                        <>
+                          <Separator className="my-2" />
+                          <div>
+                            <div className="text-sm font-semibold mb-2 flex flex-row items-center gap-2">
+                              {t('general:memo')}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="p-0 size-8 [&_svg]:size-4"
+                                onClick={() => setIsEditingMemo(true)}
+                              >
+                                <Pencil />
+                              </Button>
+                            </div>
+                            <div className="flex flex-row">
+                              {!isEditingMemo && (
+                                <div className="pr-4">
+                                  <MemoRenderer value={memo ?? ''} />
+                                </div>
+                              )}
+                              {isEditingMemo && (
+                                <div className="space-y-2 w-full">
+                                  <Textarea
+                                    value={memoInput}
+                                    onChange={(e) =>
+                                      setMemoInput(e.target.value)
+                                    }
+                                    className="h-32"
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="secondary"
+                                      className="w-full"
+                                      onClick={() => {
+                                        setIsEditingMemo(false)
+                                        setMemoInput(memo ?? '')
+                                      }}
+                                    >
+                                      {t('general:cancel')}
+                                    </Button>
+                                    <Button
+                                      variant="default"
+                                      className="w-full"
+                                      onClick={handleSaveMemo}
+                                    >
+                                      {t('general:save')}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                     <Separator
                       orientation="vertical"
                       className="hidden sm:block"
                     />
-                    <div className="flex flex-col gap-4 w-full sm:w-1/3">
+                    {/* The details are short and the folder list is not, so the
+                      details go first and the list takes what is left. */}
+                    <div className="flex w-full flex-col gap-4 no-webview-scroll-bar sm:min-h-0 sm:w-2/5 sm:overflow-y-auto">
                       {showAnyDetailField && (
                         <div>
                           <div className="text-sm font-semibold mb-2">
@@ -1195,74 +1291,20 @@ export function WorldDetailPopup({
                           />
                         </div>
                       )}
-                    </div>
-                  </div>
-
-                  {!dontSaveToLocal && (
-                    <>
-                      <Separator className="my-2" />
-                      <div className="flex flex-col gap-4 sm:flex-row">
-                        <div className="w-full sm:w-2/3">
-                          <div className="text-sm font-semibold mb-2 flex flex-row items-center gap-2">
-                            {t('general:memo')}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="p-0 size-8 [&_svg]:size-4"
-                              onClick={() => setIsEditingMemo(true)}
-                            >
-                              <Pencil />
-                            </Button>
-                          </div>
-                          <div className="flex flex-row">
-                            {!isEditingMemo && (
-                              <div className="pr-4">
-                                <MemoRenderer value={memo ?? ''} />
-                              </div>
-                            )}
-                            {isEditingMemo && (
-                              <div className="space-y-2 w-full">
-                                <Textarea
-                                  value={memoInput}
-                                  onChange={(e) => setMemoInput(e.target.value)}
-                                  className="h-32"
-                                />
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="secondary"
-                                    className="w-full"
-                                    onClick={() => {
-                                      setIsEditingMemo(false)
-                                      setMemoInput(memo ?? '')
-                                    }}
-                                  >
-                                    {t('general:cancel')}
-                                  </Button>
-                                  <Button
-                                    variant="default"
-                                    className="w-full"
-                                    onClick={handleSaveMemo}
-                                  >
-                                    {t('general:save')}
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <Separator
-                          orientation="vertical"
-                          className="hidden sm:block"
-                        />
-                        <div className="w-full sm:w-1/3">
+                      {!dontSaveToLocal && (
+                        <div>
                           <div className="text-sm font-semibold mb-2 flex items-center gap-2">
                             {t('general:folders')}
                           </div>
-                          <div className="flex flex-col gap-2 h-48 overflow-y-auto no-webview-scroll-bar">
+                          <div className="ui-control flex flex-col gap-2">
                             {folders.length > 0 ? (
                               folders.map((folder) => (
-                                <div
-                                  className="flex items-center space-x-2"
+                                // The whole row is the label: a VR laser
+                                // lands on the name far more easily than on
+                                // the box, and a second press used to select
+                                // the text instead of the folder.
+                                <label
+                                  className="flex cursor-pointer select-none items-center space-x-2 rounded-md py-1 hover:bg-accent/50"
                                   key={folder.name}
                                 >
                                   <Checkbox
@@ -1277,7 +1319,7 @@ export function WorldDetailPopup({
                                   <span className="truncate max-w-[200px] text-sm">
                                     {folder.name}
                                   </span>
-                                </div>
+                                </label>
                               ))
                             ) : (
                               <span className="text-xs text-muted-foreground">
@@ -1286,14 +1328,14 @@ export function WorldDetailPopup({
                             )}
                           </div>
                         </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )
-            )}
-          </>
-        )}
+                      )}
+                    </div>
+                  </div>
+                )
+              )}
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   )
