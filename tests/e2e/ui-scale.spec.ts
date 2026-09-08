@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { UI_SCALES } from '../../src/lib/ui-scale'
+import { seedWorld } from './seed-world'
 
 const SETTINGS = '/listview/settings'
 const LIST_VIEW = '/listview/folders/special/all'
@@ -53,9 +54,18 @@ async function drawnTitleWidth(page: Page) {
   return box!.width
 }
 
-/** How wide a world card is actually drawn, in device pixels. */
+const WORLD_ID = 'wrld_ui_scale'
+const WORLD_NAME = 'ScaleWorld'
+
+/**
+ * How wide a world card is actually drawn, in device pixels: its picture
+ * spans the card.
+ */
 async function drawnCardWidth(page: Page) {
-  const box = await page.getByTestId('world-grid-skeleton').boundingBox()
+  const box = await page
+    .getByRole('img', { name: WORLD_NAME })
+    .first()
+    .boundingBox()
   return box!.width
 }
 
@@ -95,6 +105,8 @@ test.describe('drawing the controls larger', () => {
   })
 
   test('leaves the world grid at the size it was', async ({ page }) => {
+    await page.goto(LIST_VIEW)
+    await seedWorld(page, { worldId: WORLD_ID, name: WORLD_NAME })
     await openListView(page)
     const before = await drawnCardWidth(page)
 
