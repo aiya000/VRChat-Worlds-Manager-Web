@@ -665,12 +665,28 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
             window.open(target.url, '_blank')
             return { kind: 'client' }
           case 'android-app': {
+            // Sent, and waited for, before the navigation.
+            //
+            // Navigating hands the phone to another app, and Android freezes
+            // Chrome the moment this page stops being in front -- so a request
+            // that had not gone yet could die before it was ever sent, which
+            // is how "the invite was sent" could be true on screen and false
+            // in the VRChat app (#129).
+            //
+            // Merely starting it without waiting is not enough: `apiFetch`
+            // reads two stored tokens before it calls `fetch`, so the request
+            // still leaves after anything synchronous that follows -- the
+            // navigation included. A test pins the order for that reason.
+            //
+            // The cost is the user gesture, which the intent below wants. That
+            // intent reaches the Play Store rather than the app (#150), so
+            // what it might lose is worth less than an invite that arrives.
+            const invited = await sendSelfInvite(worldId, instanceId)
             // In place, not a new tab: the intent has to be navigated to from
             // the document that was pressed, or Chrome has no gesture to open
             // an app with. `_self` rather than `location.assign` so a test can
             // stand in for it the same way it does for the case above.
             window.open(target.url, '_self')
-            const invited = await sendSelfInvite(worldId, instanceId)
             return { kind: 'android-app', invited }
           }
           case 'not-on-android':
