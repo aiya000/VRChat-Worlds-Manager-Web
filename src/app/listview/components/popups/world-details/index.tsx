@@ -1299,8 +1299,12 @@ export function WorldDetailPopup({
                           <div className="ui-control flex flex-col gap-2">
                             {folders.length > 0 ? (
                               folders.map((folder) => (
-                                <div
-                                  className="flex items-center space-x-2"
+                                // The whole row is the label: a VR laser
+                                // lands on the name far more easily than on
+                                // the box, and a second press used to select
+                                // the text instead of the folder.
+                                <label
+                                  className="flex cursor-pointer select-none items-center space-x-2 rounded-md py-1 hover:bg-accent/50"
                                   key={folder.name}
                                 >
                                   <Checkbox
@@ -1315,7 +1319,7 @@ export function WorldDetailPopup({
                                   <span className="truncate max-w-[200px] text-sm">
                                     {folder.name}
                                   </span>
-                                </div>
+                                </label>
                               ))
                             ) : (
                               <span className="text-xs text-muted-foreground">
