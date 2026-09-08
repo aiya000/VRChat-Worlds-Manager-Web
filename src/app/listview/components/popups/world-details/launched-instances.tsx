@@ -76,7 +76,7 @@ export const LaunchedInstances: FC<Props> = ({
     <div
       role="group"
       aria-label={t('world-detail:saved-instances')}
-      className="mt-4 pt-4 border-t border-border"
+      className="ui-control mt-4 pt-4 border-t border-border"
     >
       <p className="font-medium mb-1 text-sm">
         {t('world-detail:saved-instances')}

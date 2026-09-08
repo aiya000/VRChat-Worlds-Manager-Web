@@ -181,7 +181,11 @@ export function AppSidebar() {
       collapsible="offcanvas"
       className="border-r border-border/40 bg-transparent"
     >
-      <aside className={cn(sidebarStyles.container, SIDEBAR_CLASS)}>
+      {/* Everything in here is something to press, so the whole of it is
+          drawn at the control scale. */}
+      <aside
+        className={cn(sidebarStyles.container, SIDEBAR_CLASS, 'ui-control')}
+      >
         <header className={sidebarStyles.header}>
           <div className="flex items-center gap-1 whitespace-nowrap">
             <h2 className="text-base font-semibold">VRChat Worlds Manager</h2>

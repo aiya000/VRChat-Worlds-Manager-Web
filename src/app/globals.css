@@ -199,28 +199,34 @@
 }
 
 /*
- * Popovers, under a zoomed document.
+ * The regions that grow for a headset. `applyUiScale` sets the two multipliers
+ * on the document; nothing else is zoomed, so the world grid keeps its density
+ * and `vh` keeps meaning the screen.
  *
- * The interface is drawn larger with `zoom` on the document (see
- * `applyUiScale`). Radix positions a popover by measuring its trigger with
- * `getBoundingClientRect`, which answers in device pixels, and then writing
- * that number as a `transform` on an element that is itself inside the zoomed
- * document -- so the offset is multiplied by the zoom a second time. Measured
- * at 200% in a 1280px window, a select's options landed at x=1826: off the
- * side of the screen, and out of reach of the very control that sets the
- * scale.
- *
- * Undoing the zoom on the wrapper puts its transform back into the coordinate
- * space it was measured in, and putting the zoom back on the content keeps the
- * popover the size the rest of the interface is. Radix's collision handling
- * then works in the right space as well.
- *
- * At 100% both rules are `zoom: 1` and nothing happens.
+ * A control inside a panel is zoomed by the ratio, so that it ends up at the
+ * control scale rather than at the product of the two.
  */
-[data-radix-popper-content-wrapper] {
-  zoom: calc(1 / var(--ui-scale, 1));
+.ui-control {
+  zoom: var(--control-scale, 1);
 }
 
+.ui-panel {
+  zoom: var(--panel-scale, 1);
+}
+
+.ui-panel .ui-control {
+  zoom: calc(var(--control-scale, 1) / var(--panel-scale, 1));
+}
+
+/*
+ * A popover is portalled to the body, outside every zoomed region, so its
+ * wrapper is positioned in the same coordinate space its trigger was measured
+ * in. (When the whole document was zoomed, that measurement -- device pixels
+ * -- was written as a transform inside the zoomed document and so applied
+ * twice: at 200% a select's options landed at x=1826 in a 1280px window.)
+ * Only the options themselves are drawn at the control scale, since they are
+ * what gets pressed.
+ */
 [data-radix-popper-content-wrapper] > * {
-  zoom: var(--ui-scale, 1);
+  zoom: var(--control-scale, 1);
 }

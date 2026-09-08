@@ -28,7 +28,9 @@ import {
 const SIDEBAR_COOKIE_NAME = 'sidebar_state'
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = '16rem'
-const SIDEBAR_WIDTH_MOBILE = '18rem'
+// Grows with the controls drawn inside it (`--control-scale`), and stops at
+// the screen: a drawer wider than the phone would only be cut off.
+const SIDEBAR_WIDTH_MOBILE = 'min(calc(18rem * var(--control-scale, 1)), 100vw)'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
 

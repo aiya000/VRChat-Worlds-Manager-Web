@@ -718,15 +718,17 @@ export function WorldDetailPopup({
         onOpenChange(open)
       }}
     >
-      {/* `vh` answers in the screen's own pixels and is then multiplied by
-          the zoom, so at 200% this box was 140% of the screen and the heading
-          and close button sat above the top of it. Divided by the scale, it is
-          the same share of the screen whatever the scale, and the content
-          inside is drawn larger as it should be.
+      {/* The box is a panel: drawn at the panel scale, with the controls
+          inside it stepped up to the control scale.
+
+          `vh` and `vw` answer in the screen's own pixels and are then
+          multiplied by the zoom, so at 200% this box was 140% of the screen
+          and the heading and close button sat above the top of it. Divided by
+          the scale, it is the same share of the screen whatever the scale.
 
           A wide screen gets more of the height: the two columns beside each
           other are each long, and the taller the box the less they scroll. */}
-      <DialogContent className="flex max-w-[920px] flex-col overflow-hidden h-[calc(70vh/var(--ui-scale,1))] sm:h-[calc(85vh/var(--ui-scale,1))]">
+      <DialogContent className="ui-panel flex flex-col overflow-hidden w-[calc(100vw/var(--panel-scale,1)-2rem)] max-w-[920px] h-[calc(70vh/var(--panel-scale,1))] sm:h-[calc(85vh/var(--panel-scale,1))]">
         <DialogHeader>
           <DialogTitle>
             {isLoading
@@ -978,7 +980,7 @@ export function WorldDetailPopup({
                           </div>
                         )}
                       </div>
-                      <div className="space-y-3">
+                      <div className="ui-control space-y-3">
                         <div>
                           <Label className="text-sm font-medium mb-1 block">
                             {t('general:instance-type')}
@@ -1294,7 +1296,7 @@ export function WorldDetailPopup({
                           <div className="text-sm font-semibold mb-2 flex items-center gap-2">
                             {t('general:folders')}
                           </div>
-                          <div className="flex flex-col gap-2">
+                          <div className="ui-control flex flex-col gap-2">
                             {folders.length > 0 ? (
                               folders.map((folder) => (
                                 <div
