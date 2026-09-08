@@ -710,7 +710,12 @@ export function WorldDetailPopup({
         onOpenChange(open)
       }}
     >
-      <DialogContent className="max-w-[800px] h-[70vh] overflow-y-auto no-webview-scroll-bar">
+      {/* `70vh` answers in the screen's own pixels and is then multiplied by
+          the zoom, so at 200% this box was 140% of the screen and the heading
+          and close button sat above the top of it. Divided by the scale, it is
+          70% of the screen whatever the scale, and the content inside is drawn
+          larger as it should be. */}
+      <DialogContent className="max-w-[800px] h-[calc(70vh/var(--ui-scale,1))] overflow-y-auto no-webview-scroll-bar">
         <DialogHeader>
           <DialogTitle>
             {isLoading
