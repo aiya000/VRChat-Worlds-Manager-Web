@@ -59,6 +59,25 @@
 
 ---
 
+## Screenshots
+
+### Alongside VRChat on Android
+
+Kept in a floating window over the game, the app is reachable without leaving the world you are in.
+Opening a world from it sends you an invite of your own, and the world is entered from VRChat's
+notification -- no link opens the Android app straight into an instance, so this is the way in.
+
+|                                                                                      |                                                                                  |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| ![The app floating over VRChat](docs/screenshots/android-1-floating-over-vrchat.jpg) | ![The floating app, marked](docs/screenshots/android-2-where-the-app-is.jpg)     |
+| **1.** In a world, with the app floating above it                                    | **2.** That bubble is the app                                                    |
+| ![The self-invite arrives](docs/screenshots/android-3-self-invite-arrives.jpg)       | ![Traveling to the world](docs/screenshots/android-4-traveling-to-the-world.jpg) |
+| **3.** Opening a world sends you an invite of your own                               | **4.** Accepting it travels to that world                                        |
+
+> More screenshots are still to come -- the list view on a desktop, in a VR overlay, and on a phone.
+
+---
+
 ## Tech Stack
 
 - **Frontend**: Next.js 16 + React 19 + Tailwind CSS 4 + Shadcn/UI
