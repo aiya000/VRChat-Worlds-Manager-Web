@@ -23,7 +23,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import * as Portal from '@radix-ui/react-portal'
 import { Badge } from '@/components/ui/badge'
-import { KeptForInstanceMark } from '@/components/kept-for-instance-mark'
 import { useWorldGrid } from './hook'
 import { DraggableWorld } from '../world-drag'
 
@@ -148,23 +147,26 @@ export function WorldGrid({
                     size={cardSize}
                     world={world}
                     fieldVisibility={fieldVisibility}
+                    // On the search page the mark stands in for "added": nobody
+                    // added such a world, and the list does not show it, so it
+                    // says what is true instead -- when asked for.
+                    keptForInstanceMark={
+                      isFindPage
+                        ? marksKeptForInstance &&
+                          existingWorldIds.has(world.worldId) &&
+                          keptForInstanceWorldIds.has(world.worldId)
+                        : world.keptForInstance === true
+                    }
                   />
                 </DraggableWorld>
                 <div className="absolute bottom-[70px] left-2 z-10">
                   {isFindPage &&
                     existingWorldIds.has(world.worldId) &&
-                    (keptForInstanceWorldIds.has(world.worldId) ? (
-                      // Not "added": nobody added it, and the list does not
-                      // show it. The mark says what is true, when asked for.
-                      marksKeptForInstance && <KeptForInstanceMark />
-                    ) : (
+                    !keptForInstanceWorldIds.has(world.worldId) && (
                       <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100 hover:border-green-300 cursor-default">
                         {t('world-grid:exists-in-collection')}
                       </Badge>
-                    ))}
-                  {!isFindPage && world.keptForInstance === true && (
-                    <KeptForInstanceMark />
-                  )}
+                    )}
                 </div>
                 {(isSelectionMode || alwaysShowSelection) && (
                   // The card stays the size it is at any scale; the box on it

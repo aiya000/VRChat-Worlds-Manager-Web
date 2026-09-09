@@ -8,6 +8,7 @@ import { useLocalization } from '@/hooks/use-localization'
 import { formatDateTime } from '@/lib/utils'
 import { usePatreonContext } from '@/contexts/patreon-context'
 import { PlatformIndicator } from './platform-indicator'
+import { KeptForInstanceMark } from './kept-for-instance-mark'
 
 const defaultFieldVisibility: WorldCardFieldVisibility = {
   name: true,
@@ -21,10 +22,21 @@ interface WorldCardPreviewProps {
   size: CardSize
   world: WorldDisplayData
   fieldVisibility?: WorldCardFieldVisibility
+  /**
+   * Whether to draw the mark for a world kept only because an instance was
+   * made in it (#173). Decided by the caller: on the list it follows the row,
+   * on the search page a setting, and the previews never show it.
+   */
+  keptForInstanceMark?: boolean
 }
 
 export function WorldCardPreview(props: WorldCardPreviewProps) {
-  const { size, world, fieldVisibility = defaultFieldVisibility } = props
+  const {
+    size,
+    world,
+    fieldVisibility = defaultFieldVisibility,
+    keptForInstanceMark = false,
+  } = props
   const { t, language } = useLocalization()
   const { supporters } = usePatreonContext()
   const isSupporter = supporters.has(world.authorName)
@@ -39,19 +51,27 @@ export function WorldCardPreview(props: WorldCardPreviewProps) {
     <div
       className={`border rounded-lg shadow hover:shadow-md transition-all duration-300 ${sizeClasses[size]}`}
     >
-      <div className="relative w-full">
+      {/* The thumbnail is the box the two badges are placed in, so they land
+          on its corners at every card size rather than at a fixed distance
+          from the card's own edge. */}
+      <div className="relative w-full h-2/3">
         <div className="absolute top-2 right-2 z-1 bg-black/50 rounded-full p-1">
           <PlatformIndicator platform={world.platform} />
         </div>
+        {keptForInstanceMark && (
+          <div className="absolute bottom-2 left-2 z-1">
+            <KeptForInstanceMark size={size} />
+          </div>
+        )}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={world.thumbnailUrl}
+          alt={world.name}
+          className="w-full h-full object-cover rounded-t-lg"
+          draggable="false"
+          loading="lazy"
+        />
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={world.thumbnailUrl}
-        alt={world.name}
-        className={`w-full h-2/3 object-cover rounded-t-lg`}
-        draggable="false"
-        loading="lazy"
-      />
 
       {/* Various size renderings... */}
 
