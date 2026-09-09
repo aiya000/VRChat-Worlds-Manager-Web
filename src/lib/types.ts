@@ -191,4 +191,9 @@ export type WorldDisplayData = {
   folders: string[]
   tags: string[]
   capacity: number
+  /**
+   * `true` on a world kept only because an instance was made in it, never
+   * asked for by itself. Absent on a world that was.
+   */
+  keptForInstance?: boolean
 }

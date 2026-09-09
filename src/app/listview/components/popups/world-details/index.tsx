@@ -124,7 +124,10 @@ export function WorldDetailPopup({
     () => setInstanceReloadKey((key) => key + 1),
     // An instance is about to outlive the world it was made in. What is known
     // of the world now is what will be left to find it by.
-    () => (worldDetails === null ? null : worldForCollection(worldDetails)),
+    () =>
+      worldDetails === null
+        ? null
+        : { ...worldForCollection(worldDetails), keptForInstance: true },
   )
   const { t, language } = useLocalization()
   const { folders } = useFolders()

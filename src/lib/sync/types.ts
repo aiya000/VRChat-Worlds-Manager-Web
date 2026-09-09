@@ -67,6 +67,25 @@ export interface WorldSyncRecord extends SyncMeta {
   dateAdded: string
   folderRefs: FolderRef[]
   seed: WorldSeed | null
+  /**
+   * `true` only on a world kept because an instance was made in it and never
+   * asked for by itself. Absent -- every row written before this existed --
+   * reads as asked for, so nothing already shown disappears.
+   */
+  keptForInstance?: boolean
+}
+
+/**
+ * Whether a world is held only for the instance made in it.
+ *
+ * Being asked for is the stronger claim and the one that sticks: a world both
+ * sides know, one of them by request, was requested. Merging is therefore an
+ * AND of this flag, and a row that lacks it counts as requested.
+ */
+export function isKeptForInstance(world: {
+  keptForInstance?: boolean
+}): boolean {
+  return world.keptForInstance === true
 }
 
 export interface FolderSyncRecord extends SyncMeta {

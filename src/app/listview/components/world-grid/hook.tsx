@@ -111,10 +111,18 @@ export function useWorldGrid(
   const isSpecialFolder = !isUserFolder(currentFolder)
   const isHiddenFolder = currentFolder === SpecialFolders.Hidden
 
-  // existing world set for "Added" badge in find page
+  // Read by three things -- the "added" badge, `dontSaveToLocal` when a
+  // card is opened, and "select all" -- so a world kept only for an instance
+  // belongs in it: the row is there, whatever the badge says (#173).
   const [existingWorldIds, setExistingWorldIds] = useState<Set<string>>(
     () => new Set(),
   )
+  // The subset of `existingWorldIds` the badge must not call added, and
+  // whether the mark stands in for it. Only the badge reads these.
+  const [keptForInstanceWorldIds, setKeptForInstanceWorldIds] = useState<
+    Set<string>
+  >(() => new Set())
+  const [marksKeptForInstance, setMarksKeptForInstance] = useState(false)
   // respond to membership changes triggered by dialogs
   const membershipVersion = usePopupStore((s) => s.membershipVersion)
   useEffect(() => {
@@ -149,6 +157,14 @@ export function useWorldGrid(
         )
 
         setExistingWorldIds(new Set(existingIds))
+
+        const keptForInstance = [...existingWorlds, ...hiddenWorlds]
+          .filter((world) => world.keptForInstance === true)
+          .map((world) => world.worldId)
+        setKeptForInstanceWorldIds(new Set(keptForInstance))
+
+        const marks = await commands.getMarkWorldsKeptForInstanceOnFind()
+        setMarksKeptForInstance(marks.status === 'ok' && marks.data)
       } catch (err) {
         console.error(`Error checking world existence: ${err}`)
       }
@@ -401,5 +417,7 @@ export function useWorldGrid(
     isSpecialFolder,
     isHiddenFolder,
     existingWorldIds,
+    keptForInstanceWorldIds,
+    marksKeptForInstance,
   }
 }

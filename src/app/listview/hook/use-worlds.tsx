@@ -1,5 +1,5 @@
 import { commands, WorldDisplayData } from '@/lib/commands'
-import { worldForCollection } from '@/lib/world-collection'
+import { shownInCollection, worldForCollection } from '@/lib/world-collection'
 import { FolderType, isUserFolder, SpecialFolders } from '@/types/folders'
 import { create } from 'zustand'
 import { useEffect } from 'react'
@@ -35,6 +35,16 @@ interface WorldsStoreState {
   reloadAll: () => Promise<void>
 }
 
+/**
+ * Whether the lists show a world kept only for an instance made in it. Read
+ * per fetch rather than once: the setting screen is another route, and coming
+ * back from it is what reloads the list.
+ */
+async function showsWorldsKeptForInstance(): Promise<boolean> {
+  const res = await commands.getShowWorldsKeptForInstance()
+  return res.status === 'ok' && res.data
+}
+
 async function fetchWorldsImpl(
   folder: FolderType,
 ): Promise<WorldDisplayData[]> {
@@ -49,14 +59,14 @@ async function fetchWorldsImpl(
     case SpecialFolders.All: {
       const res = await commands.getAllWorlds()
       if (res.status === 'ok') {
-        return res.data
+        return shownInCollection(res.data, await showsWorldsKeptForInstance())
       }
       throw new Error(res.error)
     }
     case SpecialFolders.Unclassified: {
       const res = await commands.getUnclassifiedWorlds()
       if (res.status === 'ok') {
-        return res.data
+        return shownInCollection(res.data, await showsWorldsKeptForInstance())
       }
       throw new Error(res.error)
     }

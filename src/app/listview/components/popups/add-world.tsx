@@ -24,6 +24,7 @@ import {
   type WorldReference,
 } from '@/lib/world-input'
 import { instanceTypeLabelKey } from '@/lib/sync/launched-instances'
+import { isKeptForInstance } from '@/lib/sync/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -135,7 +136,14 @@ export function AddWorldPopup({ onClose, currentFolder }: AddWorldPopupProps) {
       setIsLoading(true)
       try {
         const worlds = await getAllWorlds()
-        setExistingWorlds(worlds.map((world) => world.worldId))
+        setExistingWorlds(
+          // A world kept only because an instance was made in it is not
+          // added, and adding it by hand is what makes it so (#173). Calling
+          // it a duplicate here would refuse the one route to that.
+          worlds
+            .filter((world) => !isKeptForInstance(world))
+            .map((world) => world.worldId),
+        )
       } catch (_e) {
       } finally {
         setIsLoading(false)
