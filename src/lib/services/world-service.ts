@@ -1,5 +1,6 @@
 import { Context, Effect, Layer } from 'effect'
 import type { WorldDisplayData, WorldDetails } from '@/lib/types'
+import { isKeptForInstance } from '@/lib/sync/types'
 import { db, isActive, isMember, type WorldRecord } from './db'
 import {
   activeFolderByName,
@@ -77,6 +78,7 @@ function toDisplayData(
     folders: folderNamesOf(record, folderNameById),
     tags: record.tags,
     capacity: record.capacity,
+    ...(isKeptForInstance(record) ? { keptForInstance: true } : {}),
   }
 }
 
@@ -130,6 +132,14 @@ async function writeWorld(world: WorldDisplayData): Promise<void> {
     )
   }
 
+  // Being asked for is the claim that sticks: a world kept for an instance
+  // and later added by hand was added, and a world added by hand that an
+  // instance is then made in was still added. The flag survives a write only
+  // when both the row and the caller say it is held for an instance alone.
+  const keptForInstance =
+    isKeptForInstance(world) &&
+    (existing === undefined || isKeptForInstance(existing))
+
   await db.worlds.put({
     ...(await touched()),
     worldId: world.worldId,
@@ -144,6 +154,7 @@ async function writeWorld(world: WorldDisplayData): Promise<void> {
     folderRefs,
     tags: world.tags,
     capacity: world.capacity,
+    ...(keptForInstance ? { keptForInstance: true } : {}),
   })
 }
 

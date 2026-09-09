@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import * as Portal from '@radix-ui/react-portal'
 import { Badge } from '@/components/ui/badge'
+import { KeptForInstanceMark } from '@/components/kept-for-instance-mark'
 import { useWorldGrid } from './hook'
 import { DraggableWorld } from '../world-drag'
 
@@ -66,6 +67,8 @@ export function WorldGrid({
     isSpecialFolder,
     isHiddenFolder,
     existingWorldIds,
+    keptForInstanceWorldIds,
+    marksKeptForInstance,
   } = useWorldGrid(currentFolder, worlds)
 
   // Worlds found on the search page are not in the collection yet, and hidden
@@ -148,10 +151,19 @@ export function WorldGrid({
                   />
                 </DraggableWorld>
                 <div className="absolute bottom-[70px] left-2 z-10">
-                  {isFindPage && existingWorldIds.has(world.worldId) && (
-                    <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100 hover:border-green-300 cursor-default">
-                      {t('world-grid:exists-in-collection')}
-                    </Badge>
+                  {isFindPage &&
+                    existingWorldIds.has(world.worldId) &&
+                    (keptForInstanceWorldIds.has(world.worldId) ? (
+                      // Not "added": nobody added it, and the list does not
+                      // show it. The mark says what is true, when asked for.
+                      marksKeptForInstance && <KeptForInstanceMark />
+                    ) : (
+                      <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100 hover:border-green-300 cursor-default">
+                        {t('world-grid:exists-in-collection')}
+                      </Badge>
+                    ))}
+                  {!isFindPage && world.keptForInstance === true && (
+                    <KeptForInstanceMark />
                   )}
                 </div>
                 {(isSelectionMode || alwaysShowSelection) && (

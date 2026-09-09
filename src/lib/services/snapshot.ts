@@ -14,6 +14,7 @@ import {
   SNAPSHOT_FORMAT_VERSION,
   type SettingsOverride,
   type Snapshot,
+  isKeptForInstance,
   type WorldSyncRecord,
 } from '@/lib/sync/types'
 import { db, FOLDER_ORDER_KEY, type WorldRecord } from './db'
@@ -87,6 +88,7 @@ export async function readSnapshot(): Promise<Snapshot> {
       updatedAt: world.updatedAt,
       deletedAt: world.deletedAt,
       origin: world.origin,
+      ...(isKeptForInstance(world) ? { keptForInstance: true } : {}),
     })),
     folders,
     folderOrder: folderOrder ?? {
@@ -143,6 +145,7 @@ function toWorldRecord(
     updatedAt: world.updatedAt,
     deletedAt: world.deletedAt,
     origin: world.origin,
+    ...(isKeptForInstance(world) ? { keptForInstance: true } : {}),
   }
 }
 

@@ -64,6 +64,10 @@ export default function SettingsPage() {
     folderRemovalPreference,
     skipSelfInviteOnCreate,
     handleSkipSelfInviteChange,
+    showWorldsKeptForInstance,
+    handleShowWorldsKeptForInstanceChange,
+    markWorldsKeptForInstanceOnFind,
+    handleMarkWorldsKeptForInstanceOnFindChange,
     fieldVisibility,
     detailFieldVisibility,
     showDeleteConfirm,
@@ -525,6 +529,42 @@ export default function SettingsPage() {
                 checked={skipSelfInviteOnCreate}
                 onCheckedChange={(checked) =>
                   handleSkipSelfInviteChange(checked === true)
+                }
+              />
+            </div>
+          </Card>
+
+          {/* Neither carries an explanation on purpose. The labels say what
+              they do, and the reason a world is there at all -- an instance
+              made in it -- is something most people never need to know
+              (#173). */}
+          <Card className="flex flex-col gap-3 p-4 rounded-lg border">
+            <div className="flex w-full flex-row items-center justify-between gap-4">
+              <Label className="text-base font-medium">
+                {t('settings-page:show-worlds-kept-for-instance-title')}
+              </Label>
+              <Switch
+                id="show-worlds-kept-for-instance"
+                data-testid="show-worlds-kept-for-instance"
+                checked={showWorldsKeptForInstance}
+                onCheckedChange={(checked) =>
+                  handleShowWorldsKeptForInstanceChange(checked === true)
+                }
+              />
+            </div>
+          </Card>
+
+          <Card className="flex flex-col gap-3 p-4 rounded-lg border">
+            <div className="flex w-full flex-row items-center justify-between gap-4">
+              <Label className="text-base font-medium">
+                {t('settings-page:mark-worlds-kept-for-instance-on-find-title')}
+              </Label>
+              <Switch
+                id="mark-worlds-kept-for-instance-on-find"
+                data-testid="mark-worlds-kept-for-instance-on-find"
+                checked={markWorldsKeptForInstanceOnFind}
+                onCheckedChange={(checked) =>
+                  handleMarkWorldsKeptForInstanceOnFindChange(checked === true)
                 }
               />
             </div>

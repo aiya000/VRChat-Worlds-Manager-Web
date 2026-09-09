@@ -608,3 +608,65 @@ describe("a demand that one device's settings replace everyone's", () => {
     expect(merged.worlds.every((each) => each.deletedAt === null)).toBe(true)
   })
 })
+
+/**
+ * A world kept only because an instance was made in it (#173) is a weaker
+ * claim than a world someone asked for, and the weaker claim never wins.
+ */
+describe('mergeSnapshot: worlds kept only for an instance', () => {
+  it('stays kept for an instance when both devices say so', () => {
+    const local = snapshot(PHONE, {
+      worlds: [
+        world('wrld_a', {
+          keptForInstance: true,
+          updatedAt: 100,
+          origin: PHONE,
+        }),
+      ],
+    })
+    const remote = snapshot(DESKTOP, {
+      worlds: [
+        world('wrld_a', {
+          keptForInstance: true,
+          updatedAt: 200,
+          origin: DESKTOP,
+        }),
+      ],
+    })
+
+    const { snapshot: merged } = mergeSnapshot(local, remote)
+
+    expect(merged.worlds[0].keptForInstance).toBe(true)
+  })
+
+  it('becomes an added world when either device added it, whichever is newer', () => {
+    const kept = world('wrld_a', {
+      keptForInstance: true,
+      updatedAt: 900,
+      origin: PHONE,
+    })
+    const added = world('wrld_a', { updatedAt: 100, origin: DESKTOP })
+
+    const { snapshot: keptIsNewer } = mergeSnapshot(
+      snapshot(PHONE, { worlds: [kept] }),
+      snapshot(DESKTOP, { worlds: [added] }),
+    )
+    const { snapshot: addedIsNewer } = mergeSnapshot(
+      snapshot(PHONE, { worlds: [added] }),
+      snapshot(DESKTOP, { worlds: [{ ...kept, updatedAt: 50 }] }),
+    )
+
+    expect(keptIsNewer.worlds[0]).not.toHaveProperty('keptForInstance')
+    expect(addedIsNewer.worlds[0]).not.toHaveProperty('keptForInstance')
+  })
+
+  it('reads a row written before the flag existed as added', () => {
+    // Nothing that was on screen before this shipped may disappear.
+    const { snapshot: merged } = mergeSnapshot(
+      snapshot(PHONE, { worlds: [world('wrld_a')] }),
+      snapshot(DESKTOP, { worlds: [world('wrld_a')] }),
+    )
+
+    expect(merged.worlds[0]).not.toHaveProperty('keptForInstance')
+  })
+})

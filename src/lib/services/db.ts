@@ -50,6 +50,12 @@ export interface WorldRecord extends SyncMeta {
   /** VRChat's own tags, not the user's. Refreshed from the API, never merged. */
   tags: string[]
   capacity: number
+  /**
+   * Set only on a world kept because an instance was made in it and never
+   * asked for by itself; a row without it was asked for. Not indexed, so no
+   * schema version is spent on it.
+   */
+  keptForInstance?: boolean
 }
 
 export interface WorldDetailRecord {

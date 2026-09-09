@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { WorldDetails } from '@/lib/types'
-import { worldForCollection } from '@/lib/world-collection'
+import { shownInCollection, worldForCollection } from '@/lib/world-collection'
 
 const details: WorldDetails = {
   worldId: 'wrld_1',
@@ -62,5 +62,25 @@ describe('a world VRChat answered with, as the collection keeps it', () => {
 
     expect(added).toBeGreaterThanOrEqual(before)
     expect(added).toBeLessThanOrEqual(Date.now())
+  })
+})
+
+describe('what a list of the collection shows', () => {
+  const added = { ...worldForCollection(details), worldId: 'wrld_added' }
+  const kept = {
+    ...worldForCollection(details),
+    worldId: 'wrld_kept',
+    keptForInstance: true,
+  }
+
+  it('leaves out a world kept only for an instance, unless asked to show it', () => {
+    expect(shownInCollection([added, kept], false)).toEqual([added])
+    expect(shownInCollection([added, kept], true)).toEqual([added, kept])
+  })
+
+  it('treats a world VRChat answered with as added, not as kept', () => {
+    // This is the shape every "add" route writes, so a world kept for an
+    // instance that is then added by hand is written over as added.
+    expect(worldForCollection(details)).not.toHaveProperty('keptForInstance')
   })
 })

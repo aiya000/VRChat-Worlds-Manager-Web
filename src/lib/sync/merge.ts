@@ -17,6 +17,7 @@ import {
   type SyncedSetting,
   type SyncMeta,
   type TagRef,
+  isKeptForInstance,
   type WorldSyncRecord,
 } from './types'
 
@@ -167,6 +168,11 @@ export function mergeWorld(
     dateAdded: earlierDate(a.dateAdded, b.dateAdded),
     folderRefs: mergeSet(a.folderRefs, b.folderRefs, (ref) => ref.folderId),
     seed: winner.seed ?? a.seed ?? b.seed,
+    // One way only: a world either side asked for stays asked for, however
+    // the other side came by it.
+    ...(isKeptForInstance(a) && isKeptForInstance(b)
+      ? { keptForInstance: true }
+      : {}),
   }
 }
 

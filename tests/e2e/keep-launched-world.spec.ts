@@ -1,12 +1,19 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
+import { seedWorld } from './seed-world'
 
 const FIND = '/listview/folders/special/find'
 const ALL = '/listview/folders/special/all'
+const SETTINGS = '/listview/settings?tab=others'
 
-const WORLD_ID = 'wrld_e2e_kept'
+const WORLD_ID = 'wrld_e2e00000-0000-4000-8000-00000000kept'
 const WORLD_NAME = 'A World Only Visited'
 const INSTANCE_ID = '42424'
+
+// A world someone did add, so a list that has finished loading can be told
+// apart from one that has not drawn anything yet.
+const ADDED_WORLD_ID = 'wrld_e2e_added'
+const ADDED_WORLD_NAME = 'A World Someone Added'
 
 // The worker would otherwise answer the same-origin requests itself, and the
 // routes below would never see them.
@@ -14,7 +21,7 @@ test.use({ serviceWorkers: 'block' })
 
 /**
  * A world that is only ever seen, never added: it comes back from "recently
- * visited" on the find page, which is where a world the collection does not
+ * visited" on the search page, which is where a world the collection does not
  * hold is opened with `dontSaveToLocal`.
  */
 async function stubVRChat(page: Page) {
@@ -97,44 +104,144 @@ async function open(page: Page, path: string) {
   })
 }
 
+async function makeAnInstanceFromTheSearchPage(page: Page) {
+  await open(page, FIND)
+  await page.getByText(WORLD_NAME).first().click()
+  await page
+    .getByRole('button', {
+      name: jaJP['general:create-instance'],
+      exact: true,
+    })
+    .click()
+  // The instance was made and remembered.
+  await expect(
+    page.getByText(jaJP['world-detail:saved-instances'], { exact: true }),
+  ).toBeVisible()
+}
+
+async function turnOn(page: Page, settingTestId: string) {
+  await open(page, SETTINGS)
+  await page.getByTestId(settingTestId).click()
+  await expect(page.getByTestId(settingTestId)).toBeChecked()
+}
+
+/** The list has drawn what it holds once the world someone added is there. */
+async function expectTheListToHaveLoaded(page: Page) {
+  await expect(page.getByText(ADDED_WORLD_NAME).first()).toBeVisible()
+}
+
+async function storedWorld(page: Page, worldId: string) {
+  return page.evaluate(async (id) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('VRChatWorldsManager')
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    return await new Promise<{ keptForInstance?: boolean } | undefined>(
+      (resolve, reject) => {
+        const request = db.transaction('worlds').objectStore('worlds').get(id)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      },
+    )
+  }, worldId)
+}
+
 /**
  * An instance outlives the world it was made in.
  *
  * The row that remembers an instance is reached through the world's own detail
  * popup, so a world that is not in the collection has no way back to it. A
- * world opened from "find" is deliberately not saved -- and when its author
- * later makes it private, VRChat stops answering for it, leaving the instance
- * recorded under a world that cannot be found or opened again.
+ * world opened from the search page is deliberately not saved -- and when its
+ * author later makes it private, VRChat stops answering for it, leaving the
+ * instance recorded under a world that cannot be found or opened again.
  *
- * So making an instance keeps a copy of the world.
+ * So making an instance keeps a copy of the world. But nobody asked for that
+ * world, and a list that grows on its own is a list whose meaning changed --
+ * so the copy is kept quietly, and shown only when asked for (#173).
  */
 test.describe('a world an instance was made in', () => {
-  test('is kept, even though it was only ever seen on the find page', async ({
+  test.beforeEach(async ({ page }) => {
+    await stubVRChat(page)
+    await open(page, ALL)
+    await seedWorld(page, { worldId: ADDED_WORLD_ID, name: ADDED_WORLD_NAME })
+  })
+
+  test('is kept, but shown under "all worlds" only when asked for', async ({
     page,
   }) => {
-    await stubVRChat(page)
+    await makeAnInstanceFromTheSearchPage(page)
 
-    // Nothing in the collection to begin with.
+    // The copy is there, marked as held for the instance alone...
+    expect(await storedWorld(page, WORLD_ID)).toMatchObject({
+      keptForInstance: true,
+    })
+
+    // ...and the list does not show it, because nobody added it.
     await open(page, ALL)
+    await expectTheListToHaveLoaded(page)
     await expect(page.getByText(WORLD_NAME)).toBeHidden()
 
+    // Asked for, it appears, wearing the mark that says why it is there.
+    await turnOn(page, 'show-worlds-kept-for-instance')
+    await open(page, ALL)
+    await expect(page.getByText(WORLD_NAME)).toBeVisible()
+    await expect(page.getByTestId('kept-for-instance-mark')).toBeVisible()
+  })
+
+  test('is not called "added" on the search page, and is marked there only when asked for', async ({
+    page,
+  }) => {
+    await makeAnInstanceFromTheSearchPage(page)
+
+    // The world someone added is not on the search page, so wait for the card
+    // itself before reading what is drawn on it.
     await open(page, FIND)
-    await page.getByText(WORLD_NAME).first().click()
+    await expect(page.getByText(WORLD_NAME).first()).toBeVisible()
+    await expect(
+      page.getByText(jaJP['world-grid:exists-in-collection']),
+    ).toBeHidden()
+    await expect(page.getByTestId('kept-for-instance-mark')).toBeHidden()
+
+    await turnOn(page, 'mark-worlds-kept-for-instance-on-find')
+    await open(page, FIND)
+    await expect(page.getByTestId('kept-for-instance-mark')).toBeVisible()
+    await expect(
+      page.getByText(jaJP['world-grid:exists-in-collection']),
+    ).toBeHidden()
+  })
+
+  test('becomes an added world once it is added by hand', async ({ page }) => {
+    await makeAnInstanceFromTheSearchPage(page)
+
+    await open(page, ALL)
     await page
       .getByRole('button', {
-        name: jaJP['general:create-instance'],
+        name: jaJP['listview-page:add-world'],
         exact: true,
       })
       .click()
+    await page
+      .getByPlaceholder(jaJP['add-world-dialog:placeholder'])
+      .fill(WORLD_ID)
+    await page
+      .getByRole('button', { name: jaJP['add-world-dialog:check'] })
+      .click()
+    await expect(page.getByText(jaJP['add-world-dialog:preview'])).toBeVisible()
+    // Held for an instance is not the same as added, so this is not a
+    // duplicate: the button stays pressable, and pressing it is the promotion.
+    await page
+      .getByRole('button', { name: jaJP['add-world-dialog:add'], exact: true })
+      .last()
+      .click()
+    await expect(page.getByRole('dialog')).toBeHidden()
 
-    // The instance was made and remembered.
-    await expect(
-      page.getByText(jaJP['world-detail:saved-instances'], { exact: true }),
-    ).toBeVisible()
-
-    // ...and so was the world it was made in, which is the only route back to
-    // that instance once VRChat stops serving the world.
+    // Shown without being asked for, and without the mark: it is added now.
     await open(page, ALL)
     await expect(page.getByText(WORLD_NAME)).toBeVisible()
+    await expect(page.getByTestId('kept-for-instance-mark')).toBeHidden()
+    expect(await storedWorld(page, WORLD_ID)).not.toHaveProperty(
+      'keptForInstance',
+    )
   })
 })
