@@ -66,6 +66,8 @@ export function WorldGrid({
     isSpecialFolder,
     isHiddenFolder,
     existingWorldIds,
+    keptForInstanceWorldIds,
+    marksKeptForInstance,
   } = useWorldGrid(currentFolder, worlds)
 
   // Worlds found on the search page are not in the collection yet, and hidden
@@ -145,14 +147,26 @@ export function WorldGrid({
                     size={cardSize}
                     world={world}
                     fieldVisibility={fieldVisibility}
+                    // On the search page the mark stands in for "added": nobody
+                    // added such a world, and the list does not show it, so it
+                    // says what is true instead -- when asked for.
+                    keptForInstanceMark={
+                      isFindPage
+                        ? marksKeptForInstance &&
+                          existingWorldIds.has(world.worldId) &&
+                          keptForInstanceWorldIds.has(world.worldId)
+                        : world.keptForInstance === true
+                    }
                   />
                 </DraggableWorld>
                 <div className="absolute bottom-[70px] left-2 z-10">
-                  {isFindPage && existingWorldIds.has(world.worldId) && (
-                    <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100 hover:border-green-300 cursor-default">
-                      {t('world-grid:exists-in-collection')}
-                    </Badge>
-                  )}
+                  {isFindPage &&
+                    existingWorldIds.has(world.worldId) &&
+                    !keptForInstanceWorldIds.has(world.worldId) && (
+                      <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100 hover:border-green-300 cursor-default">
+                        {t('world-grid:exists-in-collection')}
+                      </Badge>
+                    )}
                 </div>
                 {(isSelectionMode || alwaysShowSelection) && (
                   // The card stays the size it is at any scale; the box on it

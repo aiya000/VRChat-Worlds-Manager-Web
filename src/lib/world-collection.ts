@@ -1,4 +1,5 @@
 import type { WorldDetails, WorldDisplayData } from './types'
+import { isKeptForInstance } from './sync/types'
 
 /**
  * What VRChat answered, in the shape the collection keeps.
@@ -33,4 +34,24 @@ export function worldForCollection(details: WorldDetails): WorldDisplayData {
     tags: details.tags,
     capacity: details.capacity,
   }
+}
+
+/**
+ * The worlds a screen listing the collection shows.
+ *
+ * A world kept only because an instance was made in it is left out unless
+ * asked for: nobody added it, and to someone looking at "all worlds" a list
+ * that grows on its own is a list whose meaning changed (#173). The row stays
+ * either way -- the instance is reached through it -- which is why this sits
+ * with the screens and not with `getAllWorlds`: the private-world fallback and
+ * the "added" badge read that too, and both need the row to be found.
+ */
+export function shownInCollection(
+  worlds: WorldDisplayData[],
+  showKeptForInstance: boolean,
+): WorldDisplayData[] {
+  if (showKeptForInstance) {
+    return worlds
+  }
+  return worlds.filter((world) => !isKeptForInstance(world))
 }

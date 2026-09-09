@@ -1,14 +1,31 @@
 name: Tests
+# The specs stub VRChat with `page.route()` and never reach the Worker, and
+# nothing under test reads the documentation, so neither is a reason to run.
 on:
   push:
     branches:
       - 'main'
       - 'develop'
+    paths-ignore:
+      - 'worker/**'
+      - 'docs/**'
+      - 'report/**'
+      - '**.md'
   pull_request:
     types:
       - reopened
       - opened
       - synchronize
+    paths-ignore:
+      - 'worker/**'
+      - 'docs/**'
+      - 'report/**'
+      - '**.md'
+
+# A newer push to the same branch or PR makes the run in flight moot.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -30,8 +47,15 @@ jobs:
         run: bun run test:integration
 
   e2e:
-    name: E2E Tests
+    name: E2E Tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
+    # The whole suite on one runner takes five and a half minutes with the two
+    # workers a four-core runner gives Playwright. Three runners bring the wall
+    # time down to about two; the runner minutes are free on a public repo.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2
@@ -40,4 +64,4 @@ jobs:
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
       - name: Run E2E tests
-        run: bun run test:e2e
+        run: bun run test:e2e --shard=${{ matrix.shard }}/3

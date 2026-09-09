@@ -1,14 +1,27 @@
 name: Check Backend
+# Only the Worker is checked here, so only a change to it is a reason to run.
+# The workflow file itself is included so a change to this list is exercised.
 on:
   push:
     branches:
       - main
       - develop
+    paths:
+      - 'worker/**'
+      - '.github/workflows/check-backend.yml'
   pull_request:
     types:
       - reopened
       - opened
       - synchronize
+    paths:
+      - 'worker/**'
+      - '.github/workflows/check-backend.yml'
+
+# A newer push to the same branch or PR makes the run in flight moot.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

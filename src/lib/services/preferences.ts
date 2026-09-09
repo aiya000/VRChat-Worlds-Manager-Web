@@ -62,6 +62,25 @@ export class PreferencesService extends Context.Tag('PreferencesService')<
      */
     readonly getSkipSelfInviteOnCreate: () => Effect.Effect<boolean>
     readonly setSkipSelfInviteOnCreate: (skip: boolean) => Effect.Effect<void>
+    /**
+     * Whether "all worlds" lists a world kept only because an instance was
+     * made in it. Off by default: such a world was never asked for, and to
+     * everyone but the person who wants every instance reachable, a list that
+     * grows on its own is a list that changed meaning (#173).
+     */
+    readonly getShowWorldsKeptForInstance: () => Effect.Effect<boolean>
+    readonly setShowWorldsKeptForInstance: (
+      show: boolean,
+    ) => Effect.Effect<void>
+    /**
+     * Whether the search page marks a world kept only for an instance. Off by
+     * default, in step with the setting above: with neither on, such a world
+     * shows up nowhere.
+     */
+    readonly getMarkWorldsKeptForInstanceOnFind: () => Effect.Effect<boolean>
+    readonly setMarkWorldsKeptForInstanceOnFind: (
+      mark: boolean,
+    ) => Effect.Effect<void>
     readonly getFolderRemovalPreference: () => Effect.Effect<FolderRemovalPreference>
     readonly setFolderRemovalPreference: (
       pref: FolderRemovalPreference,
@@ -134,6 +153,14 @@ export const PreferencesServiceLive = Layer.succeed(PreferencesService, {
     Effect.succeed(getItem<boolean>('skipSelfInviteOnCreate', false)),
   setSkipSelfInviteOnCreate: (skip) =>
     Effect.sync(() => setItem('skipSelfInviteOnCreate', skip)),
+  getShowWorldsKeptForInstance: () =>
+    Effect.succeed(getItem<boolean>('showWorldsKeptForInstance', false)),
+  setShowWorldsKeptForInstance: (show) =>
+    Effect.sync(() => setItem('showWorldsKeptForInstance', show)),
+  getMarkWorldsKeptForInstanceOnFind: () =>
+    Effect.succeed(getItem<boolean>('markWorldsKeptForInstanceOnFind', false)),
+  setMarkWorldsKeptForInstanceOnFind: (mark) =>
+    Effect.sync(() => setItem('markWorldsKeptForInstanceOnFind', mark)),
   getFolderRemovalPreference: () =>
     Effect.succeed(
       getItem<FolderRemovalPreference>('folderRemovalPreference', 'ask'),

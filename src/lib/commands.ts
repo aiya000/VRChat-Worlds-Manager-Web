@@ -571,6 +571,46 @@ export const commands = {
     )
   },
 
+  async getShowWorldsKeptForInstance(): Promise<Result<boolean, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        return yield* svc.getShowWorldsKeptForInstance()
+      }),
+    )
+  },
+
+  async setShowWorldsKeptForInstance(
+    show: boolean,
+  ): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        yield* svc.setShowWorldsKeptForInstance(show)
+      }),
+    )
+  },
+
+  async getMarkWorldsKeptForInstanceOnFind(): Promise<Result<boolean, string>> {
+    return run(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        return yield* svc.getMarkWorldsKeptForInstanceOnFind()
+      }),
+    )
+  },
+
+  async setMarkWorldsKeptForInstanceOnFind(
+    mark: boolean,
+  ): Promise<Result<null, string>> {
+    return runVoid(
+      Effect.gen(function* () {
+        const svc = yield* PreferencesService
+        yield* svc.setMarkWorldsKeptForInstanceOnFind(mark)
+      }),
+    )
+  },
+
   async getFolderRemovalPreference(): Promise<
     Result<FolderRemovalPreference, string>
   > {

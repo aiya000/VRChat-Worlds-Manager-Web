@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { useLocalization } from '@/hooks/use-localization'
 import { commands, type WorldDisplayData } from '@/lib/commands'
+import { shownInCollection } from '@/lib/world-collection'
 import { useFolders } from '../hook/use-folders'
 import { usePopupStore } from '../hook/usePopups/store'
 
@@ -87,7 +88,15 @@ export default function FoldersPage() {
         setWorlds([])
         return
       }
-      setWorlds(result.data)
+      // The previews are the lists in miniature, so they leave out what the
+      // lists leave out.
+      const show = await commands.getShowWorldsKeptForInstance()
+      if (cancelled) {
+        return
+      }
+      setWorlds(
+        shownInCollection(result.data, show.status === 'ok' && show.data),
+      )
     }
     load()
     return () => {

@@ -1,14 +1,27 @@
 name: Check Frontend
+# The Worker has a check of its own, and nothing here reads the screenshots.
+# Markdown is deliberately not excluded: `bun run check` runs Prettier over it.
 on:
   push:
     branches:
       - main
       - develop
+    paths-ignore:
+      - 'worker/**'
+      - 'docs/**'
   pull_request:
     types:
       - reopened
       - opened
       - synchronize
+    paths-ignore:
+      - 'worker/**'
+      - 'docs/**'
+
+# A newer push to the same branch or PR makes the run in flight moot.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

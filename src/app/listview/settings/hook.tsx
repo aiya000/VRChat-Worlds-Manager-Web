@@ -32,6 +32,10 @@ export const useSettingsPage = () => {
   const [language, setLanguage] = useState<string>('en-US')
   const [skipSelfInviteOnCreate, setSkipSelfInviteOnCreate] =
     useState<boolean>(false)
+  const [showWorldsKeptForInstance, setShowWorldsKeptForInstance] =
+    useState<boolean>(false)
+  const [markWorldsKeptForInstanceOnFind, setMarkWorldsKeptForInstanceOnFind] =
+    useState<boolean>(false)
   const [folderRemovalPreference, setFolderRemovalPreference] =
     useState<FolderRemovalPreference | null>(null)
   const [fieldVisibility, setFieldVisibility] =
@@ -84,6 +88,10 @@ export const useSettingsPage = () => {
         const folderRemovalPreferenceResult =
           await commands.getFolderRemovalPreference()
         const skipSelfInviteResult = await commands.getSkipSelfInviteOnCreate()
+        const showKeptForInstanceResult =
+          await commands.getShowWorldsKeptForInstance()
+        const markKeptForInstanceResult =
+          await commands.getMarkWorldsKeptForInstanceOnFind()
         const fieldVisibilityResult =
           await commands.getWorldCardFieldVisibility()
         const detailFieldVisibilityResult =
@@ -106,6 +114,14 @@ export const useSettingsPage = () => {
         const skipSelfInvite =
           skipSelfInviteResult.status === 'ok'
             ? skipSelfInviteResult.data
+            : false
+        const showKeptForInstance =
+          showKeptForInstanceResult.status === 'ok'
+            ? showKeptForInstanceResult.data
+            : false
+        const markKeptForInstance =
+          markKeptForInstanceResult.status === 'ok'
+            ? markKeptForInstanceResult.data
             : false
         const fieldVisibility =
           fieldVisibilityResult.status === 'ok'
@@ -135,6 +151,8 @@ export const useSettingsPage = () => {
         setSyncOverrides(readSettingSyncOverrides())
         setFolderRemovalPreference(folderRemovalPreference)
         setSkipSelfInviteOnCreate(skipSelfInvite)
+        setShowWorldsKeptForInstance(showKeptForInstance)
+        setMarkWorldsKeptForInstanceOnFind(markKeptForInstance)
         setFieldVisibility(fieldVisibility)
         setDetailFieldVisibility(detailFieldVisibility)
         // put a toast if commands fail
@@ -471,6 +489,24 @@ export const useSettingsPage = () => {
     setSkipSelfInviteOnCreate(skip)
   }
 
+  const handleShowWorldsKeptForInstanceChange = async (show: boolean) => {
+    const result = await commands.setShowWorldsKeptForInstance(show)
+    if (result.status === 'error') {
+      toast(t('general:error-title'), { description: result.error })
+      return
+    }
+    setShowWorldsKeptForInstance(show)
+  }
+
+  const handleMarkWorldsKeptForInstanceOnFindChange = async (mark: boolean) => {
+    const result = await commands.setMarkWorldsKeptForInstanceOnFind(mark)
+    if (result.status === 'error') {
+      toast(t('general:error-title'), { description: result.error })
+      return
+    }
+    setMarkWorldsKeptForInstanceOnFind(mark)
+  }
+
   const handleFolderRemovalPreferenceChange = async (
     value: FolderRemovalPreference,
   ) => {
@@ -519,6 +555,10 @@ export const useSettingsPage = () => {
     folderRemovalPreference,
     skipSelfInviteOnCreate,
     handleSkipSelfInviteChange,
+    showWorldsKeptForInstance,
+    handleShowWorldsKeptForInstanceChange,
+    markWorldsKeptForInstanceOnFind,
+    handleMarkWorldsKeptForInstanceOnFindChange,
     fieldVisibility,
     detailFieldVisibility,
     showDeleteConfirm,
