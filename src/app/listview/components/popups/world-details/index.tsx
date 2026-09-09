@@ -118,8 +118,28 @@ export function WorldDetailPopup({
     hideWorld,
     selectAuthor,
     selectTag,
-  } = useWorldDetailsActions(onOpenChange, () =>
-    setInstanceReloadKey((key) => key + 1),
+  } = useWorldDetailsActions(
+    onOpenChange,
+    () => setInstanceReloadKey((key) => key + 1),
+    // An instance is about to outlive the world it was made in. What is known
+    // of the world now is what will be left to find it by.
+    () =>
+      worldDetails === null
+        ? null
+        : {
+            worldId: worldDetails.worldId,
+            name: worldDetails.name,
+            thumbnailUrl: worldDetails.thumbnailUrl,
+            authorName: worldDetails.authorName,
+            favorites: worldDetails.favorites,
+            lastUpdated: worldDetails.lastUpdated,
+            visits: worldDetails.visits,
+            dateAdded: new Date().toISOString(),
+            platform: worldDetails.platform,
+            folders: [],
+            tags: worldDetails.tags,
+            capacity: worldDetails.capacity,
+          },
   )
   const { t, language } = useLocalization()
   const { folders } = useFolders()

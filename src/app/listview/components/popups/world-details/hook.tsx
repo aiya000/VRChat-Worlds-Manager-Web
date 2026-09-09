@@ -3,7 +3,7 @@ import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
 import { InstanceRegion } from '@/lib/commands'
 import { isAndroidBrowser } from '@/lib/launch-target'
-import type { InstanceInfo, Platform } from '@/lib/types'
+import type { InstanceInfo, Platform, WorldDisplayData } from '@/lib/types'
 import { GroupInstanceType, InstanceType } from '@/types/instances'
 import { toast } from 'sonner'
 import { useWorldFiltersStore } from '@/app/listview/hook/use-filters'
@@ -44,6 +44,13 @@ function openInClientToastAction(
 export function useWorldDetailsActions(
   onOpenChange: (open: boolean) => void,
   onInstanceRecorded?: () => void,
+  /**
+   * The world as it is known when an instance is made, to be kept alongside
+   * it. A function, like `onInstanceRecorded` above, because what it reads is
+   * declared after this hook is called and is not known until VRChat answers;
+   * it returns `null` while there is nothing to keep.
+   */
+  worldToKeep?: () => WorldDisplayData | null,
 ) {
   const { t } = useLocalization()
   const { setAuthorFilter, setTagFilters } = useWorldFiltersStore()
@@ -80,6 +87,34 @@ export function useWorldDetailsActions(
     return invited.data
   }
 
+  /**
+   * Keeps a copy of the world, because an instance of it has just been made.
+   *
+   * An instance can be entered from its two ids alone, but only by someone who
+   * can still reach it, and the only way there is the world's own detail popup
+   * -- which needs the world to be in the collection. A world opened from
+   * "find" is deliberately not saved (`dontSaveToLocal`), so without this an
+   * instance made there is recorded under a world that is nowhere, and once
+   * VRChat stops serving that world -- the author makes it private -- there is
+   * no way back to it at all. The instance outlives the world; the copy is what
+   * lets it be found.
+   *
+   * `rememberWorld` leaves an existing `dateAdded` alone, so a world already in
+   * the collection is untouched but for its details being refreshed.
+   */
+  const keepTheWorld = async () => {
+    const world = worldToKeep?.() ?? null
+    if (world === null) {
+      return
+    }
+    const kept = await commands.rememberWorld(world)
+    if (kept.status === 'error') {
+      // Not worth a toast of its own: the instance was made and recorded,
+      // which is what the press asked for.
+      console.error(`Failed to keep the world: ${kept.error}`)
+    }
+  }
+
   const createInstance = async (
     worldId: string,
     instanceType: Exclude<InstanceType, 'group'>,
@@ -111,6 +146,7 @@ export function useWorldDetailsActions(
       if (remembered.status === 'error') {
         console.error(`Failed to remember instance: ${remembered.error}`)
       }
+      await keepTheWorld()
       onInstanceRecorded?.()
       const invited = await inviteMyselfIfWanted(
         info.world_id,
@@ -169,6 +205,7 @@ export function useWorldDetailsActions(
       if (remembered.status === 'error') {
         console.error(`Failed to remember instance: ${remembered.error}`)
       }
+      await keepTheWorld()
       onInstanceRecorded?.()
       const invited = await inviteMyselfIfWanted(
         info.world_id,
