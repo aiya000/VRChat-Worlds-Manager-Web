@@ -33,6 +33,16 @@ export const GOOGLE_AUTH_ENDPOINT =
  */
 export const GOOGLE_AUTH_RETURN_PATH = '/google-auth'
 
+/**
+ * Where the page that leaves writes down what it was doing.
+ *
+ * Local storage, not session: the trip may cross a Custom Tab boundary. The
+ * key is here rather than in the service because giving a trip up (#159) has
+ * to erase the same record the service writes, without pulling the database
+ * in to do it.
+ */
+export const GOOGLE_AUTH_PENDING_RETURN_KEY = 'googleAuthPendingReturn'
+
 /** What the page wanted a token for, so the return can carry on with it. */
 export type GoogleAuthIntent = 'connect' | 'sync'
 

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import { useAbandonedGoogleTrip } from '@/hooks/use-abandoned-google-trip'
 import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
 import { notifyDriveConnectionChanged } from '@/lib/services/drive-connection-changed'
@@ -172,6 +173,15 @@ export const GoogleDriveSection: FC<{
       }),
     [],
   )
+
+  // Both buttons on this card leave for Google without putting themselves
+  // back. Back from there without going, both are still busy -- `busy` for
+  // connect, the rest for sync.
+  useAbandonedGoogleTrip(() => {
+    setBusy(false)
+    setSyncing(false)
+    setStep(null)
+  })
 
   useEffect(() => {
     if (lastSyncedAt === null) {

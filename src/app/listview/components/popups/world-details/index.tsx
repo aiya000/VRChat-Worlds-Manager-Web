@@ -40,6 +40,7 @@ import { GroupInstanceType, InstanceType } from '@/types/instances'
 import { InstanceRegion } from '@/lib/commands'
 import { useLocalization } from '@/hooks/use-localization'
 import { formatDateTime } from '@/lib/utils'
+import { worldForCollection } from '@/lib/world-collection'
 import { WorldDetailFields } from '@/components/world-detail-fields'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
@@ -118,8 +119,12 @@ export function WorldDetailPopup({
     hideWorld,
     selectAuthor,
     selectTag,
-  } = useWorldDetailsActions(onOpenChange, () =>
-    setInstanceReloadKey((key) => key + 1),
+  } = useWorldDetailsActions(
+    onOpenChange,
+    () => setInstanceReloadKey((key) => key + 1),
+    // An instance is about to outlive the world it was made in. What is known
+    // of the world now is what will be left to find it by.
+    () => (worldDetails === null ? null : worldForCollection(worldDetails)),
   )
   const { t, language } = useLocalization()
   const { folders } = useFolders()

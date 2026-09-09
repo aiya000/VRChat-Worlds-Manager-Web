@@ -59,6 +59,32 @@
 
 ---
 
+## Screenshots
+
+### Alongside VRChat on Android
+
+Floated over the game in the device's own floating window, the app stays reachable without leaving
+the world you are in -- what the feature is called varies by device; on a Galaxy it is "pop-up view"
+(ポップアップ表示).
+
+Picking a world sends you an invite of your own, and the world is entered from VRChat's own
+notification. No link opens the Android app straight into an instance, so this is the way in.
+
+|                                                                                   |                                                                                            |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| ![The app resting as a bubble](docs/screenshots/android-1-bubble-over-vrchat.jpg) | ![The app open over VRChat](docs/screenshots/android-2-app-open-over-vrchat.jpg)           |
+| **1.** In a world, with the app resting in the corner                             | **2.** Opened, your worlds are there, over the game                                        |
+| ![Choosing the instance](docs/screenshots/android-3-choosing-the-instance.jpg)    | ![The invite has been sent](docs/screenshots/android-4-invite-sent.jpg)                    |
+| **3.** Pick who it is for, and where it runs                                      | **4.** The instance is made, and you are invited to it                                     |
+| ![The invite appears in VRChat](docs/screenshots/android-5-invite-appears.jpg)    | ![The invite in the notifications](docs/screenshots/android-6-invite-in-notifications.jpg) |
+| **5.** VRChat says the invite has arrived                                         | **6.** It is waiting in the notifications                                                  |
+| ![Traveling to the world](docs/screenshots/android-7-traveling.jpg)               | ![Arrived in the world](docs/screenshots/android-8-arrived.jpg)                            |
+| **7.** Accepting it travels there                                                 | **8.** Arrived, with the app still in the corner                                           |
+
+> More screenshots are still to come -- the list view on a desktop, and in a VR overlay.
+
+---
+
 ## Tech Stack
 
 - **Frontend**: Next.js 16 + React 19 + Tailwind CSS 4 + Shadcn/UI

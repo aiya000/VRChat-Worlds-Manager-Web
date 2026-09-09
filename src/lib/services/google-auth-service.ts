@@ -1,6 +1,7 @@
 import { Context, Effect, Layer } from 'effect'
 import {
   buildGoogleAuthUrl,
+  GOOGLE_AUTH_PENDING_RETURN_KEY,
   type GoogleAuthIntent,
   isSafeReturnPath,
   parseGoogleAuthReturn,
@@ -22,9 +23,6 @@ import { db } from './db'
  */
 
 const CONNECTED_KEY = 'connected'
-
-/** Local storage, not session: the trip may cross a Custom Tab boundary. */
-const PENDING_RETURN_KEY = 'googleAuthPendingReturn'
 
 /** Longer than anyone takes to pick an account; shorter than a forgotten tab. */
 const PENDING_RETURN_TTL_MS = 10 * 60_000
@@ -76,7 +74,7 @@ function usableAccessToken(): string | null {
 }
 
 function readPendingReturn(): PendingReturn | null {
-  const raw = localStorage.getItem(PENDING_RETURN_KEY)
+  const raw = localStorage.getItem(GOOGLE_AUTH_PENDING_RETURN_KEY)
   if (raw === null) {
     return null
   }
@@ -122,7 +120,7 @@ function leaveForGoogle(intent: GoogleAuthIntent, returnTo: string): void {
     returnTo,
     startedAt: Date.now(),
   }
-  localStorage.setItem(PENDING_RETURN_KEY, JSON.stringify(pending))
+  localStorage.setItem(GOOGLE_AUTH_PENDING_RETURN_KEY, JSON.stringify(pending))
   window.location.assign(
     buildGoogleAuthUrl({ origin: window.location.origin, state }),
   )
@@ -140,7 +138,7 @@ export async function completeGoogleAuthReturn(
   fragment: string,
 ): Promise<string | null> {
   const pending = readPendingReturn()
-  localStorage.removeItem(PENDING_RETURN_KEY)
+  localStorage.removeItem(GOOGLE_AUTH_PENDING_RETURN_KEY)
   if (
     pending === null ||
     Date.now() - pending.startedAt > PENDING_RETURN_TTL_MS ||
