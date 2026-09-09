@@ -59,6 +59,31 @@
 
 ---
 
+## スクリーンショット
+
+### Androidで、VRChatと一緒に使う
+
+端末のフローティングウィンドウ機能でゲームの上に浮かべておくと、いまいるワールドを離れずにアプリへ手が届きます。
+呼び名は機種によって違います（Galaxy端末なら「ポップアップ表示」）。
+
+ワールドを選ぶと自分あてに招待が届き、VRChatの通知からそのワールドへ入ります。
+Androidでは、リンクからインスタンスへ直接入る方法がないため、この経路になります。
+
+|                                                                                      |                                                                                  |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| ![バブルとして待機しているアプリ](docs/screenshots/android-1-bubble-over-vrchat.jpg) | ![VRChatの上で開いたアプリ](docs/screenshots/android-2-app-open-over-vrchat.jpg) |
+| **1.** ワールドにいるあいだ、アプリは端で待っています                                | **2.** 開くと、ゲームの上に自分のワールドが並びます                              |
+| ![インスタンスの選択](docs/screenshots/android-3-choosing-the-instance.jpg)          | ![招待を送ったところ](docs/screenshots/android-4-invite-sent.jpg)                |
+| **3.** 誰向けか、どの地域かを選びます                                                | **4.** インスタンスができて、自分あてに招待が届きます                            |
+| ![VRChatに届いた招待](docs/screenshots/android-5-invite-appears.jpg)                 | ![通知に残っている招待](docs/screenshots/android-6-invite-in-notifications.jpg)  |
+| **5.** VRChat側に、招待が届いたことが出ます                                          | **6.** 通知のなかで待っています                                                  |
+| ![ワールドへ移動中](docs/screenshots/android-7-traveling.jpg)                        | ![ワールドに到着](docs/screenshots/android-8-arrived.jpg)                        |
+| **7.** 受けると、そのワールドへ移動します                                            | **8.** 到着。アプリはそのまま端に残っています                                    |
+
+> スクリーンショットは追加予定です。デスクトップの一覧と、VRオーバーレイの中。
+
+---
+
 ## 技術スタック
 
 - **フロントエンド**: Next.js 16 + React 19 + Tailwind CSS 4 + Shadcn/UI
