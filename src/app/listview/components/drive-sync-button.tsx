@@ -18,6 +18,10 @@ import {
 } from '@/lib/services/google-auth-service'
 import { refreshViews } from '@/lib/services/refresh-views'
 import {
+  syncStepPercentage,
+  type SyncStep,
+} from '@/lib/services/drive-sync-service'
+import {
   endSync,
   subscribeToSyncActivity,
   syncActivity,
@@ -54,6 +58,7 @@ export const DriveSyncButton: FC = () => {
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
   const [localChangedAt, setLocalChangedAt] = useState<number | null>(null)
   const [syncing, setSyncing] = useState(() => syncActivity().running)
+  const [step, setStep] = useState<SyncStep | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [explaining, setExplaining] = useState<SyncExplanationMode | null>(null)
 
@@ -72,7 +77,10 @@ export const DriveSyncButton: FC = () => {
 
   // The press below leaves this button spinning on the way to Google. Back
   // from there without going, it is still spinning.
-  useAbandonedGoogleTrip(() => setSyncing(false))
+  useAbandonedGoogleTrip(() => {
+    setSyncing(false)
+    setStep(null)
+  })
 
   useEffect(() => {
     if (lastSyncedAt === null) {
@@ -99,6 +107,7 @@ export const DriveSyncButton: FC = () => {
     if (!tryBeginSync()) {
       return
     }
+    setStep('authorizing')
     let syncedAt: number | null = null
     // Left spinning on purpose when the page is leaving for Google, so the
     // button does not flash back to idle for the last frame before it goes.
@@ -107,6 +116,7 @@ export const DriveSyncButton: FC = () => {
       // Back to this very list afterwards, filters and all.
       const result = await commands.syncGoogleDriveNow(
         window.location.pathname + window.location.search,
+        setStep,
       )
       if (result.status === 'error') {
         toast(t('general:error-title'), { description: result.error })
@@ -137,6 +147,7 @@ export const DriveSyncButton: FC = () => {
     } finally {
       if (!leaving) {
         endSync(syncedAt)
+        setStep(null)
       }
     }
   }
@@ -194,10 +205,34 @@ export const DriveSyncButton: FC = () => {
   const unsynced =
     connected && !syncing && hasUnsyncedChanges(localChangedAt, lastSyncedAt)
 
+  /**
+   * How far along, in the room the list has.
+   *
+   * A spinner alone cannot tell a sync that is slow from one that has
+   * stopped, which is why the settings screen counts the steps off. The list
+   * counts the same steps, but only the percentage is written on the button
+   * (#160): it stands where the word "同期" stood and is never longer than
+   * it, so it cannot widen a row that is already at its limit at 200% on a
+   * phone. The step itself is a sentence, and a sentence in there would be --
+   * measured at 200% on a 900px window, the button went from 156px wide to
+   * 663px, past the edge of a row whose container does not shrink.
+   *
+   * So the sentence goes where width is free: the accessible name, which is
+   * where someone who cannot see the spinner is reading anyway. Not the
+   * tooltip -- the button is disabled while it works, and a disabled button
+   * takes no pointer events to open one with.
+   */
+  const percentage = step === null ? null : `${syncStepPercentage(step)}%`
+  const stepText =
+    step === null ? null : t(`settings-page:google-drive-step-${step}`)
+
   const label = !connected
     ? t('list-view:sync-connect')
     : syncing
-      ? t('settings-page:google-drive-syncing')
+      ? // The whole of it: a screen reader is not short of room.
+        stepText === null
+        ? t('settings-page:google-drive-syncing')
+        : `${percentage} — ${stepText}`
       : unsynced
         ? `${t('list-view:sync')} — ${t('list-view:sync-unsynced')}`
         : t('list-view:sync')
@@ -239,8 +274,12 @@ export const DriveSyncButton: FC = () => {
           ) : (
             <CloudOff className="h-5 w-5" aria-hidden />
           )}
-          <span>
-            {connected ? t('list-view:sync') : t('list-view:connect')}
+          <span data-testid="drive-sync-progress">
+            {syncing && percentage !== null
+              ? percentage
+              : connected
+                ? t('list-view:sync')
+                : t('list-view:connect')}
           </span>
           {unsynced && (
             <span
