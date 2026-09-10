@@ -271,7 +271,11 @@ export const WorldServiceLive = Layer.succeed(WorldService, {
         }
         const world = await db.worlds.get(worldId)
         if (world === undefined) {
-          return
+          // Filing a world the collection does not hold answered `ok` and did
+          // nothing, so every screen that trusted it showed an add that was
+          // gone by the next read. `rememberWorld` is what puts the row there,
+          // and a caller that has not called it needs to hear about it.
+          throw new Error(`World "${worldId}" is not in the collection`)
         }
         const now = Date.now()
         await db.worlds.update(worldId, {

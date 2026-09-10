@@ -195,6 +195,13 @@ export function WorldDetailPopup({
   const [countdownSeconds, setCountdownSeconds] = useState<number>(5)
   const [isCountdownActive, setIsCountdownActive] = useState<boolean>(false)
   const [worldFolders, setWorldFolders] = useState<string[]>([])
+  // A world opened from the search is not in the collection, and this popup
+  // hides everything of the reader's own -- tags, memo -- because there is
+  // nothing to hang them on. Filing it into a folder is the act that puts it
+  // there, so once that has happened this popup is looking at a saved world
+  // and the rest of it applies again.
+  const [addedFromHere, setAddedFromHere] = useState(false)
+  const notInCollection = (dontSaveToLocal ?? false) && !addedFromHere
 
   const { refresh } = useWorlds(currentFolder)
 
@@ -276,7 +283,7 @@ export function WorldDetailPopup({
   )
 
   const handleAddCustomTag = useCallback(async () => {
-    if (dontSaveToLocal || isSavingCustomTags) {
+    if (notInCollection || isSavingCustomTags) {
       return
     }
     const normalized = normalizeCustomTag(customTagInput)
@@ -297,7 +304,7 @@ export function WorldDetailPopup({
   }, [
     customTagInput,
     customTags,
-    dontSaveToLocal,
+    notInCollection,
     isSavingCustomTags,
     normalizeCustomTag,
     persistCustomTags,
@@ -305,7 +312,7 @@ export function WorldDetailPopup({
 
   const handleRemoveCustomTag = useCallback(
     async (tag: string) => {
-      if (dontSaveToLocal || isSavingCustomTags) {
+      if (notInCollection || isSavingCustomTags) {
         return
       }
       const filtered = customTags.filter(
@@ -313,7 +320,7 @@ export function WorldDetailPopup({
       )
       await persistCustomTags(filtered)
     },
-    [customTags, dontSaveToLocal, isSavingCustomTags, persistCustomTags],
+    [customTags, notInCollection, isSavingCustomTags, persistCustomTags],
   )
 
   // With every field switched off there is nothing left to head, so the
@@ -464,10 +471,15 @@ export function WorldDetailPopup({
       return
     }
 
+    // Whatever the last world's filing did, this is a different world.
+    setAddedFromHere(false)
     fetchWorldDetails()
+    // A world not in the collection has no memo, but it can already be in a
+    // folder -- it may have been filed and then found again through the
+    // search -- so the checkboxes have to be asked about either way.
+    fetchWorldFolders()
     if (!dontSaveToLocal) {
       fetchMemo()
-      fetchWorldFolders()
     }
     loadCustomTags()
   }, [dontSaveToLocal, loadCustomTags, open, worldId])
@@ -654,6 +666,24 @@ export function WorldDetailPopup({
   async function toggleWorldFolder(folder: string): Promise<void> {
     try {
       const isRemoving = worldFolders.includes(folder)
+      // Filing a world the collection does not hold is what adds it. Without
+      // this the add threw, having quietly done nothing before that.
+      if (!isRemoving && notInCollection) {
+        if (worldDetails === null) {
+          return
+        }
+        const remembered = await commands.rememberWorld(
+          worldForCollection(worldDetails),
+        )
+        if (remembered.status !== 'ok') {
+          console.error(
+            `Failed to put world "${worldId}" into the collection: ${remembered.error}`,
+          )
+          toast(t('general:error-title'), { description: remembered.error })
+          return
+        }
+        setAddedFromHere(true)
+      }
       let updatedFolders: string[]
       if (isRemoving) {
         // Remove folder
@@ -1180,7 +1210,7 @@ export function WorldDetailPopup({
                               )
                             })}
                           </div>
-                          {!dontSaveToLocal && (
+                          {!notInCollection && (
                             <div className="flex flex-row items-center gap-2 mt-4">
                               <Input
                                 className="inline-flex px-2 py-0 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
@@ -1218,7 +1248,7 @@ export function WorldDetailPopup({
                         </div>
                       </div>
 
-                      {!dontSaveToLocal && (
+                      {!notInCollection && (
                         <>
                           <Separator className="my-2" />
                           <div>
@@ -1299,44 +1329,42 @@ export function WorldDetailPopup({
                           />
                         </div>
                       )}
-                      {!dontSaveToLocal && (
-                        <div>
-                          <div className="text-sm font-semibold mb-2 flex items-center gap-2">
-                            {t('general:folders')}
-                          </div>
-                          <div className="ui-control flex flex-col gap-2">
-                            {folders.length > 0 ? (
-                              folders.map((folder) => (
-                                // The whole row is the label: a VR laser
-                                // lands on the name far more easily than on
-                                // the box, and a second press used to select
-                                // the text instead of the folder.
-                                <label
-                                  className="flex cursor-pointer select-none items-center space-x-2 rounded-md py-1 hover:bg-accent/50"
-                                  key={folder.name}
-                                >
-                                  <Checkbox
-                                    checked={worldFolders.includes(folder.name)}
-                                    onCheckedChange={() =>
-                                      toggleWorldFolder(folder.name)
-                                    }
-                                  />
-                                  <span className="text-sm text-muted-foreground">
-                                    {folder.world_count}
-                                  </span>
-                                  <span className="truncate max-w-[200px] text-sm">
-                                    {folder.name}
-                                  </span>
-                                </label>
-                              ))
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                {t('general:no-folders')}
-                              </span>
-                            )}
-                          </div>
+                      <div>
+                        <div className="text-sm font-semibold mb-2 flex items-center gap-2">
+                          {t('general:folders')}
                         </div>
-                      )}
+                        <div className="ui-control flex flex-col gap-2">
+                          {folders.length > 0 ? (
+                            folders.map((folder) => (
+                              // The whole row is the label: a VR laser
+                              // lands on the name far more easily than on
+                              // the box, and a second press used to select
+                              // the text instead of the folder.
+                              <label
+                                className="flex cursor-pointer select-none items-center space-x-2 rounded-md py-1 hover:bg-accent/50"
+                                key={folder.name}
+                              >
+                                <Checkbox
+                                  checked={worldFolders.includes(folder.name)}
+                                  onCheckedChange={() =>
+                                    toggleWorldFolder(folder.name)
+                                  }
+                                />
+                                <span className="text-sm text-muted-foreground">
+                                  {folder.world_count}
+                                </span>
+                                <span className="truncate max-w-[200px] text-sm">
+                                  {folder.name}
+                                </span>
+                              </label>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {t('general:no-folders')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )
