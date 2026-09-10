@@ -59,6 +59,40 @@ test.describe('the two pages "find worlds" was split into', () => {
     await expect(page.getByRole('tab')).toHaveCount(0)
   })
 
+  /**
+   * The separator between the two groups is the line between "worlds this
+   * device holds" and "worlds it may not", so "unclassified" belongs beside
+   * "all worlds" rather than beside the two pages above.
+   */
+  test("sit below the collection's own two entries, in that order", async ({
+    page,
+  }) => {
+    await openTheDrawer(page)
+
+    const entries = await page
+      .getByRole('dialog')
+      .getByText(
+        new RegExp(
+          [
+            jaJP['general:all-worlds'],
+            jaJP['general:unclassified-worlds'],
+            RECENTLY_VISITED_LABEL,
+            SEARCH_LABEL,
+          ]
+            .map((label) => `^${label}$`)
+            .join('|'),
+        ),
+      )
+      .allTextContents()
+
+    expect(entries).toEqual([
+      jaJP['general:all-worlds'],
+      jaJP['general:unclassified-worlds'],
+      RECENTLY_VISITED_LABEL,
+      SEARCH_LABEL,
+    ])
+  })
+
   test('open the search with its fields already there', async ({ page }) => {
     await page.goto('/listview/search')
 

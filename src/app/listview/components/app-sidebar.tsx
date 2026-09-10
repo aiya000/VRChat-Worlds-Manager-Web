@@ -196,6 +196,10 @@ export function AppSidebar() {
         <Separator className="" />
 
         <nav className={sidebarStyles.nav}>
+          {/* The separator below divides these by whether the worlds are
+              already here: "all" and "unclassified" are two views of the
+              collection, while "recently visited" and the search both show
+              worlds this device may not hold. */}
           <SidebarGroup>
             <div
               className={`
@@ -210,6 +214,26 @@ export function AppSidebar() {
               <SaturnIcon className="h-[18px] w-[18px]" />
               <span className="text-sm font-medium">
                 {t('general:all-worlds')}
+              </span>
+            </div>
+
+            <div
+              className={`
+              px-3 py-2 text-sm font-medium rounded-lg cursor-pointer
+              overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-3
+              ${
+                pathname === '/listview/folders/special/unclassified'
+                  ? sidebarStyles.activeLink
+                  : 'hover:bg-accent/50 hover:text-accent-foreground'
+              }
+            `}
+              onClick={() => {
+                navigate('/listview/folders/special/unclassified')
+              }}
+            >
+              <FileQuestion className="h-5 w-5" />
+              <span className="text-sm font-medium">
+                {t('general:unclassified-worlds')}
               </span>
             </div>
           </SidebarGroup>
@@ -244,26 +268,6 @@ export function AppSidebar() {
               <Search className="h-5 w-5" />
               <span className="text-sm font-medium">
                 {t('general:search-worlds')}
-              </span>
-            </div>
-
-            <div
-              className={`
-              px-3 py-2 text-sm font-medium rounded-lg cursor-pointer
-              overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-3
-              ${
-                pathname === '/listview/folders/special/unclassified'
-                  ? sidebarStyles.activeLink
-                  : 'hover:bg-accent/50 hover:text-accent-foreground'
-              }
-            `}
-              onClick={() => {
-                navigate('/listview/folders/special/unclassified')
-              }}
-            >
-              <FileQuestion className="h-5 w-5" />
-              <span className="text-sm font-medium">
-                {t('general:unclassified-worlds')}
               </span>
             </div>
           </SidebarGroup>
