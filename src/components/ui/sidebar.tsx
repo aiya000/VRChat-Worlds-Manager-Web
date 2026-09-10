@@ -6,6 +6,7 @@ import { VariantProps, cva } from 'class-variance-authority'
 import { PanelLeft } from 'lucide-react'
 
 import { useIsMobile } from '@/hooks/use-mobile'
+import { isRightwardSwipe, type SwipePoint } from '@/lib/swipe-gesture'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,6 +34,13 @@ const SIDEBAR_WIDTH = '16rem'
 const SIDEBAR_WIDTH_MOBILE = 'min(calc(18rem * var(--control-scale, 1)), 100vw)'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
+
+/**
+ * What is on top of the page answers its own gestures: a swipe across an open
+ * dialog, a menu or a slider was meant for that, not for the drawer behind it.
+ */
+const SWIPE_EXEMPT =
+  '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], [role="slider"]'
 
 type SidebarContext = {
   state: 'expanded' | 'collapsed'
@@ -119,6 +127,63 @@ const SidebarProvider = React.forwardRef<
       window.addEventListener('keydown', handleKeyDown)
       return () => window.removeEventListener('keydown', handleKeyDown)
     }, [toggleSidebar])
+
+    // A swipe rightwards opens the drawer, the way a phone's navigation drawer
+    // is pulled open. Only on a phone: at a wider width the sidebar is a column
+    // that is already there, and a VR laser or a mouse sends no touch at all.
+    //
+    // The whole screen listens, not a strip along the left edge. Android takes
+    // an edge swipe for its own "back" gesture before the page ever sees it,
+    // and nothing here scrolls sideways, so a swipe anywhere is unambiguous --
+    // except inside a dialog or a menu, where it is that overlay's own business.
+    React.useEffect(() => {
+      if (!isMobile) {
+        return
+      }
+
+      let swipeStart: SwipePoint | null = null
+
+      const handleTouchStart = (event: TouchEvent) => {
+        const target = event.target
+        if (
+          event.touches.length !== 1 ||
+          (target instanceof Element && target.closest(SWIPE_EXEMPT) !== null)
+        ) {
+          swipeStart = null
+          return
+        }
+
+        const touch = event.touches[0]
+        swipeStart = { x: touch.clientX, y: touch.clientY, at: event.timeStamp }
+      }
+
+      const handleTouchEnd = (event: TouchEvent) => {
+        const start = swipeStart
+        swipeStart = null
+        if (start === null || event.changedTouches.length !== 1) {
+          return
+        }
+
+        const touch = event.changedTouches[0]
+        const end = { x: touch.clientX, y: touch.clientY, at: event.timeStamp }
+        if (isRightwardSwipe(start, end)) {
+          setOpenMobile(true)
+        }
+      }
+
+      const forgetSwipe = () => {
+        swipeStart = null
+      }
+
+      window.addEventListener('touchstart', handleTouchStart, { passive: true })
+      window.addEventListener('touchend', handleTouchEnd, { passive: true })
+      window.addEventListener('touchcancel', forgetSwipe, { passive: true })
+      return () => {
+        window.removeEventListener('touchstart', handleTouchStart)
+        window.removeEventListener('touchend', handleTouchEnd)
+        window.removeEventListener('touchcancel', forgetSwipe)
+      }
+    }, [isMobile, setOpenMobile])
 
     // We add a state so that we can do data-state="expanded" or "collapsed".
     // This makes it easier to style the sidebar with Tailwind classes.
