@@ -23,11 +23,22 @@ import { WorldGrid } from '../../../components/world-grid'
 import { WorldGridSkeleton } from '../../../components/world-grid/skeleton'
 import MultiFilterItemSelector from '@/components/multi-filter-item-selector'
 import { PlatformFilterCheckboxes } from '@/components/platform-filter-checkboxes'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   matchesPlatformFilters,
   searchablePlatforms,
   type SearchablePlatform,
 } from '@/lib/platform-filter'
+import {
+  hasAnyTag,
+  matchesTagFilters,
+  matchesTextQuery,
+} from '@/lib/world-search'
+import { shownInCollection } from '@/lib/world-collection'
+import {
+  getDefaultDirection,
+  type SortField,
+} from '@/app/listview/hook/use-filters'
 import { useSelectedWorldsStore } from '../../../hook/use-selected-worlds'
 import { HelpHint } from '@/components/help-hint'
 import { useFolders } from '@/app/listview/hook/use-folders'
@@ -60,6 +71,13 @@ export default function FindWorldsPage() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<
     SearchablePlatform[]
   >([])
+  // Looking through the collection instead of VRChat. The two can be ordered
+  // by different things -- popularity and heat are VRChat's own and are not
+  // kept here -- so each keeps its own chosen order rather than sharing one
+  // that only half of them can honour.
+  const [searchSavedOnly, setSearchSavedOnly] = useState(false)
+  const [selectedSavedSort, setSelectedSavedSort] =
+    useState<SortField>('dateAdded')
   const [availableTags, setAvailableTags] = useState<string[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -154,13 +172,18 @@ export default function FindWorldsPage() {
   // Add this state variable to track if a search has been performed
   const [hasSearched, setHasSearched] = useState(false)
 
-  // Keep selectedSort in sync: when a search query is present, force sort to 'relevance'
+  // Keep selectedSort in sync: when a search query is present, force sort to
+  // 'relevance'. Only VRChat decides relevance, so the collection's own order
+  // is left alone.
   useEffect(() => {
+    if (searchSavedOnly) {
+      return
+    }
     if (searchQuery.trim() !== '') {
       // Only update when it's not already 'relevance' to avoid unnecessary state updates
       setSelectedSort((prev) => (prev === 'relevance' ? prev : 'relevance'))
     }
-  }, [searchQuery])
+  }, [searchQuery, searchSavedOnly])
   const [loadMoreBackoffUntil, setLoadMoreBackoffUntil] = useState<
     number | null
   >(null)
@@ -193,9 +216,44 @@ export default function FindWorldsPage() {
     }
   }, [activeTab])
 
+  /**
+   * The collection answers in one go -- it is already here, and it is a few
+   * hundred worlds rather than VRChat's catalogue -- so there is no next page
+   * to scroll for.
+   */
+  const searchSavedWorlds = async (): Promise<WorldDisplayData[]> => {
+    const stored = await commands.getAllWorlds()
+    if (stored.status !== 'ok') {
+      throw new Error(stored.error)
+    }
+    const show = await commands.getShowWorldsKeptForInstance()
+    const collection = shownInCollection(
+      stored.data,
+      show.status === 'ok' && show.data,
+    )
+    const found = collection.filter(
+      (world) =>
+        matchesTextQuery(world, searchQuery) &&
+        matchesTagFilters(world.tags ?? [], selectedTags) &&
+        !hasAnyTag(world.tags ?? [], selectedExcludedTags) &&
+        matchesPlatformFilters(world.platform, selectedPlatforms),
+    )
+    const sorted = await commands.sortWorldsDisplay(
+      found,
+      selectedSavedSort,
+      getDefaultDirection(selectedSavedSort),
+    )
+    return sorted.status === 'ok' ? sorted.data : found
+  }
+
   const handleSearch = async (loadMore = false) => {
     // Respect backoff if trying to auto load more
     if (loadMore && loadMoreBackoffUntil && Date.now() < loadMoreBackoffUntil) {
+      return
+    }
+
+    // There is nothing further to load out of the collection.
+    if (searchSavedOnly && loadMore) {
       return
     }
 
@@ -214,6 +272,20 @@ export default function FindWorldsPage() {
     }
 
     try {
+      if (searchSavedOnly) {
+        const found = await searchSavedWorlds()
+        console.info(`Searched the collection: ${found.length} worlds found`)
+        setSearchResults(found)
+        setCurrentPage(1)
+        setHasMoreResults(false)
+        if (found.length === 0) {
+          toast(t('find-page:no-more-results'), {
+            description: t('find-page:try-different-search'),
+          })
+        }
+        return
+      }
+
       // VRChat is asked about one platform at most -- it answers a
       // comma-separated pair with nothing at all -- so the rest of the AND is
       // finished here. A page can therefore filter down to nothing while the
@@ -434,6 +506,29 @@ export default function FindWorldsPage() {
               {/* sticky header now inside scroller */}
               <Card className=" mx-4 border-0 shadow-none">
                 <CardContent className="pt-4 space-y-4">
+                  {/* Where to look. It decides what every control below
+                      means, so it reads before them. */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="search-saved-only"
+                        checked={searchSavedOnly}
+                        onCheckedChange={(checked) =>
+                          setSearchSavedOnly(!!checked)
+                        }
+                      />
+                      <label
+                        htmlFor="search-saved-only"
+                        className="text-sm cursor-pointer py-1"
+                      >
+                        {t('find-page:saved-only')}
+                      </label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t('find-page:saved-only-hint')}
+                    </p>
+                  </div>
+
                   {/* First row: Search input, Sort dropdown, and Search button */}
                   <div className="flex gap-4 items-end">
                     {/* Search text input */}
@@ -453,7 +548,7 @@ export default function FindWorldsPage() {
                     <div className="flex flex-col gap-2 w-2/5">
                       <div className="flex items-center gap-2">
                         <Label htmlFor="sort">{t('find-page:sort-by')}</Label>
-                        {searchQuery.trim() !== '' && (
+                        {searchQuery.trim() !== '' && !searchSavedOnly && (
                           <HelpHint
                             label={t('find-page:sort-by')}
                             tooltip={t('find-page:sort-relevant-tooltip')}
@@ -472,43 +567,84 @@ export default function FindWorldsPage() {
                           />
                         )}
                       </div>
-                      <Select
-                        value={selectedSort}
-                        onValueChange={setSelectedSort}
-                        disabled={searchQuery.trim() !== ''}
-                      >
-                        <SelectTrigger id="sort">
-                          <SelectValue
-                            placeholder={t('find-page:sort-popularity')}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="popularity">
-                            {t('find-page:sort-popularity')}
-                          </SelectItem>
-                          <SelectItem value="heat">
-                            {t('find-page:sort-heat')}
-                          </SelectItem>
-                          <SelectItem value="random">
-                            {t('find-page:sort-random')}
-                          </SelectItem>
-                          <SelectItem value="favorites">
-                            {t('find-page:sort-favorites')}
-                          </SelectItem>
-                          <SelectItem value="publicationDate">
-                            {t('find-page:sort-publication-date')}
-                          </SelectItem>
-                          <SelectItem value="created">
-                            {t('find-page:sort-created')}
-                          </SelectItem>
-                          <SelectItem value="updated">
-                            {t('find-page:sort-updated')}
-                          </SelectItem>
-                          <SelectItem value="relevance">
-                            {t('find-page:sort-relevant')}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {/* Popularity, heat and the publication dates are
+                          VRChat's own and are not kept here, so searching the
+                          collection offers what the collection can answer. */}
+                      {searchSavedOnly ? (
+                        <Select
+                          value={selectedSavedSort}
+                          onValueChange={(value) =>
+                            setSelectedSavedSort(value as SortField)
+                          }
+                        >
+                          <SelectTrigger id="sort">
+                            <SelectValue
+                              placeholder={t('world-grid:sort-placeholder')}
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="dateAdded">
+                              {t('general:date-added')}
+                            </SelectItem>
+                            <SelectItem value="name">
+                              {t('world-grid:sort-name')}
+                            </SelectItem>
+                            <SelectItem value="authorName">
+                              {t('general:author')}
+                            </SelectItem>
+                            <SelectItem value="visits">
+                              {t('world-grid:sort-visits')}
+                            </SelectItem>
+                            <SelectItem value="favorites">
+                              {t('world-grid:sort-favorites')}
+                            </SelectItem>
+                            <SelectItem value="capacity">
+                              {t('world-grid:sort-capacity')}
+                            </SelectItem>
+                            <SelectItem value="lastUpdated">
+                              {t('world-grid:sort-last-updated')}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Select
+                          value={selectedSort}
+                          onValueChange={setSelectedSort}
+                          disabled={searchQuery.trim() !== ''}
+                        >
+                          <SelectTrigger id="sort">
+                            <SelectValue
+                              placeholder={t('find-page:sort-popularity')}
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="popularity">
+                              {t('find-page:sort-popularity')}
+                            </SelectItem>
+                            <SelectItem value="heat">
+                              {t('find-page:sort-heat')}
+                            </SelectItem>
+                            <SelectItem value="random">
+                              {t('find-page:sort-random')}
+                            </SelectItem>
+                            <SelectItem value="favorites">
+                              {t('find-page:sort-favorites')}
+                            </SelectItem>
+                            <SelectItem value="publicationDate">
+                              {t('find-page:sort-publication-date')}
+                            </SelectItem>
+                            <SelectItem value="created">
+                              {t('find-page:sort-created')}
+                            </SelectItem>
+                            <SelectItem value="updated">
+                              {t('find-page:sort-updated')}
+                            </SelectItem>
+                            <SelectItem value="relevance">
+                              {t('find-page:sort-relevant')}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                   </div>
 

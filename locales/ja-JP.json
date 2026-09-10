@@ -485,6 +485,8 @@
   "find-page:exclude-tag-help-how": "左の「タグ」欄が「そのタグを含むワールドだけを探す」、こちらが「そのタグを含むワールドを外す」条件です。どちらも 5 つまで指定できます。",
   "find-page:searching": "検索中...",
   "find-page:search-button": "検索",
+  "find-page:saved-only": "保存済みワールドからのみ探す",
+  "find-page:saved-only-hint": "VRChat には問い合わせず、コレクションの中だけを探します",
   "find-page:loading-more": "さらに読み込み中...",
   "find-page:scroll-for-more": "スクロールしてさらに読み込む",
   "find-page:no-more-results": "これ以上のワールドはありません",

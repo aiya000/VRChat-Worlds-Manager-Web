@@ -485,6 +485,8 @@
   "find-page:exclude-tag-help-how": "\"Tag\" on the left means \"only worlds carrying this tag\"; this one means \"drop worlds carrying this tag\". Both take up to five.",
   "find-page:searching": "Searching...",
   "find-page:search-button": "Search",
+  "find-page:saved-only": "Search only worlds you have saved",
+  "find-page:saved-only-hint": "Looks through your collection without asking VRChat",
   "find-page:loading-more": "Loading more...",
   "find-page:scroll-for-more": "Scroll to load more",
   "find-page:no-more-results": "No more worlds available",

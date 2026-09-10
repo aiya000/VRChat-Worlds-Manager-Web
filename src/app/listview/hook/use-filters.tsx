@@ -3,13 +3,13 @@ import {
   matchesPlatformFilters,
   type PlatformFilter,
 } from '@/lib/platform-filter'
+import { matchesTagFilters, matchesTextQuery } from '@/lib/world-search'
 import { create } from 'zustand'
 import { useEffect, useRef } from 'react'
-import { toRomaji } from 'wanakana'
 import { toast } from 'sonner'
 import { useLocalization } from '@/hooks/use-localization'
 
-type SortField =
+export type SortField =
   | 'name'
   | 'authorName'
   | 'visits'
@@ -173,9 +173,7 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
     const seq = ++requestSeq.current
 
     const normalize = (s: string) => s.toLowerCase()
-    const searchLower = searchQuery.trim().toLowerCase()
     const activeAuthor = authorFilter.trim().toLowerCase()
-    const activeTagsLower = tagFilters.map((t) => t.toLowerCase())
     const activeFoldersLower = folderFilters.map((f) => f.toLowerCase())
     const hasMemoFilter = memoTextFilter.trim().length > 0
 
@@ -188,15 +186,7 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
     }
 
     function passesSyncFilters(world: WorldDisplayData): boolean {
-      // Text search (name / authorName + romaji variants)
-      const textOk =
-        !searchLower ||
-        normalize(world.name).includes(searchLower) ||
-        normalize(world.authorName).includes(searchLower) ||
-        normalize(toRomaji(world.name)).includes(searchLower) ||
-        normalize(toRomaji(world.authorName)).includes(searchLower)
-
-      if (!textOk) {
+      if (!matchesTextQuery(world, searchQuery)) {
         rejectCounters.text++
         return false
       }
@@ -206,24 +196,9 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
         return false
       }
 
-      if (activeTagsLower.length > 0) {
-        if (!world.tags || world.tags.length === 0) {
-          rejectCounters.tag++
-          return false
-        }
-        const worldTagsLower = world.tags.map((wt) => wt.toLowerCase())
-        const allTagsFound = activeTagsLower.every((tag) => {
-          if (tag.startsWith('custom:')) {
-            return worldTagsLower.some((wTag) => wTag === tag)
-          }
-
-          const prefixed = `author_tag_${tag}`
-          return worldTagsLower.some((wTag) => wTag === prefixed.toLowerCase())
-        })
-        if (!allTagsFound) {
-          rejectCounters.tag++
-          return false
-        }
+      if (!matchesTagFilters(world.tags ?? [], tagFilters)) {
+        rejectCounters.tag++
+        return false
       }
 
       if (activeFoldersLower.length > 0) {
