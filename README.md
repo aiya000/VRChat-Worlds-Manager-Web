@@ -61,6 +61,21 @@
 
 ## Screenshots
 
+### In VR, without taking the headset off
+
+This is what the app is for. The collection is a window inside the headset -- here through SteamVR's
+own overlay -- so the folders stay readable while you are in a world, and the next world is entered
+from where you already are.
+
+|                                                                                 |                                                                           |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| ![The panel resting in the world](docs/screenshots/vr-1-panel-in-the-world.jpg) | ![Folders and worlds](docs/screenshots/vr-2-folders-and-worlds.jpg)       |
+| **1.** The panel, resting in the world                                          | **2.** Close enough to read: folders down the side, worlds across         |
+| ![Choosing the instance](docs/screenshots/vr-3-choosing-the-instance.jpg)       | ![The invite appears in VRChat](docs/screenshots/vr-4-invite-appears.jpg) |
+| **3.** A world's folders, and the instance made from it                         | **4.** The invite arrives in VRChat's own notifications                   |
+| ![Traveling to the world](docs/screenshots/vr-5-traveling.jpg)                  | ![Arrived in the world](docs/screenshots/vr-6-arrived.jpg)                |
+| **5.** Accepting it travels there                                               | **6.** Arrived, without the headset having come off                       |
+
 ### Beside VRChat on a desktop
 
 VRChat in one window and the app in another, so your worlds stay in reach without leaving the one
@@ -97,8 +112,6 @@ notification. No link opens the Android app straight into an instance, so this i
 | **5.** VRChat says the invite has arrived                                         | **6.** It is waiting in the notifications                                                  |
 | ![Traveling to the world](docs/screenshots/android-7-traveling.jpg)               | ![Arrived in the world](docs/screenshots/android-8-arrived.jpg)                            |
 | **7.** Accepting it travels there                                                 | **8.** Arrived, with the app still in the corner                                           |
-
-> More screenshots are still to come -- in a VR overlay.
 
 ---
 
