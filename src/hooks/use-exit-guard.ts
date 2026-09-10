@@ -7,13 +7,14 @@ import { useLocalization } from '@/hooks/use-localization'
 import {
   armExitGuard,
   EXIT_GUARD_WINDOW_MS,
+  isExitGuardInPlace,
   isGuardEntry,
+  isSteppingBackOverGuard,
+  noteExitGuardSpent,
+  STARTUP_PATH,
   wantsExitGuard,
 } from '@/lib/exit-guard'
 import { isRunningInstalled } from '@/lib/pwa'
-
-/** The screen that only decides where the app starts, and replaces itself. */
-const SPLASH_PATH = '/'
 
 /**
  * Asks for the back gesture twice before the app is left, the way an Android
@@ -27,6 +28,11 @@ const SPLASH_PATH = '/'
  * finds no history at all and the browser closes the app itself; if the couple
  * of seconds pass without one, the guard is put back and the next press starts
  * over.
+ *
+ * The screen the app starts at is guarded as well, and needs it most: it
+ * decides where the app begins over a request to VRChat, seconds in which
+ * back would otherwise close the app without a word. That screen hands the
+ * guard back through `releaseStartupGuard()` before it replaces itself.
  */
 export function useExitGuard(): void {
   const { t } = useLocalization()
@@ -39,30 +45,20 @@ export function useExitGuard(): void {
     tRef.current = t
   })
 
-  const armed = useRef(false)
-
-  // Not on the splash screen, which replaces itself with wherever the app
-  // starts: an entry pushed there guards a page that is about to become
-  // another one, and the user would see the splash again on the way out.
+  // Runs again on every screen: the guard is handed back when the app leaves
+  // the screen it starts at, and has to be put up again where it lands.
   useEffect(() => {
-    if (armed.current || pathname === SPLASH_PATH) {
+    if (isExitGuardInPlace()) {
       return
     }
-    const onGuardEntry = isGuardEntry(window.history.state)
     const wanted = wantsExitGuard({
       historyLength: window.history.length,
-      onGuardEntry,
+      onGuardEntry: isGuardEntry(window.history.state),
       installed: isRunningInstalled(),
       touch: navigator.maxTouchPoints > 0,
     })
-    if (!wanted) {
-      return
-    }
-
-    armed.current = true
-    // A reload of the guard entry lands on one that is already in place.
-    if (!onGuardEntry) {
-      armExitGuard()
+    if (wanted) {
+      armExitGuard(pathname === STARTUP_PATH)
     }
   }, [pathname])
 
@@ -72,16 +68,22 @@ export function useExitGuard(): void {
     const handlePopState = (event: PopStateEvent) => {
       // Landing on the guard is the app's own entry being shown again, not an
       // attempt to leave: the press came from somewhere deeper in the app.
-      if (!armed.current || isGuardEntry(event.state) || rearming !== null) {
+      if (
+        isSteppingBackOverGuard() ||
+        !isExitGuardInPlace() ||
+        isGuardEntry(event.state) ||
+        rearming !== null
+      ) {
         return
       }
 
+      noteExitGuardSpent()
       toast(tRef.current('exit-guard:press-back-again'), {
         duration: EXIT_GUARD_WINDOW_MS,
       })
       rearming = setTimeout(() => {
         rearming = null
-        armExitGuard()
+        armExitGuard(window.location.pathname === STARTUP_PATH)
       }, EXIT_GUARD_WINDOW_MS)
     }
 

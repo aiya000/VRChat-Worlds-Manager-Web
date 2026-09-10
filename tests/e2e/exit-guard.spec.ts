@@ -76,8 +76,9 @@ test.describe('leaving the app by pressing back', () => {
   })
 
   // The app is launched at `/`, which only decides where to start and then
-  // replaces itself. Guarding that entry would put the splash screen back on
-  // screen on the way out, so the guard waits for the app to settle.
+  // replaces itself. Guarding that entry alone would put the splash screen
+  // back on screen on the way out, so the guard is handed over to wherever the
+  // app settles.
   test('guards where the app settles, not the screen it starts at', async ({
     page,
   }) => {
@@ -105,6 +106,58 @@ test.describe('leaving the app by pressing back', () => {
 
     await expect(page).toHaveURL(new RegExp(`${START}$`))
     await expect(page.getByText(WARNING)).toHaveCount(0)
+  })
+})
+
+// The screen the app is launched at decides where to start by asking VRChat,
+// which takes a second or three on a phone. Every one of those seconds used to
+// be a second in which back closed the app without a word (#188).
+//
+// The service worker is blocked here because it, not the page, would make that
+// request, and a request it makes is one `page.route()` never sees -- the wait
+// below would not happen and the screen would be gone before back was pressed.
+test.describe('pressing back while the app is still starting up', () => {
+  test.use({
+    viewport: PHONE,
+    hasTouch: true,
+    isMobile: true,
+    serviceWorkers: 'block',
+  })
+
+  const DECIDING_MS = 3000
+
+  test('is warned about, and the app carries on starting up', async ({
+    page,
+  }) => {
+    await pretendNothingIsBehind(page)
+    await page.addInitScript(() => {
+      localStorage.setItem('setupComplete', 'true')
+    })
+    await page.route('**/auth/user*', async (route) => {
+      await new Promise((settle) => setTimeout(settle, DECIDING_MS))
+      await route.fulfill({ status: 401, body: '{}' })
+    })
+
+    await page.goto('/')
+    await page.addStyleTag({
+      content: 'nextjs-portal { display: none !important; }',
+    })
+    await expect.poll(() => guardEntry(page)).toBe(true)
+
+    await page.goBack()
+
+    await expect(page.getByText(WARNING)).toBeVisible()
+    await expect(page).toHaveURL(/\/$/)
+
+    // The screen carries on deciding while the warning stands. Where it lands
+    // has to end up guarded in its turn, with nothing left in the history
+    // pointing back at the screen the app started at.
+    await page.waitForURL(/\/(listview|login)/, { timeout: 15_000 })
+    await expect.poll(() => guardEntry(page)).toBe(true)
+    await page.goBack()
+    await expect(page.getByText(WARNING)).toBeVisible()
+    await page.goBack()
+    await expect.poll(() => page.url()).toBe('about:blank')
   })
 })
 

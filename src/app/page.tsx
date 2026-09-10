@@ -6,6 +6,15 @@ import Image from 'next/image'
 import { Loader2 } from 'lucide-react'
 import { commands } from '@/lib/commands'
 import { useLocalization } from '@/hooks/use-localization'
+import { releaseStartupGuard } from '@/lib/exit-guard'
+
+/**
+ * Where this screen decided the app begins, kept for as long as the page is
+ * loaded. Deciding costs a request to VRChat, and this screen can be shown a
+ * second time -- the exit guard steps back onto it -- with the answer already
+ * known.
+ */
+let decided: string | null = null
 
 export default function Home() {
   const router = useRouter()
@@ -18,18 +27,32 @@ export default function Home() {
   // app is launched at (`start_url` is `/`), so anything left here is what
   // stands between the user and leaving.
   useEffect(() => {
+    // Guarded while it decides, and the guard comes down before the replace:
+    // a replace writes over the entry that is showing, and while the guard is
+    // up that entry is the guard's own.
+    const leaveFor = async (path: string) => {
+      decided = path
+      await releaseStartupGuard()
+      router.replace(path)
+    }
+
     const checkFirstTime = async () => {
+      if (decided !== null) {
+        await leaveFor(decided)
+        return
+      }
+
       const isFirstTime = await commands.requireInitialSetup()
 
       if (isFirstTime) {
-        router.replace('/setup')
+        await leaveFor('/setup')
       } else {
         const checkFilesAndAuth = async () => {
           const result = await commands.checkFilesLoaded()
 
           if (result.status === 'error') {
             console.error(`Error loading files: ${result.error}`)
-            router.replace(
+            await leaveFor(
               `${'/error/read_data_error'}?${encodeURIComponent(result.error)}`,
             )
             return
@@ -40,12 +63,12 @@ export default function Home() {
 
           if (authResult.status === 'ok') {
             console.info('User is authenticated')
-            router.replace('/listview/folders/special/all')
+            await leaveFor('/listview/folders/special/all')
           } else {
-            router.replace('/login')
+            await leaveFor('/login')
           }
         }
-        checkFilesAndAuth()
+        await checkFilesAndAuth()
       }
     }
     checkFirstTime()
