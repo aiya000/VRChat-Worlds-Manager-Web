@@ -1,4 +1,8 @@
 import { commands, WorldDisplayData } from '@/lib/commands'
+import {
+  matchesPlatformFilters,
+  type PlatformFilter,
+} from '@/lib/platform-filter'
 import { create } from 'zustand'
 import { useEffect, useRef } from 'react'
 import { toRomaji } from 'wanakana'
@@ -20,6 +24,7 @@ interface FilterState {
   authorFilter: string
   tagFilters: string[]
   folderFilters: string[]
+  platformFilters: PlatformFilter[]
   memoTextFilter: string
   searchQuery: string
   filteredWorlds: WorldDisplayData[]
@@ -30,6 +35,7 @@ interface FilterState {
   setAuthorFilter: (author: string) => void
   setTagFilters: (tags: string[]) => void
   setFolderFilters: (folders: string[]) => void
+  setPlatformFilters: (platforms: PlatformFilter[]) => void
   setMemoTextFilter: (memo: string) => void
   setSearchQuery: (query: string) => void
   setFilteredWorlds: (worlds: WorldDisplayData[]) => void
@@ -44,6 +50,7 @@ export const useWorldFiltersStore = create<FilterState>((set) => ({
   authorFilter: '',
   tagFilters: [],
   folderFilters: [],
+  platformFilters: [],
   memoTextFilter: '',
   searchQuery: '',
   filteredWorlds: [],
@@ -73,6 +80,7 @@ export const useWorldFiltersStore = create<FilterState>((set) => ({
   setAuthorFilter: (author) => set({ authorFilter: author }),
   setTagFilters: (tags) => set({ tagFilters: tags }),
   setFolderFilters: (folders) => set({ folderFilters: folders }),
+  setPlatformFilters: (platforms) => set({ platformFilters: platforms }),
   setMemoTextFilter: (memo) => set({ memoTextFilter: memo }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setFilteredWorlds: (worlds) => set({ filteredWorlds: worlds }),
@@ -83,6 +91,7 @@ export const useWorldFiltersStore = create<FilterState>((set) => ({
       authorFilter: '',
       tagFilters: [],
       folderFilters: [],
+      platformFilters: [],
       memoTextFilter: '',
       searchQuery: '',
     }),
@@ -114,6 +123,8 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
     setTagFilters,
     folderFilters,
     setFolderFilters,
+    platformFilters,
+    setPlatformFilters,
     memoTextFilter,
     setMemoTextFilter,
     clearFilters,
@@ -168,7 +179,13 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
     const activeFoldersLower = folderFilters.map((f) => f.toLowerCase())
     const hasMemoFilter = memoTextFilter.trim().length > 0
 
-    const rejectCounters = { text: 0, author: 0, tag: 0, folder: 0 }
+    const rejectCounters = {
+      text: 0,
+      author: 0,
+      tag: 0,
+      folder: 0,
+      platform: 0,
+    }
 
     function passesSyncFilters(world: WorldDisplayData): boolean {
       // Text search (name / authorName + romaji variants)
@@ -218,6 +235,11 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
           rejectCounters.folder++
           return false
         }
+      }
+
+      if (!matchesPlatformFilters(world.platform, platformFilters)) {
+        rejectCounters.platform++
+        return false
       }
 
       return true
@@ -403,6 +425,7 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
     authorFilter,
     tagFilters,
     folderFilters,
+    platformFilters,
     memoTextFilter,
     sortField,
     sortDirection,
@@ -423,6 +446,8 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
     setTagFilters,
     folderFilters,
     setFolderFilters,
+    platformFilters,
+    setPlatformFilters,
     memoTextFilter,
     setMemoTextFilter,
     clearFilters,
