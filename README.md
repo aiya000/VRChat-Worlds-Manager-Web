@@ -2,7 +2,7 @@
 
 # VRChat Worlds Manager Web (VRCWW)
 
-\- [bɯi aːɾɯ ɕiː waɾawaɾa] \-
+\- **[bɯi aːɾɯ ɕiː waɾawaɾa]** \-
 
 [![Tests](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml/badge.svg)](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml)
 [![Web App](https://img.shields.io/badge/Web%20App-vrchat--worlds--manager--web.pages.dev-blue?logo=cloudflarepages)](https://vrchat-worlds-manager-web.pages.dev)
@@ -18,44 +18,17 @@
 
 ---
 
-## Features
+## At a Glance
 
-- **Web & PWA Ready (VR-First / Responsive Layout)**
-  - Runs in any modern web browser on PC, smartphones, and VR overlays (XSOverlay, SteamVR browser, Quest browser, etc.).
-  - Responsive layout with a collapsible sidebar and touch/laser-friendly controls.
-  - Can be installed to your home screen or desktop as a Progressive Web App (PWA).
-  - Usable as a desktop application, just as the original VRC Worlds Manager v2 is.
-  - What you edit on the desktop -- adding favourites, sorting them into folders -- syncs to your phone and your other PCs. The same data everywhere, with no export or import step.
+- Keeps your favourite worlds, beyond VRChat's own slots
+- Sorts them into folders (one world can be in several)
+- Finds anything you have saved by name, author, tag, or folder
+- Searches VRChat's public worlds, and files what you find
+- Makes an instance from inside the app, and the invite takes you there
+- Runs on PC, phones, and VR overlays -- installable as a PWA
+- Keeps your data in your own browser
 
-- **Add & Preserve Favourite Worlds**
-  - Automatically fetch worlds marked as Favourites in VRChat via the API and store them in the app.
-  - Saved worlds remain preserved even if removed from your VRChat Favourites list or if your slots are full.
-  - Add worlds directly using URL links.
-
-- **Organize Worlds into Folders & Customize Views**
-  - Organize saved worlds into folders (a single world can belong to multiple folders).
-  - Customize world card display with per-field visibility toggles.
-  - Attach personal notes and memos to each world.
-
-- **Multi-Account Support & Management Tools**
-  - Import favourite worlds from another VRChat account into your folders.
-  - Purge all VRChat favorites from an account in one click.
-
-- **Search & Discover**
-  - Fast local search by world name, author, tags, and folders.
-  - View recently visited worlds.
-  - Search public VRChat worlds using tags, text queries, and exclusion filters.
-
-- **Create Instances**
-  - Launch instances directly from the app (including group instances). An invite arrives in your running VRChat client, as it does from the official VRChat website.
-
-- **Share Folders**
-  - Share folders via public links (generating a UUID valid for 30 days).
-  - Shared folders can be viewed directly on the web.
-
-- **Client-Side Privacy**
-  - World data and your login session are stored locally in your browser's IndexedDB (Dexie.js).
-  - Secure Cloudflare Worker CORS proxy handles communication with the VRChat API.
+See [Features](#features) for the detail.
 
 ---
 
@@ -112,6 +85,47 @@ notification. No link opens the Android app straight into an instance, so this i
 | **5.** VRChat says the invite has arrived                                         | **6.** It is waiting in the notifications                                                  |
 | ![Traveling to the world](docs/screenshots/android-7-traveling.jpg)               | ![Arrived in the world](docs/screenshots/android-8-arrived.jpg)                            |
 | **7.** Accepting it travels there                                                 | **8.** Arrived, with the app still in the corner                                           |
+
+---
+
+## Features
+
+- **Web & PWA Ready (VR-First / Responsive Layout)**
+  - Runs in any modern web browser on PC, smartphones, and VR overlays (XSOverlay, SteamVR browser, Quest browser, etc.).
+  - Responsive layout with a collapsible sidebar and touch/laser-friendly controls.
+  - Can be installed to your home screen or desktop as a Progressive Web App (PWA).
+  - Usable as a desktop application, just as the original VRC Worlds Manager v2 is.
+  - **(Under Google review)** ~~What you edit on the desktop -- adding favourites, sorting them into folders -- syncs to your phone and your other PCs. The same data everywhere, with no export or import step.~~
+
+- **Add & Preserve Favourite Worlds**
+  - Automatically fetch worlds marked as Favourites in VRChat via the API and store them in the app.
+  - Saved worlds remain preserved even if removed from your VRChat Favourites list or if your slots are full.
+  - Add worlds directly using URL links.
+
+- **Organize Worlds into Folders & Customize Views**
+  - Organize saved worlds into folders (a single world can belong to multiple folders).
+  - Customize world card display with per-field visibility toggles.
+  - Attach personal notes and memos to each world.
+
+- **Multi-Account Support & Management Tools**
+  - Import favourite worlds from another VRChat account into your folders.
+  - Purge all VRChat favorites from an account in one click.
+
+- **Search & Discover**
+  - Fast local search by world name, author, tags, and folders.
+  - View recently visited worlds.
+  - Search public VRChat worlds using tags, text queries, and exclusion filters.
+
+- **Create Instances**
+  - Launch instances directly from the app (including group instances). An invite arrives in your running VRChat client, as it does from the official VRChat website.
+
+- **~~Share Folders~~** **(Being fixed)**
+  - ~~Share folders via public links (generating a UUID valid for 30 days).~~
+  - ~~Shared folders can be viewed directly on the web.~~
+
+- **Client-Side Privacy**
+  - World data and your login session are stored locally in your browser's IndexedDB (Dexie.js).
+  - Secure Cloudflare Worker CORS proxy handles communication with the VRChat API.
 
 ---
 
