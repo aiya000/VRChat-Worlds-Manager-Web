@@ -9,6 +9,7 @@ import {
   Plus,
   ArrowUpDown,
   ChevronRight,
+  Search,
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useLocalization } from '@/hooks/use-localization'
@@ -218,15 +219,31 @@ export function AppSidebar() {
               className={`
               px-3 py-2 text-sm font-medium rounded-lg cursor-pointer
               overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-3
-              ${pathname === '/listview/folders/special/find' ? sidebarStyles.activeLink : 'hover:bg-accent/50 hover:text-accent-foreground'}
+              ${pathname === '/listview/recently-visited' ? sidebarStyles.activeLink : 'hover:bg-accent/50 hover:text-accent-foreground'}
             `}
               onClick={() => {
-                navigate('/listview/folders/special/find')
+                navigate('/listview/recently-visited')
               }}
             >
               <History className="h-5 w-5" />
               <span className="text-sm font-medium">
-                {t('general:find-worlds')}
+                {t('find-page:recently-visited')}
+              </span>
+            </div>
+
+            <div
+              className={`
+              px-3 py-2 text-sm font-medium rounded-lg cursor-pointer
+              overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-3
+              ${pathname === '/listview/search' ? sidebarStyles.activeLink : 'hover:bg-accent/50 hover:text-accent-foreground'}
+            `}
+              onClick={() => {
+                navigate('/listview/search')
+              }}
+            >
+              <Search className="h-5 w-5" />
+              <span className="text-sm font-medium">
+                {t('general:search-worlds')}
               </span>
             </div>
 

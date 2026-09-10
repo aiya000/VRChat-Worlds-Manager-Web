@@ -3,7 +3,7 @@ import jaJP from '../../locales/ja-JP.json'
 import { seedFolders } from './seed-folders'
 
 const LIST_VIEW = '/listview/folders/special/all'
-const FIND = '/listview/folders/special/find'
+const RECENTLY_VISITED = '/listview/recently-visited'
 
 const FOLDER = 'あとで行く'
 const WORLD_ID = 'wrld_from_the_search'
@@ -33,9 +33,9 @@ function vrchatWorld() {
 }
 
 /**
- * The search answers with a world, and so does the detail lookup that follows
- * a card being opened -- the world is not on this device, which is the whole
- * point of these cases.
+ * The visit history answers with a world, and so does the detail lookup that
+ * follows a card being opened -- the world is not on this device, which is
+ * the whole point of these cases.
  */
 async function stubVRChat(page: Page) {
   await page.route('**/api/1/worlds/recent*', async (route) => {
@@ -54,10 +54,10 @@ async function stubVRChat(page: Page) {
   })
 }
 
-async function openTheSearchPage(page: Page) {
+async function openTheRecentlyVisitedPage(page: Page) {
   await page.goto(LIST_VIEW)
   await seedFolders(page, [FOLDER])
-  await page.goto(FIND)
+  await page.goto(RECENTLY_VISITED)
   await page.addStyleTag({
     content: 'nextjs-portal { display: none !important; }',
   })
@@ -97,12 +97,12 @@ async function foldersOfTheWorld(page: Page): Promise<string[]> {
 }
 
 /**
- * A world found through the search is not on this device yet, and filing it
+ * A world seen under "recently visited" is not on this device yet, and filing it
  * into a folder is the act that puts it there. Every route into that used to
  * answer as though it had worked and leave nothing behind: `addWorldToFolder`
  * returned quietly when it found no row to file.
  */
-test.describe('filing a world found through the search', () => {
+test.describe('filing a world that was only visited', () => {
   test.beforeEach(async ({ page }) => {
     await stubVRChat(page)
   })
@@ -110,7 +110,7 @@ test.describe('filing a world found through the search', () => {
   test('offers the folders in the world detail, and files it into one', async ({
     page,
   }) => {
-    await openTheSearchPage(page)
+    await openTheRecentlyVisitedPage(page)
     await page.getByText(WORLD_NAME).first().click()
 
     const dialog = page.getByRole('dialog')
@@ -124,7 +124,7 @@ test.describe('filing a world found through the search', () => {
   })
 
   test('files it from the long press on the card', async ({ page }) => {
-    await openTheSearchPage(page)
+    await openTheRecentlyVisitedPage(page)
 
     await page.getByText(WORLD_NAME).first().click({ button: 'right' })
     await page

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 
-const FIND = '/listview/folders/special/find'
+const SEARCH = '/listview/search'
 
 const PC_WORLD = 'SearchedDesktopHall'
 const CROSS_WORLD = 'SearchedCrossPlaza'
@@ -35,13 +35,6 @@ function vrchatWorld(name: string, platforms: string[]) {
  * one platform at most and finishes the rest of the AND here.
  */
 async function stubVRChat(page: Page, searchUrls: string[]) {
-  await page.route('**/api/1/worlds/recent*', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: '[]',
-    })
-  })
   await page.route('**/api/1/worlds?*', async (route) => {
     searchUrls.push(route.request().url())
     await route.fulfill({
@@ -55,12 +48,11 @@ async function stubVRChat(page: Page, searchUrls: string[]) {
   })
 }
 
-async function openSearchTab(page: Page) {
-  await page.goto(FIND)
+async function openTheSearchPage(page: Page) {
+  await page.goto(SEARCH)
   await page.addStyleTag({
     content: 'nextjs-portal { display: none !important; }',
   })
-  await page.getByRole('tab', { name: jaJP['find-page:search-worlds'] }).click()
 }
 
 async function search(page: Page) {
@@ -69,11 +61,11 @@ async function search(page: Page) {
     .click()
 }
 
-test.describe('filtering "find worlds" by supported platform', () => {
+test.describe('filtering the world search by supported platform', () => {
   test('asks VRChat about nothing while no box is ticked', async ({ page }) => {
     const searchUrls: string[] = []
     await stubVRChat(page, searchUrls)
-    await openSearchTab(page)
+    await openTheSearchPage(page)
 
     await search(page)
 
@@ -88,7 +80,7 @@ test.describe('filtering "find worlds" by supported platform', () => {
   }) => {
     const searchUrls: string[] = []
     await stubVRChat(page, searchUrls)
-    await openSearchTab(page)
+    await openTheSearchPage(page)
 
     await page.locator('#find-platform-android').click()
     await search(page)
@@ -107,7 +99,7 @@ test.describe('filtering "find worlds" by supported platform', () => {
   }) => {
     const searchUrls: string[] = []
     await stubVRChat(page, searchUrls)
-    await openSearchTab(page)
+    await openTheSearchPage(page)
 
     await page.locator('#find-platform-standalonewindows').click()
     await page.locator('#find-platform-android').click()
@@ -127,7 +119,7 @@ test.describe('filtering "find worlds" by supported platform', () => {
   }) => {
     const searchUrls: string[] = []
     await stubVRChat(page, searchUrls)
-    await openSearchTab(page)
+    await openTheSearchPage(page)
 
     await expect(page.locator('#find-platform-android')).toBeVisible()
     await expect(page.locator('#find-platform-unknown')).toHaveCount(0)

@@ -13,7 +13,8 @@ const sidebarTrigger = (page: Page) => page.locator('[data-sidebar="trigger"]')
  */
 const PAGES = [
   ['all worlds', '/listview/folders/special/all'],
-  ['find worlds', '/listview/folders/special/find'],
+  ['recently visited worlds', '/listview/recently-visited'],
+  ['searching for worlds', '/listview/search'],
   ['hidden worlds', '/listview/folders/special/hidden'],
   ['unclassified worlds', '/listview/folders/special/unclassified'],
   ['the folder list', '/listview/folders'],
@@ -36,7 +37,8 @@ async function open(page: Page, path: string) {
 /**
  * The sidebar collapses away at every width, and on a phone it is a drawer
  * with no edge gesture to open it. A page that draws no trigger is therefore
- * a page that cannot be left -- which is what "find worlds" was.
+ * a page that cannot be left -- which is what "find worlds" was, before #183
+ * split it into the two pages below.
  */
 test.describe('getting back to the sidebar from', () => {
   for (const [name, path] of PAGES) {
@@ -47,8 +49,10 @@ test.describe('getting back to the sidebar from', () => {
     })
   }
 
-  test('find worlds, all the way into the drawer', async ({ page }) => {
-    await open(page, '/listview/folders/special/find')
+  test('recently visited worlds, all the way into the drawer', async ({
+    page,
+  }) => {
+    await open(page, '/listview/recently-visited')
 
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await sidebarTrigger(page).click()

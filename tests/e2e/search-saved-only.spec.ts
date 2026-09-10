@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { seedWorld } from './seed-world'
 
-const FIND = '/listview/folders/special/find'
+const SEARCH = '/listview/search'
 const LIST_VIEW = '/listview/folders/special/all'
 
 const SAVED_PC = 'SavedDesktopHall'
@@ -17,13 +17,6 @@ test.use({ serviceWorkers: 'block' })
  * have been.
  */
 async function stubVRChat(page: Page, searchUrls: string[]) {
-  await page.route('**/api/1/worlds/recent*', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: '[]',
-    })
-  })
   await page.route('**/api/1/worlds?*', async (route) => {
     searchUrls.push(route.request().url())
     await route.fulfill({
@@ -54,8 +47,6 @@ async function stubVRChat(page: Page, searchUrls: string[]) {
 }
 
 async function seedCollection(page: Page) {
-  // The seeding helper waits for the sidebar trigger, which the list view
-  // carries and the find page does not.
   await page.goto(LIST_VIEW)
   await seedWorld(page, {
     worldId: 'wrld_saved_pc',
@@ -71,12 +62,11 @@ async function seedCollection(page: Page) {
   })
 }
 
-async function openSearchTab(page: Page) {
-  await page.goto(FIND)
+async function openTheSearchPage(page: Page) {
+  await page.goto(SEARCH)
   await page.addStyleTag({
     content: 'nextjs-portal { display: none !important; }',
   })
-  await page.getByRole('tab', { name: jaJP['find-page:search-worlds'] }).click()
 }
 
 async function tickSavedOnly(page: Page) {
@@ -101,7 +91,7 @@ test.describe('searching only the worlds already saved', () => {
   test('shows the collection and never asks VRChat', async ({ page }) => {
     const searchUrls: string[] = []
     await stubVRChat(page, searchUrls)
-    await openSearchTab(page)
+    await openTheSearchPage(page)
 
     await tickSavedOnly(page)
     await search(page)
@@ -115,7 +105,7 @@ test.describe('searching only the worlds already saved', () => {
   test('narrows the collection by the typed words', async ({ page }) => {
     const searchUrls: string[] = []
     await stubVRChat(page, searchUrls)
-    await openSearchTab(page)
+    await openTheSearchPage(page)
 
     await tickSavedOnly(page)
     await page.getByLabel(jaJP['find-page:search-query']).fill('Quest')
@@ -129,7 +119,7 @@ test.describe('searching only the worlds already saved', () => {
   test('narrows the collection by supported platform', async ({ page }) => {
     const searchUrls: string[] = []
     await stubVRChat(page, searchUrls)
-    await openSearchTab(page)
+    await openTheSearchPage(page)
 
     await tickSavedOnly(page)
     await page.locator('#find-platform-android').click()
@@ -145,7 +135,7 @@ test.describe('searching only the worlds already saved', () => {
   }) => {
     const searchUrls: string[] = []
     await stubVRChat(page, searchUrls)
-    await openSearchTab(page)
+    await openTheSearchPage(page)
 
     await tickSavedOnly(page)
     await page.locator('#sort').click()
@@ -162,7 +152,7 @@ test.describe('searching only the worlds already saved', () => {
   test('goes back to asking VRChat when unticked', async ({ page }) => {
     const searchUrls: string[] = []
     await stubVRChat(page, searchUrls)
-    await openSearchTab(page)
+    await openTheSearchPage(page)
 
     await tickSavedOnly(page)
     await search(page)
