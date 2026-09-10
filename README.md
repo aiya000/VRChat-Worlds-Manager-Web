@@ -61,6 +61,23 @@
 
 ## Screenshots
 
+### Beside VRChat on a desktop
+
+VRChat in one window and the app in another, so your worlds stay in reach without leaving the one
+you are in.
+
+Picking a world makes the instance and sends you an invite of your own, and VRChat's notification is
+what takes you there -- the same way the official website's "launch world" works.
+
+|                                                                           |                                                                           |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| ![The app beside VRChat](docs/screenshots/pc-1-app-beside-vrchat.jpg)     | ![Choosing the instance](docs/screenshots/pc-2-choosing-the-instance.jpg) |
+| **1.** In a world, with the app beside it                                 | **2.** Pick who it is for and where it runs, and the invite is sent       |
+| ![The invite appears in VRChat](docs/screenshots/pc-3-invite-appears.jpg) | ![Traveling to the world](docs/screenshots/pc-4-traveling.jpg)            |
+| **3.** VRChat says the invite has arrived                                 | **4.** Accepting it travels there                                         |
+| ![Connecting](docs/screenshots/pc-5-connecting.jpg)                       | ![Arrived in the world](docs/screenshots/pc-6-arrived.jpg)                |
+| **5.** Connecting                                                         | **6.** Arrived, with the app still beside it                              |
+
 ### Alongside VRChat on Android
 
 Floated over the game in the device's own floating window, the app stays reachable without leaving
@@ -81,7 +98,7 @@ notification. No link opens the Android app straight into an instance, so this i
 | ![Traveling to the world](docs/screenshots/android-7-traveling.jpg)               | ![Arrived in the world](docs/screenshots/android-8-arrived.jpg)                            |
 | **7.** Accepting it travels there                                                 | **8.** Arrived, with the app still in the corner                                           |
 
-> More screenshots are still to come -- the list view on a desktop, and in a VR overlay.
+> More screenshots are still to come -- in a VR overlay.
 
 ---
 
