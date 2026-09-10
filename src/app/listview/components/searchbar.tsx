@@ -119,6 +119,7 @@ export function SearchBar({ currentFolder }: SearchBarProps) {
               {/* Advanced Search button */}
               <Button
                 variant="ghost"
+                data-testid="advanced-search-open"
                 className="absolute right-0 top-1/2 -translate-y-1/2 h-10 w-10 p-0 m-0"
                 onClick={() => setPopup('showAdvancedSearchPanel', true)}
               >

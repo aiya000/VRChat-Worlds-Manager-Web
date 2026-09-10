@@ -11,6 +11,8 @@ import SingleFilterItemSelector from '@/components/single-filter-item-selector'
 import MultiFilterItemSelector from '@/components/multi-filter-item-selector'
 import { useLocalization } from '@/hooks/use-localization'
 import { Input } from '@/components/ui/input'
+import { PlatformFilterCheckboxes } from '@/components/platform-filter-checkboxes'
+import { platformFilterOptions } from '@/lib/platform-filter'
 import { useFolders } from '@/app/listview/hook/use-folders'
 import { useWorldFiltersStore } from '@/app/listview/hook/use-filters'
 
@@ -25,10 +27,12 @@ export function AdvancedSearchPanel({ onClose }: AdvancedSearchPanelProps) {
     authorFilter,
     tagFilters,
     folderFilters,
+    platformFilters,
     memoTextFilter,
     setAuthorFilter,
     setTagFilters,
     setFolderFilters,
+    setPlatformFilters,
     setMemoTextFilter,
     clearFilters,
     availableAuthors,
@@ -83,6 +87,12 @@ export function AdvancedSearchPanel({ onClose }: AdvancedSearchPanelProps) {
               id="Folder"
             />
           </div>
+          <PlatformFilterCheckboxes
+            options={platformFilterOptions}
+            values={platformFilters}
+            onValuesChange={setPlatformFilters}
+            idPrefix="advanced-search"
+          />
           <div className="space-y-2">
             <Label htmlFor="memo-text-filter">{t('general:memo')}</Label>
             <Input

@@ -3,12 +3,13 @@
 import { SaturnIcon } from '../../../components/icons/saturn-icon'
 import { GearIcon } from '../../../components/icons/gear-icon'
 import {
-  Info,
+  BookOpen,
   FileQuestion,
   History,
   Plus,
   ArrowUpDown,
   ChevronRight,
+  Search,
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useLocalization } from '@/hooks/use-localization'
@@ -195,6 +196,10 @@ export function AppSidebar() {
         <Separator className="" />
 
         <nav className={sidebarStyles.nav}>
+          {/* The separator below divides these by whether the worlds are
+              already here: "all" and "unclassified" are two views of the
+              collection, while "recently visited" and the search both show
+              worlds this device may not hold. */}
           <SidebarGroup>
             <div
               className={`
@@ -209,24 +214,6 @@ export function AppSidebar() {
               <SaturnIcon className="h-[18px] w-[18px]" />
               <span className="text-sm font-medium">
                 {t('general:all-worlds')}
-              </span>
-            </div>
-          </SidebarGroup>
-          <Separator className="my-2" />
-          <SidebarGroup>
-            <div
-              className={`
-              px-3 py-2 text-sm font-medium rounded-lg cursor-pointer
-              overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-3
-              ${pathname === '/listview/folders/special/find' ? sidebarStyles.activeLink : 'hover:bg-accent/50 hover:text-accent-foreground'}
-            `}
-              onClick={() => {
-                navigate('/listview/folders/special/find')
-              }}
-            >
-              <History className="h-5 w-5" />
-              <span className="text-sm font-medium">
-                {t('general:find-worlds')}
               </span>
             </div>
 
@@ -247,6 +234,40 @@ export function AppSidebar() {
               <FileQuestion className="h-5 w-5" />
               <span className="text-sm font-medium">
                 {t('general:unclassified-worlds')}
+              </span>
+            </div>
+          </SidebarGroup>
+          <Separator className="my-2" />
+          <SidebarGroup>
+            <div
+              className={`
+              px-3 py-2 text-sm font-medium rounded-lg cursor-pointer
+              overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-3
+              ${pathname === '/listview/recently-visited' ? sidebarStyles.activeLink : 'hover:bg-accent/50 hover:text-accent-foreground'}
+            `}
+              onClick={() => {
+                navigate('/listview/recently-visited')
+              }}
+            >
+              <History className="h-5 w-5" />
+              <span className="text-sm font-medium">
+                {t('find-page:recently-visited')}
+              </span>
+            </div>
+
+            <div
+              className={`
+              px-3 py-2 text-sm font-medium rounded-lg cursor-pointer
+              overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-3
+              ${pathname === '/listview/search' ? sidebarStyles.activeLink : 'hover:bg-accent/50 hover:text-accent-foreground'}
+            `}
+              onClick={() => {
+                navigate('/listview/search')
+              }}
+            >
+              <Search className="h-5 w-5" />
+              <span className="text-sm font-medium">
+                {t('general:search-worlds')}
               </span>
             </div>
           </SidebarGroup>
@@ -434,17 +455,17 @@ export function AppSidebar() {
               className={`
               px-3 py-2 cursor-pointer text-sm font-medium rounded-lg overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-3
               ${
-                pathname === `/listview/about`
+                pathname === `/listview/guide`
                   ? sidebarStyles.activeLink
                   : 'hover:bg-accent/50 hover:text-accent-foreground'
               }
             `}
               onClick={() => {
-                navigate('/listview/about')
+                navigate('/listview/guide')
               }}
             >
-              <Info className="h-5 w-5" />
-              <span>{t('app-sidebar:about')}</span>
+              <BookOpen className="h-5 w-5" />
+              <span>{t('app-sidebar:guide')}</span>
             </div>
             <div
               className={`
@@ -468,21 +489,40 @@ export function AppSidebar() {
                 than only on the About page: a privacy policy that takes
                 looking for reads as one someone would rather you did not find.
                 The text is small; the row is not, so a VR laser can still hit
-                it. */}
-            <div
-              className={`
-              mt-3 px-3 py-2 cursor-pointer text-xs rounded-lg overflow-hidden text-ellipsis whitespace-nowrap
-              ${
-                pathname === `/privacy`
-                  ? sidebarStyles.activeLink
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
-              }
-            `}
-              onClick={() => {
-                navigate('/privacy')
-              }}
-            >
-              {t('privacy-policy:link-label')}
+                it. The credits share the row: on a phone this sidebar is the
+                whole screen, and every row it gains is a folder pushed out
+                of view. */}
+            <div className="mt-3 flex flex-wrap">
+              <div
+                className={`
+                px-3 py-2 cursor-pointer text-xs rounded-lg whitespace-nowrap
+                ${
+                  pathname === `/privacy`
+                    ? sidebarStyles.activeLink
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                }
+              `}
+                onClick={() => {
+                  navigate('/privacy')
+                }}
+              >
+                {t('privacy-policy:link-label')}
+              </div>
+              <div
+                className={`
+                px-3 py-2 cursor-pointer text-xs rounded-lg whitespace-nowrap
+                ${
+                  pathname === `/listview/about`
+                    ? sidebarStyles.activeLink
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                }
+              `}
+                onClick={() => {
+                  navigate('/listview/about')
+                }}
+              >
+                {t('app-sidebar:credits')}
+              </div>
             </div>
           </SidebarGroup>
         </footer>

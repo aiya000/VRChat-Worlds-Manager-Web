@@ -3,7 +3,7 @@ import jaJP from '../../locales/ja-JP.json'
 import { stubGoogleAuth } from './stub-google-auth'
 
 const SETTINGS_SYNC = '/listview/settings?tab=sync'
-const ABOUT = '/listview/about'
+const GUIDE = '/listview/guide'
 
 test.use({ serviceWorkers: 'block' })
 
@@ -81,13 +81,13 @@ test.describe('the recommended way to use this in VR', () => {
     ).toBeVisible()
   })
 
-  test('is on the About page too, where it does not depend on being stuck', async ({
+  test('is on the guide page too, where it does not depend on being stuck', async ({
     page,
   }) => {
-    await open(page, ABOUT)
+    await open(page, GUIDE)
 
     await expect(
-      page.getByText(jaJP['about-section:vr-usage-title']),
+      page.getByText(jaJP['guide-page:vr-usage-title']),
     ).toBeVisible()
     await expect(page.getByTestId('vr-projection-notice')).toBeVisible()
   })

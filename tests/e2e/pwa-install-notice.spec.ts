@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 
-const ABOUT = '/listview/about'
+const GUIDE = '/listview/guide'
 
 async function openAbout(page: Page) {
-  await page.goto(ABOUT)
+  await page.goto(GUIDE)
   await page.addStyleTag({
     content: 'nextjs-portal { display: none !important; }',
   })
@@ -36,7 +36,7 @@ async function offerToInstall(page: Page) {
 /**
  * Nothing on the page should offer to install an app that is already
  * installed, and an offer that interrupts is the kind nobody reads -- so this
- * lives on the About page and answers to what the browser says (#69).
+ * lives on the guide page and answers to what the browser says (#69).
  */
 test.describe('installing this as an app', () => {
   test('says how, in words, where the browser will not do it for you', async ({
@@ -46,7 +46,7 @@ test.describe('installing this as an app', () => {
 
     await expect(page.getByTestId('pwa-install-notice')).toBeVisible()
     await expect(
-      page.getByText(jaJP['about-section:install-steps-browser']),
+      page.getByText(jaJP['guide-page:install-steps-browser']),
     ).toBeVisible()
     await expect(page.getByTestId('pwa-install-button')).toBeHidden()
   })
@@ -65,7 +65,7 @@ test.describe('installing this as an app', () => {
     }).toPass({ timeout: 15_000 })
     // The words are replaced by the button that does the thing.
     await expect(
-      page.getByText(jaJP['about-section:install-steps-browser']),
+      page.getByText(jaJP['guide-page:install-steps-browser']),
     ).toBeHidden()
 
     await button.click()
@@ -96,9 +96,9 @@ test.describe('installing this as an app', () => {
     })
     await openAbout(page)
 
-    await expect(
-      page.getByText(jaJP['about-section:install-title']),
-    ).toBeVisible()
+    // The whole card goes, title included: a heading over nothing reads as
+    // a page that failed to load.
+    await expect(page.getByText(jaJP['guide-page:install-title'])).toBeHidden()
     await expect(page.getByTestId('pwa-install-notice')).toBeHidden()
   })
 })

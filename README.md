@@ -61,6 +61,38 @@
 
 ## Screenshots
 
+### In VR, without taking the headset off
+
+This is what the app is for. The collection is a window inside the headset -- here through SteamVR's
+own overlay -- so the folders stay readable while you are in a world, and the next world is entered
+from where you already are.
+
+|                                                                                 |                                                                           |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| ![The panel resting in the world](docs/screenshots/vr-1-panel-in-the-world.jpg) | ![Folders and worlds](docs/screenshots/vr-2-folders-and-worlds.jpg)       |
+| **1.** The panel, resting in the world                                          | **2.** Close enough to read: folders down the side, worlds across         |
+| ![Choosing the instance](docs/screenshots/vr-3-choosing-the-instance.jpg)       | ![The invite appears in VRChat](docs/screenshots/vr-4-invite-appears.jpg) |
+| **3.** A world's folders, and the instance made from it                         | **4.** The invite arrives in VRChat's own notifications                   |
+| ![Traveling to the world](docs/screenshots/vr-5-traveling.jpg)                  | ![Arrived in the world](docs/screenshots/vr-6-arrived.jpg)                |
+| **5.** Accepting it travels there                                               | **6.** Arrived, without the headset having come off                       |
+
+### Beside VRChat on a desktop
+
+VRChat in one window and the app in another, so your worlds stay in reach without leaving the one
+you are in.
+
+Picking a world makes the instance and sends you an invite of your own, and VRChat's notification is
+what takes you there -- the same way the official website's "launch world" works.
+
+|                                                                           |                                                                           |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| ![The app beside VRChat](docs/screenshots/pc-1-app-beside-vrchat.jpg)     | ![Choosing the instance](docs/screenshots/pc-2-choosing-the-instance.jpg) |
+| **1.** In a world, with the app beside it                                 | **2.** Pick who it is for and where it runs, and the invite is sent       |
+| ![The invite appears in VRChat](docs/screenshots/pc-3-invite-appears.jpg) | ![Traveling to the world](docs/screenshots/pc-4-traveling.jpg)            |
+| **3.** VRChat says the invite has arrived                                 | **4.** Accepting it travels there                                         |
+| ![Connecting](docs/screenshots/pc-5-connecting.jpg)                       | ![Arrived in the world](docs/screenshots/pc-6-arrived.jpg)                |
+| **5.** Connecting                                                         | **6.** Arrived, with the app still beside it                              |
+
 ### Alongside VRChat on Android
 
 Floated over the game in the device's own floating window, the app stays reachable without leaving
@@ -80,8 +112,6 @@ notification. No link opens the Android app straight into an instance, so this i
 | **5.** VRChat says the invite has arrived                                         | **6.** It is waiting in the notifications                                                  |
 | ![Traveling to the world](docs/screenshots/android-7-traveling.jpg)               | ![Arrived in the world](docs/screenshots/android-8-arrived.jpg)                            |
 | **7.** Accepting it travels there                                                 | **8.** Arrived, with the app still in the corner                                           |
-
-> More screenshots are still to come -- the list view on a desktop, and in a VR overlay.
 
 ---
 

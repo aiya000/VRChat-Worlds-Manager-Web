@@ -1,11 +1,15 @@
 import { commands, WorldDisplayData } from '@/lib/commands'
+import {
+  matchesPlatformFilters,
+  type PlatformFilter,
+} from '@/lib/platform-filter'
+import { matchesTagFilters, matchesTextQuery } from '@/lib/world-search'
 import { create } from 'zustand'
 import { useEffect, useRef } from 'react'
-import { toRomaji } from 'wanakana'
 import { toast } from 'sonner'
 import { useLocalization } from '@/hooks/use-localization'
 
-type SortField =
+export type SortField =
   | 'name'
   | 'authorName'
   | 'visits'
@@ -20,6 +24,7 @@ interface FilterState {
   authorFilter: string
   tagFilters: string[]
   folderFilters: string[]
+  platformFilters: PlatformFilter[]
   memoTextFilter: string
   searchQuery: string
   filteredWorlds: WorldDisplayData[]
@@ -30,6 +35,7 @@ interface FilterState {
   setAuthorFilter: (author: string) => void
   setTagFilters: (tags: string[]) => void
   setFolderFilters: (folders: string[]) => void
+  setPlatformFilters: (platforms: PlatformFilter[]) => void
   setMemoTextFilter: (memo: string) => void
   setSearchQuery: (query: string) => void
   setFilteredWorlds: (worlds: WorldDisplayData[]) => void
@@ -44,6 +50,7 @@ export const useWorldFiltersStore = create<FilterState>((set) => ({
   authorFilter: '',
   tagFilters: [],
   folderFilters: [],
+  platformFilters: [],
   memoTextFilter: '',
   searchQuery: '',
   filteredWorlds: [],
@@ -73,6 +80,7 @@ export const useWorldFiltersStore = create<FilterState>((set) => ({
   setAuthorFilter: (author) => set({ authorFilter: author }),
   setTagFilters: (tags) => set({ tagFilters: tags }),
   setFolderFilters: (folders) => set({ folderFilters: folders }),
+  setPlatformFilters: (platforms) => set({ platformFilters: platforms }),
   setMemoTextFilter: (memo) => set({ memoTextFilter: memo }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setFilteredWorlds: (worlds) => set({ filteredWorlds: worlds }),
@@ -83,6 +91,7 @@ export const useWorldFiltersStore = create<FilterState>((set) => ({
       authorFilter: '',
       tagFilters: [],
       folderFilters: [],
+      platformFilters: [],
       memoTextFilter: '',
       searchQuery: '',
     }),
@@ -114,6 +123,8 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
     setTagFilters,
     folderFilters,
     setFolderFilters,
+    platformFilters,
+    setPlatformFilters,
     memoTextFilter,
     setMemoTextFilter,
     clearFilters,
@@ -162,24 +173,20 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
     const seq = ++requestSeq.current
 
     const normalize = (s: string) => s.toLowerCase()
-    const searchLower = searchQuery.trim().toLowerCase()
     const activeAuthor = authorFilter.trim().toLowerCase()
-    const activeTagsLower = tagFilters.map((t) => t.toLowerCase())
     const activeFoldersLower = folderFilters.map((f) => f.toLowerCase())
     const hasMemoFilter = memoTextFilter.trim().length > 0
 
-    const rejectCounters = { text: 0, author: 0, tag: 0, folder: 0 }
+    const rejectCounters = {
+      text: 0,
+      author: 0,
+      tag: 0,
+      folder: 0,
+      platform: 0,
+    }
 
     function passesSyncFilters(world: WorldDisplayData): boolean {
-      // Text search (name / authorName + romaji variants)
-      const textOk =
-        !searchLower ||
-        normalize(world.name).includes(searchLower) ||
-        normalize(world.authorName).includes(searchLower) ||
-        normalize(toRomaji(world.name)).includes(searchLower) ||
-        normalize(toRomaji(world.authorName)).includes(searchLower)
-
-      if (!textOk) {
+      if (!matchesTextQuery(world, searchQuery)) {
         rejectCounters.text++
         return false
       }
@@ -189,24 +196,9 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
         return false
       }
 
-      if (activeTagsLower.length > 0) {
-        if (!world.tags || world.tags.length === 0) {
-          rejectCounters.tag++
-          return false
-        }
-        const worldTagsLower = world.tags.map((wt) => wt.toLowerCase())
-        const allTagsFound = activeTagsLower.every((tag) => {
-          if (tag.startsWith('custom:')) {
-            return worldTagsLower.some((wTag) => wTag === tag)
-          }
-
-          const prefixed = `author_tag_${tag}`
-          return worldTagsLower.some((wTag) => wTag === prefixed.toLowerCase())
-        })
-        if (!allTagsFound) {
-          rejectCounters.tag++
-          return false
-        }
+      if (!matchesTagFilters(world.tags ?? [], tagFilters)) {
+        rejectCounters.tag++
+        return false
       }
 
       if (activeFoldersLower.length > 0) {
@@ -218,6 +210,11 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
           rejectCounters.folder++
           return false
         }
+      }
+
+      if (!matchesPlatformFilters(world.platform, platformFilters)) {
+        rejectCounters.platform++
+        return false
       }
 
       return true
@@ -403,6 +400,7 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
     authorFilter,
     tagFilters,
     folderFilters,
+    platformFilters,
     memoTextFilter,
     sortField,
     sortDirection,
@@ -423,6 +421,8 @@ export function useWorldFilters(worlds: WorldDisplayData[]) {
     setTagFilters,
     folderFilters,
     setFolderFilters,
+    platformFilters,
+    setPlatformFilters,
     memoTextFilter,
     setMemoTextFilter,
     clearFilters,

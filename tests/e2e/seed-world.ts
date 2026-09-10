@@ -7,11 +7,17 @@ import { expect, type Page } from '@playwright/test'
  */
 export async function seedWorld(
   page: Page,
-  world: { worldId: string; name: string },
+  world: {
+    worldId: string
+    name: string
+    platform?: string[]
+    tags?: string[]
+    authorName?: string
+  },
 ) {
   await expect(page.locator('[data-sidebar="trigger"]')).toBeVisible()
 
-  await page.evaluate(async ({ worldId, name }) => {
+  await page.evaluate(async ({ worldId, name, platform, tags, authorName }) => {
     const openWithStores = async (): Promise<IDBDatabase> => {
       for (let attempt = 0; attempt < 100; attempt++) {
         const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -38,13 +44,13 @@ export async function seedWorld(
         worldId,
         name,
         thumbnailUrl: '/icons/1.png',
-        authorName: 'someone',
+        authorName: authorName ?? 'someone',
         favorites: 1,
         lastUpdated: '2025-02-01',
         visits: 2,
         dateAdded: '2025-02-01T00:00:00.000Z',
-        platform: ['standalonewindows'],
-        tags: [],
+        platform: platform ?? ['standalonewindows'],
+        tags: tags ?? [],
         capacity: 16,
         folderRefs: [],
       })

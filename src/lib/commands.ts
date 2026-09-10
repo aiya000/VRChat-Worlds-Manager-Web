@@ -40,6 +40,7 @@ import {
   type WorldFetchFailureKind,
 } from '@/lib/services/vrchat-api'
 import type { LaunchOutcome } from '@/lib/launch-target'
+import type { SearchablePlatform } from '@/lib/platform-filter'
 import type {
   Result,
   BackupMetaData,
@@ -903,11 +904,19 @@ export const commands = {
     excludeTags: string[],
     search: string,
     page: number,
+    platforms: SearchablePlatform[],
   ): Promise<Result<WorldDisplayData[], string>> {
     return run(
       Effect.gen(function* () {
         const svc = yield* VRChatApiService
-        return yield* svc.searchWorlds(sort, tags, excludeTags, search, page)
+        return yield* svc.searchWorlds(
+          sort,
+          tags,
+          excludeTags,
+          search,
+          page,
+          platforms,
+        )
       }),
     )
   },

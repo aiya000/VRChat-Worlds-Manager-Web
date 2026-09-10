@@ -43,7 +43,13 @@ export function PopupManager() {
     if (pathname?.includes('/folders/special/unclassified')) {
       return SpecialFolders.Unclassified
     }
-    if (pathname?.includes('/folders/special/find')) {
+    // Both of these show worlds the collection may not hold, which is what
+    // `SpecialFolders.Find` means -- it is not the name of a route, and the
+    // two pages it now covers were one page until #183.
+    if (
+      pathname?.includes('/listview/recently-visited') ||
+      pathname?.includes('/listview/search')
+    ) {
       return SpecialFolders.Find
     }
     if (pathname?.includes('/folders/special/hidden')) {

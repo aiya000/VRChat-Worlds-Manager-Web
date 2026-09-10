@@ -8,6 +8,7 @@ import {
   FolderRemovalPreference,
   WorldDisplayData,
 } from '@/lib/commands'
+import { worldForCollection } from '@/lib/world-collection'
 import { FolderType, isUserFolder, SpecialFolders } from '@/types/folders'
 import { mutate as mutateFoldersCache } from 'swr'
 import { useEffect, useRef, useState } from 'react'
@@ -493,6 +494,25 @@ export const useAddToFolderPopup = ({
           throw new Error(errorResult.error.message)
         }
         console.info('[AddToFolder] Verified worlds exist from search results')
+
+        // `getWorld` fills the world-details table and not the one the list
+        // reads, so a world that was never a VRChat favourite has no row yet
+        // -- and filing it into a folder needs one. Without this the add
+        // reported success and was gone by the next read.
+        for (const result of worldResults) {
+          if (result.status !== 'ok') {
+            continue
+          }
+          const remembered = await commands.rememberWorld(
+            worldForCollection(result.data),
+          )
+          if (remembered.status === 'error') {
+            throw new Error(remembered.error)
+          }
+        }
+        console.info(
+          `[AddToFolder] Put ${worldResults.length} worlds into the collection`,
+        )
         toast(t('listview-page:worlds-added-title'), {
           description:
             selectedWorlds.length > 1

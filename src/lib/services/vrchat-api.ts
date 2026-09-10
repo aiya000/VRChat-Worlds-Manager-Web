@@ -1,5 +1,9 @@
 import { Context, Effect, Layer } from 'effect'
 import { launchTargetFor, type LaunchOutcome } from '@/lib/launch-target'
+import {
+  narrowestSearchPlatform,
+  type SearchablePlatform,
+} from '@/lib/platform-filter'
 import { instanceRequestBody, parseInstanceInfo } from '@/lib/vrchat-instances'
 import type { InstanceType } from '@/types/instances'
 import { db } from './db'
@@ -335,6 +339,7 @@ export class VRChatApiService extends Context.Tag('VRChatApiService')<
       excludeTags: string[],
       search: string,
       page: number,
+      platforms: SearchablePlatform[],
     ) => Effect.Effect<WorldDisplayData[], Error>
     readonly createWorldInstance: (
       worldId: string,
@@ -611,7 +616,7 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
       catch: (e) => new Error(`Failed to get recent worlds: ${e}`),
     }),
 
-  searchWorlds: (sort, tags, excludeTags, search, page) =>
+  searchWorlds: (sort, tags, excludeTags, search, page, platforms) =>
     Effect.tryPromise({
       try: async () => {
         const params = new URLSearchParams({
@@ -627,6 +632,12 @@ export const VRChatApiServiceLive = Layer.succeed(VRChatApiService, {
         }
         if (excludeTags.length > 0) {
           params.set('notag', excludeTags.join(','))
+        }
+        // Only ever one value: VRChat answers a comma-separated pair with an
+        // empty list. The caller narrows the page it gets back.
+        const platform = narrowestSearchPlatform(platforms)
+        if (platform !== null) {
+          params.set('platform', platform)
         }
         const res = await apiFetch(`/worlds?${params.toString()}`)
         const fetchedAt = new Date().toISOString()
