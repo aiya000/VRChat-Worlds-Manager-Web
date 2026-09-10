@@ -1,15 +1,19 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 import { useLocalization } from '@/hooks/use-localization'
 import {
-  EXIT_GUARD_KEY,
+  armExitGuard,
   EXIT_GUARD_WINDOW_MS,
   isGuardEntry,
   wantsExitGuard,
 } from '@/lib/exit-guard'
 import { isRunningInstalled } from '@/lib/pwa'
+
+/** The screen that only decides where the app starts, and replaces itself. */
+const SPLASH_PATH = '/'
 
 /**
  * Asks for the back gesture twice before the app is left, the way an Android
@@ -26,6 +30,7 @@ import { isRunningInstalled } from '@/lib/pwa'
  */
 export function useExitGuard(): void {
   const { t } = useLocalization()
+  const pathname = usePathname()
 
   // `t` is a new function on every render, and this listens for the life of
   // the page, so it is kept current from an effect rather than depended on.
@@ -34,31 +39,40 @@ export function useExitGuard(): void {
     tRef.current = t
   })
 
+  const armed = useRef(false)
+
+  // Not on the splash screen, which replaces itself with wherever the app
+  // starts: an entry pushed there guards a page that is about to become
+  // another one, and the user would see the splash again on the way out.
   useEffect(() => {
-    const surroundings = {
+    if (armed.current || pathname === SPLASH_PATH) {
+      return
+    }
+    const onGuardEntry = isGuardEntry(window.history.state)
+    const wanted = wantsExitGuard({
       historyLength: window.history.length,
-      onGuardEntry: isGuardEntry(window.history.state),
+      onGuardEntry,
       installed: isRunningInstalled(),
       touch: navigator.maxTouchPoints > 0,
-    }
-    if (!wantsExitGuard(surroundings)) {
+    })
+    if (!wanted) {
       return
     }
 
-    let rearming: ReturnType<typeof setTimeout> | null = null
-
-    const arm = () => {
-      window.history.pushState(
-        { ...window.history.state, [EXIT_GUARD_KEY]: true },
-        '',
-        window.location.href,
-      )
+    armed.current = true
+    // A reload of the guard entry lands on one that is already in place.
+    if (!onGuardEntry) {
+      armExitGuard()
     }
+  }, [pathname])
+
+  useEffect(() => {
+    let rearming: ReturnType<typeof setTimeout> | null = null
 
     const handlePopState = (event: PopStateEvent) => {
       // Landing on the guard is the app's own entry being shown again, not an
       // attempt to leave: the press came from somewhere deeper in the app.
-      if (isGuardEntry(event.state) || rearming !== null) {
+      if (!armed.current || isGuardEntry(event.state) || rearming !== null) {
         return
       }
 
@@ -67,13 +81,10 @@ export function useExitGuard(): void {
       })
       rearming = setTimeout(() => {
         rearming = null
-        arm()
+        armExitGuard()
       }, EXIT_GUARD_WINDOW_MS)
     }
 
-    if (!surroundings.onGuardEntry) {
-      arm()
-    }
     window.addEventListener('popstate', handlePopState)
     return () => {
       window.removeEventListener('popstate', handlePopState)

@@ -48,6 +48,21 @@ export function wantsExitGuard({
   return historyLength === 1 || onGuardEntry
 }
 
+/**
+ * Puts the guard in place: a second entry for the page already on screen, so
+ * that the next press of back has something of the app's to spend.
+ *
+ * The router's own state is carried over rather than replaced -- Next reads
+ * the entry it lands on, and an entry it does not recognise costs a reload.
+ */
+export function armExitGuard(): void {
+  window.history.pushState(
+    { ...window.history.state, [EXIT_GUARD_KEY]: true },
+    '',
+    window.location.href,
+  )
+}
+
 /** Whether a popped history entry is the guard, rather than what is beyond it. */
 export function isGuardEntry(state: unknown): boolean {
   if (state === null || typeof state !== 'object') {

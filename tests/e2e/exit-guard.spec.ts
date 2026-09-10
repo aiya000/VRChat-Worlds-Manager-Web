@@ -75,6 +75,25 @@ test.describe('leaving the app by pressing back', () => {
     await expect.poll(() => guardEntry(page), { timeout: 10_000 }).toBe(true)
   })
 
+  // The app is launched at `/`, which only decides where to start and then
+  // replaces itself. Guarding that entry would put the splash screen back on
+  // screen on the way out, so the guard waits for the app to settle.
+  test('guards where the app settles, not the screen it starts at', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.waitForURL(/\/setup/)
+    await page.addStyleTag({
+      content: 'nextjs-portal { display: none !important; }',
+    })
+    await expect.poll(() => guardEntry(page)).toBe(true)
+
+    await page.goBack()
+
+    await expect(page.getByText(WARNING)).toBeVisible()
+    await expect(page).toHaveURL(/\/setup/)
+  })
+
   test('leaves a press from deeper in the app alone', async ({ page }) => {
     await open(page)
     await expect.poll(() => guardEntry(page)).toBe(true)
@@ -100,5 +119,23 @@ test.describe('pressing back where it would not leave the app', () => {
     await expect(page.locator('[data-sidebar="trigger"]')).toBeVisible()
 
     expect(await guardEntry(page)).toBeUndefined()
+  })
+
+  // The screen the app is launched at decides where to start and then replaces
+  // itself. Left in the history, it sent the app straight forward again every
+  // time back reached it, and there was no way out at all.
+  test('does not land back on the screen the app started at', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.waitForURL(/\/setup/)
+
+    await page.goBack()
+
+    // Straight out of the app, to the blank page Playwright opened before it.
+    // Asserted by polling rather than by reading the URL once: the screen the
+    // app starts at used to appear for an instant on the way past, and then
+    // send the app forward again.
+    await expect.poll(() => page.url()).toBe('about:blank')
   })
 })
