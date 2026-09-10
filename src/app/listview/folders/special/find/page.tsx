@@ -41,6 +41,7 @@ import {
 } from '@/app/listview/hook/use-filters'
 import { useSelectedWorldsStore } from '../../../hook/use-selected-worlds'
 import { HelpHint } from '@/components/help-hint'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import { useFolders } from '@/app/listview/hook/use-folders'
 
 // How many of VRChat's pages one press may walk through while looking for
@@ -405,8 +406,17 @@ export default function FindWorldsPage() {
     <div className="p-1 flex flex-col h-full min-h-0">
       {/* added min-h-0 */}
       {/* Header with title and reload button */}
-      <div className="ui-control flex items-center justify-between p-4 bg-background">
-        <h1 className="text-xl font-bold">{t('general:find-worlds')}</h1>
+      <div className="ui-control flex items-center justify-between gap-2 p-4 bg-background">
+        {/* The sidebar collapses at every width, so a page without this
+            button is a page a phone cannot leave: the drawer is the only way
+            back to the folders. Every other page under `listview` carries
+            one, and this page did not. */}
+        <div className="flex min-w-0 items-center gap-2">
+          <SidebarTrigger className="h-10 w-10 shrink-0" />
+          <h1 className="truncate text-xl font-bold">
+            {t('general:find-worlds')}
+          </h1>
+        </div>
 
         <div className="flex items-center">
           {isSelectionMode &&
