@@ -3,7 +3,7 @@
 import { SaturnIcon } from '../../../components/icons/saturn-icon'
 import { GearIcon } from '../../../components/icons/gear-icon'
 import {
-  Info,
+  BookOpen,
   FileQuestion,
   History,
   Plus,
@@ -434,17 +434,17 @@ export function AppSidebar() {
               className={`
               px-3 py-2 cursor-pointer text-sm font-medium rounded-lg overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-3
               ${
-                pathname === `/listview/about`
+                pathname === `/listview/guide`
                   ? sidebarStyles.activeLink
                   : 'hover:bg-accent/50 hover:text-accent-foreground'
               }
             `}
               onClick={() => {
-                navigate('/listview/about')
+                navigate('/listview/guide')
               }}
             >
-              <Info className="h-5 w-5" />
-              <span>{t('app-sidebar:about')}</span>
+              <BookOpen className="h-5 w-5" />
+              <span>{t('app-sidebar:guide')}</span>
             </div>
             <div
               className={`
@@ -468,21 +468,40 @@ export function AppSidebar() {
                 than only on the About page: a privacy policy that takes
                 looking for reads as one someone would rather you did not find.
                 The text is small; the row is not, so a VR laser can still hit
-                it. */}
-            <div
-              className={`
-              mt-3 px-3 py-2 cursor-pointer text-xs rounded-lg overflow-hidden text-ellipsis whitespace-nowrap
-              ${
-                pathname === `/privacy`
-                  ? sidebarStyles.activeLink
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
-              }
-            `}
-              onClick={() => {
-                navigate('/privacy')
-              }}
-            >
-              {t('privacy-policy:link-label')}
+                it. The credits share the row: on a phone this sidebar is the
+                whole screen, and every row it gains is a folder pushed out
+                of view. */}
+            <div className="mt-3 flex flex-wrap">
+              <div
+                className={`
+                px-3 py-2 cursor-pointer text-xs rounded-lg whitespace-nowrap
+                ${
+                  pathname === `/privacy`
+                    ? sidebarStyles.activeLink
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                }
+              `}
+                onClick={() => {
+                  navigate('/privacy')
+                }}
+              >
+                {t('privacy-policy:link-label')}
+              </div>
+              <div
+                className={`
+                px-3 py-2 cursor-pointer text-xs rounded-lg whitespace-nowrap
+                ${
+                  pathname === `/listview/about`
+                    ? sidebarStyles.activeLink
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                }
+              `}
+                onClick={() => {
+                  navigate('/listview/about')
+                }}
+              >
+                {t('app-sidebar:credits')}
+              </div>
             </div>
           </SidebarGroup>
         </footer>

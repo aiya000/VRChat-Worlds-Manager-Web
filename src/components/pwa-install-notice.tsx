@@ -3,6 +3,7 @@
 import { Download } from 'lucide-react'
 import { useEffect, useState, useSyncExternalStore, type FC } from 'react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLocalization } from '@/hooks/use-localization'
 import {
   isRunningInstalled,
@@ -16,9 +17,11 @@ import {
  * How to keep this app on the home screen or the desktop.
  *
  * Deliberately not a banner over the page: an offer to install that interrupts
- * is the kind nobody reads (#69). It sits on the About page, where someone
+ * is the kind nobody reads (#69). It sits on the guide page, where someone
  * looking into what this app is will pass it, and says nothing at all to a
- * reader who already installed it.
+ * reader who already installed it -- not even a title. The card is drawn here
+ * rather than by the page so that it can go as a whole; a heading left over an
+ * empty card read as a page that had failed to load.
  *
  * Chrome offers to do the install itself, through the event it fires when it
  * is willing; nothing else does, so everyone else is told the steps.
@@ -70,27 +73,34 @@ export const PwaInstallNotice: FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-3" data-testid="pwa-install-notice">
-      <div className="text-sm text-muted-foreground">
-        {t('about-section:install-description')}
-      </div>
-      {prompt !== null ? (
-        <Button
-          variant="outline"
-          className="w-fit gap-2"
-          onClick={install}
-          data-testid="pwa-install-button"
-        >
-          <Download className="h-4 w-4" aria-hidden />
-          {t('about-section:install-action')}
-        </Button>
-      ) : (
-        <div className="text-sm text-muted-foreground">
-          {manual
-            ? t('about-section:install-steps-ios')
-            : t('about-section:install-steps-browser')}
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('guide-page:install-title')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col gap-3" data-testid="pwa-install-notice">
+          <div className="text-sm text-muted-foreground">
+            {t('guide-page:install-description')}
+          </div>
+          {prompt !== null ? (
+            <Button
+              variant="outline"
+              className="w-fit gap-2"
+              onClick={install}
+              data-testid="pwa-install-button"
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              {t('guide-page:install-action')}
+            </Button>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              {manual
+                ? t('guide-page:install-steps-ios')
+                : t('guide-page:install-steps-browser')}
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   )
 }
