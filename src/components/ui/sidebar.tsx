@@ -6,7 +6,11 @@ import { VariantProps, cva } from 'class-variance-authority'
 import { PanelLeft } from 'lucide-react'
 
 import { useIsMobile } from '@/hooks/use-mobile'
-import { isRightwardSwipe, type SwipePoint } from '@/lib/swipe-gesture'
+import {
+  isLeftwardSwipe,
+  isRightwardSwipe,
+  type SwipePoint,
+} from '@/lib/swipe-gesture'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,6 +45,9 @@ const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
  */
 const SWIPE_EXEMPT =
   '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], [role="slider"]'
+
+/** The sidebar as a phone draws it: a drawer over the page. */
+const MOBILE_DRAWER = '[data-sidebar="sidebar"][data-mobile="true"]'
 
 type SidebarContext = {
   state: 'expanded' | 'collapsed'
@@ -128,14 +135,16 @@ const SidebarProvider = React.forwardRef<
       return () => window.removeEventListener('keydown', handleKeyDown)
     }, [toggleSidebar])
 
-    // A swipe rightwards opens the drawer, the way a phone's navigation drawer
-    // is pulled open. Only on a phone: at a wider width the sidebar is a column
-    // that is already there, and a VR laser or a mouse sends no touch at all.
+    // A swipe rightwards opens the drawer and a swipe leftwards pushes it back
+    // out of the way, as a phone's navigation drawer is. Only on a phone: at a
+    // wider width the sidebar is a column that is already there, and a VR laser
+    // or a mouse sends no touch at all.
     //
     // The whole screen listens, not a strip along the left edge. Android takes
     // an edge swipe for its own "back" gesture before the page ever sees it,
     // and nothing here scrolls sideways, so a swipe anywhere is unambiguous --
     // except inside a dialog or a menu, where it is that overlay's own business.
+    // The drawer is a dialog itself, so while it is open its own swipe counts.
     React.useEffect(() => {
       if (!isMobile) {
         return
@@ -143,12 +152,18 @@ const SidebarProvider = React.forwardRef<
 
       let swipeStart: SwipePoint | null = null
 
+      const listensTo = (target: EventTarget | null) => {
+        if (!(target instanceof Element)) {
+          return true
+        }
+        if (target.closest(SWIPE_EXEMPT) === null) {
+          return true
+        }
+        return openMobile && target.closest(MOBILE_DRAWER) !== null
+      }
+
       const handleTouchStart = (event: TouchEvent) => {
-        const target = event.target
-        if (
-          event.touches.length !== 1 ||
-          (target instanceof Element && target.closest(SWIPE_EXEMPT) !== null)
-        ) {
+        if (event.touches.length !== 1 || !listensTo(event.target)) {
           swipeStart = null
           return
         }
@@ -166,6 +181,12 @@ const SidebarProvider = React.forwardRef<
 
         const touch = event.changedTouches[0]
         const end = { x: touch.clientX, y: touch.clientY, at: event.timeStamp }
+        if (openMobile) {
+          if (isLeftwardSwipe(start, end)) {
+            setOpenMobile(false)
+          }
+          return
+        }
         if (isRightwardSwipe(start, end)) {
           setOpenMobile(true)
         }
@@ -183,7 +204,7 @@ const SidebarProvider = React.forwardRef<
         window.removeEventListener('touchend', handleTouchEnd)
         window.removeEventListener('touchcancel', forgetSwipe)
       }
-    }, [isMobile, setOpenMobile])
+    }, [isMobile, openMobile, setOpenMobile])
 
     // We add a state so that we can do data-state="expanded" or "collapsed".
     // This makes it easier to style the sidebar with Tailwind classes.

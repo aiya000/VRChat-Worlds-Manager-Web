@@ -96,3 +96,27 @@ test.describe('opening the sidebar by swiping', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0)
   })
 })
+
+test.describe('shutting the sidebar by swiping', () => {
+  test('a swipe to the left over the drawer shuts it', async ({ page }) => {
+    await open(page, PHONE)
+    await page.locator('[data-sidebar="trigger"]').click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+
+    await swipe(page, { x: 240, y: 400 }, { x: 40, y: 410 })
+
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+  })
+
+  test('a swipe to the right over the drawer leaves it open', async ({
+    page,
+  }) => {
+    await open(page, PHONE)
+    await page.locator('[data-sidebar="trigger"]').click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+
+    await swipe(page, { x: 60, y: 400 }, { x: 260, y: 410 })
+
+    await expect(page.getByRole('dialog')).toBeVisible()
+  })
+})

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { isRightwardSwipe, type SwipePoint } from '@/lib/swipe-gesture'
+import {
+  isLeftwardSwipe,
+  isRightwardSwipe,
+  type SwipePoint,
+} from '@/lib/swipe-gesture'
 
 const START: SwipePoint = { x: 40, y: 400, at: 0 }
 
@@ -34,5 +38,21 @@ describe('recognising the swipe that opens the drawer', () => {
 
   it('refuses a finger moved about the screen slowly', () => {
     expect(isRightwardSwipe(START, to(200, 410, 1500))).toBe(false)
+  })
+})
+
+describe('recognising the swipe that shuts the drawer', () => {
+  const FROM_DRAWER: SwipePoint = { x: 240, y: 400, at: 0 }
+
+  it('takes a flick to the left', () => {
+    expect(isLeftwardSwipe(FROM_DRAWER, to(60, 410, 200))).toBe(true)
+  })
+
+  it('refuses a flick to the right', () => {
+    expect(isLeftwardSwipe(FROM_DRAWER, to(380, 400, 200))).toBe(false)
+  })
+
+  it('refuses a scroll down the folder list that drifted sideways', () => {
+    expect(isLeftwardSwipe(FROM_DRAWER, to(120, 620, 200))).toBe(false)
   })
 })

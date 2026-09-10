@@ -21,13 +21,27 @@ const MAX_DURATION = 700
 /**
  * A swipe rightwards across the screen, as a phone's navigation drawer is
  * pulled open.
- *
- * The vertical limit is what keeps this apart from scrolling the world grid:
- * the movement has to be at least twice as far across as it is up or down
- * before it counts, so a scroll that drifts sideways stays a scroll.
  */
 export function isRightwardSwipe(start: SwipePoint, end: SwipePoint): boolean {
-  const distanceX = end.x - start.x
+  return isSwipeAlong(start, end, 1)
+}
+
+/** A swipe leftwards, as that same drawer is pushed back out of the way. */
+export function isLeftwardSwipe(start: SwipePoint, end: SwipePoint): boolean {
+  return isSwipeAlong(start, end, -1)
+}
+
+/**
+ * The vertical limit is what keeps a swipe apart from scrolling the world
+ * grid: the movement has to be at least twice as far across as it is up or
+ * down before it counts, so a scroll that drifted sideways stays a scroll.
+ */
+function isSwipeAlong(
+  start: SwipePoint,
+  end: SwipePoint,
+  direction: 1 | -1,
+): boolean {
+  const distanceX = (end.x - start.x) * direction
   const distanceY = end.y - start.y
 
   if (end.at - start.at > MAX_DURATION) {
