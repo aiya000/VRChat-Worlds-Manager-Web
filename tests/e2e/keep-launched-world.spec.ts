@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 import { seedWorld } from './seed-world'
 
-const FIND = '/listview/folders/special/find'
+const RECENTLY_VISITED = '/listview/recently-visited'
 const ALL = '/listview/folders/special/all'
 const SETTINGS = '/listview/settings?tab=others'
 
@@ -21,8 +21,8 @@ test.use({ serviceWorkers: 'block' })
 
 /**
  * A world that is only ever seen, never added: it comes back from "recently
- * visited" on the search page, which is where a world the collection does not
- * hold is opened with `dontSaveToLocal`.
+ * visited", which is where a world the collection does not hold is opened
+ * with `dontSaveToLocal`.
  */
 async function stubVRChat(page: Page) {
   await page.route('**/api/1/worlds/recent**', async (route) => {
@@ -104,8 +104,8 @@ async function open(page: Page, path: string) {
   })
 }
 
-async function makeAnInstanceFromTheSearchPage(page: Page) {
-  await open(page, FIND)
+async function makeAnInstanceFromARecentlyVisitedWorld(page: Page) {
+  await open(page, RECENTLY_VISITED)
   await page.getByText(WORLD_NAME).first().click()
   await page
     .getByRole('button', {
@@ -152,7 +152,7 @@ async function storedWorld(page: Page, worldId: string) {
  *
  * The row that remembers an instance is reached through the world's own detail
  * popup, so a world that is not in the collection has no way back to it. A
- * world opened from the search page is deliberately not saved -- and when its
+ * world opened from the recently visited page is deliberately not saved -- and when its
  * author later makes it private, VRChat stops answering for it, leaving the
  * instance recorded under a world that cannot be found or opened again.
  *
@@ -170,7 +170,7 @@ test.describe('a world an instance was made in', () => {
   test('is kept, but shown under "all worlds" only when asked for', async ({
     page,
   }) => {
-    await makeAnInstanceFromTheSearchPage(page)
+    await makeAnInstanceFromARecentlyVisitedWorld(page)
 
     // The copy is there, marked as held for the instance alone...
     expect(await storedWorld(page, WORLD_ID)).toMatchObject({
@@ -189,14 +189,14 @@ test.describe('a world an instance was made in', () => {
     await expect(page.getByTestId('kept-for-instance-mark')).toBeVisible()
   })
 
-  test('is not called "added" on the search page, and is marked there only when asked for', async ({
+  test('is not called "added" where it was seen, and is marked there only when asked for', async ({
     page,
   }) => {
-    await makeAnInstanceFromTheSearchPage(page)
+    await makeAnInstanceFromARecentlyVisitedWorld(page)
 
-    // The world someone added is not on the search page, so wait for the card
+    // The world someone added is not on the recently visited page, so wait for the card
     // itself before reading what is drawn on it.
-    await open(page, FIND)
+    await open(page, RECENTLY_VISITED)
     await expect(page.getByText(WORLD_NAME).first()).toBeVisible()
     await expect(
       page.getByText(jaJP['world-grid:exists-in-collection']),
@@ -204,7 +204,7 @@ test.describe('a world an instance was made in', () => {
     await expect(page.getByTestId('kept-for-instance-mark')).toBeHidden()
 
     await turnOn(page, 'mark-worlds-kept-for-instance-on-find')
-    await open(page, FIND)
+    await open(page, RECENTLY_VISITED)
     await expect(page.getByTestId('kept-for-instance-mark')).toBeVisible()
     await expect(
       page.getByText(jaJP['world-grid:exists-in-collection']),
@@ -212,7 +212,7 @@ test.describe('a world an instance was made in', () => {
   })
 
   test('becomes an added world once it is added by hand', async ({ page }) => {
-    await makeAnInstanceFromTheSearchPage(page)
+    await makeAnInstanceFromARecentlyVisitedWorld(page)
 
     await open(page, ALL)
     await page

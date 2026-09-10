@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 
-const FIND = '/listview/folders/special/find'
+const RECENTLY_VISITED = '/listview/recently-visited'
 
 const A_WORLD = {
   id: 'wrld_e2e_recent',
@@ -29,8 +29,8 @@ async function answerRecentWith(page: Page, body: unknown) {
   return () => requests
 }
 
-async function openFindPage(page: Page) {
-  await page.goto(FIND)
+async function openRecentlyVisitedPage(page: Page) {
+  await page.goto(RECENTLY_VISITED)
   await page.addStyleTag({
     content: 'nextjs-portal { display: none !important; }',
   })
@@ -41,12 +41,12 @@ async function openFindPage(page: Page) {
  * an empty answer was indistinguishable from "not asked yet", so the effect
  * that fetches on first load fired again as soon as it finished.
  */
-test.describe('the find page fetching what was visited recently', () => {
+test.describe('the recently visited page fetching what was visited recently', () => {
   test('asks once and shows the empty message when there is nothing', async ({
     page,
   }) => {
     const requestCount = await answerRecentWith(page, [])
-    await openFindPage(page)
+    await openRecentlyVisitedPage(page)
 
     await expect(
       page.getByText(jaJP['find-page:no-recently-visited-worlds']),
@@ -68,7 +68,7 @@ test.describe('the find page fetching what was visited recently', () => {
     page,
   }) => {
     const requestCount = await answerRecentWith(page, [A_WORLD])
-    await openFindPage(page)
+    await openRecentlyVisitedPage(page)
 
     await expect(page.getByText(A_WORLD.name)).toBeVisible()
     await expect(

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 
 const LIST_VIEW = '/listview/folders/special/all'
-const FIND = '/listview/folders/special/find'
+const RECENTLY_VISITED = '/listview/recently-visited'
 
 /**
  * The button that fetches worlds from VRChat used to read "Refresh" with the
@@ -35,10 +35,10 @@ test.describe('the button that fetches worlds from VRChat', () => {
     await expect(explanation).toBeHidden()
   })
 
-  test('says it fetches recently visited worlds on the find page', async ({
+  test('says it fetches recently visited worlds on that page', async ({
     page,
   }) => {
-    await page.goto(FIND)
+    await page.goto(RECENTLY_VISITED)
     await page.addStyleTag({
       content: 'nextjs-portal { display: none !important; }',
     })
