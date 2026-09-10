@@ -753,5 +753,6 @@
   "backend-limit:title": "The server has reached a limit",
   "backend-limit:too-many-requests": "This app's server has stopped accepting requests for a while, after too many in a short time. It recovers in about an hour. Nothing you have saved is affected.",
   "backend-limit:too-many-sign-ins": "Too many sign-in attempts. Please wait about an hour and try again -- this does not necessarily mean your password is wrong.",
-  "backend-limit:daily-quota-spent": "This app has used up its allowance for today. It resets when the date changes. The worlds and folders you have saved are still available."
+  "backend-limit:daily-quota-spent": "This app has used up its allowance for today. It resets when the date changes. The worlds and folders you have saved are still available.",
+  "exit-guard:press-back-again": "Press back again to leave the app."
 }

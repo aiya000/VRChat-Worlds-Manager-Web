@@ -11,6 +11,7 @@ import { SwRegister } from '@/components/sw-register'
 import { StaleBundleNotice } from '@/components/stale-bundle-notice'
 import { UiScaleEffect } from '@/components/ui-scale-effect'
 import { BackendLimitNotice } from '@/components/backend-limit-notice'
+import { ExitGuard } from '@/components/exit-guard'
 
 const _geistSans = Geist({
   variable: '--font-geist-sans',
@@ -86,6 +87,7 @@ export default function RootLayout({
               <StaleBundleNotice />
               <UiScaleEffect />
               <BackendLimitNotice />
+              <ExitGuard />
             </LocalizationContextProvider>
           </ThemeProvider>
           <Toaster richColors />
