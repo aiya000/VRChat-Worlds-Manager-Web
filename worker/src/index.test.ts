@@ -3,10 +3,15 @@ import { describe, expect, it } from 'vitest'
 import {
   buildProxyHeaders,
   buildVRChatCookieHeader,
+  countAgainstHourlyLimit,
+  getQuotaRemaining,
+  incrementQuota,
   isCredentialAttempt,
   isOriginAllowed,
+  isRefusedBy,
   isRouteAllowed,
   parseSetCookieValue,
+  type Env,
 } from './index'
 
 describe('isRouteAllowed', () => {
@@ -252,5 +257,129 @@ describe('buildVRChatCookieHeader', () => {
   it('sends nothing when the caller holds no session', () => {
     expect(buildVRChatCookieHeader(null, null)).toBe(null)
     expect(buildVRChatCookieHeader('', '')).toBe(null)
+  })
+})
+
+/**
+ * A KV that answers from a map, or refuses everything. The counters read,
+ * compare and write, so both halves have to be able to fail.
+ */
+function fakeEnv(
+  store: Map<string, string>,
+  failing: 'none' | 'get' | 'put' = 'none',
+): Env {
+  const quota = {
+    get: async (key: string) => {
+      if (failing === 'get') {
+        throw new Error('KV is unwell')
+      }
+      return store.get(key) ?? null
+    },
+    put: async (key: string, value: string) => {
+      if (failing === 'put') {
+        throw new Error('KV is unwell')
+      }
+      store.set(key, value)
+    },
+  }
+  return {
+    ALLOWED_ORIGIN: 'https://example.invalid',
+    VRCHAT_API_BASE: 'https://api.invalid/api/1',
+    QUOTA: quota as unknown as Env['QUOTA'],
+  }
+}
+
+/**
+ * A counter that cannot be read used to leave the whole `fetch` handler
+ * through the exception, so the response carried no CORS headers and the
+ * browser reported a connection failure instead of an error (#170).
+ */
+describe('counting against an hourly bucket', () => {
+  it('counts a use and allows it while under the limit', async () => {
+    const store = new Map<string, string>()
+
+    const outcome = await countAgainstHourlyLimit(
+      fakeEnv(store),
+      'ip',
+      '198.51.100.7',
+      10,
+    )
+
+    expect(outcome).toBe('within-limit')
+    expect(isRefusedBy(outcome)).toBe(false)
+    expect([...store.values()]).toEqual(['1'])
+  })
+
+  it('refuses once the bucket is full, and does not count further', async () => {
+    const store = new Map<string, string>()
+    const env = fakeEnv(store)
+    for (let i = 0; i < 3; i++) {
+      await countAgainstHourlyLimit(env, 'ip', '198.51.100.7', 3)
+    }
+
+    const outcome = await countAgainstHourlyLimit(env, 'ip', '198.51.100.7', 3)
+
+    expect(outcome).toBe('over-limit')
+    expect(isRefusedBy(outcome)).toBe(true)
+    expect([...store.values()]).toEqual(['3'])
+  })
+
+  it('says the counter is unavailable when KV cannot be read, and does not refuse', async () => {
+    const outcome = await countAgainstHourlyLimit(
+      fakeEnv(new Map(), 'get'),
+      'ip',
+      '198.51.100.7',
+      10,
+    )
+
+    expect(outcome).toBe('counter-unavailable')
+    expect(isRefusedBy(outcome)).toBe(false)
+  })
+
+  it('says the same when KV cannot be written to', async () => {
+    const outcome = await countAgainstHourlyLimit(
+      fakeEnv(new Map(), 'put'),
+      'ip',
+      '198.51.100.7',
+      10,
+    )
+
+    expect(outcome).toBe('counter-unavailable')
+    expect(isRefusedBy(outcome)).toBe(false)
+  })
+
+  it('keeps sign-in attempts in a bucket of their own', async () => {
+    const store = new Map<string, string>()
+    const env = fakeEnv(store)
+
+    await countAgainstHourlyLimit(env, 'ip', '198.51.100.7', 10)
+    await countAgainstHourlyLimit(env, 'login', '198.51.100.7', 10)
+
+    expect([...store.values()]).toEqual(['1', '1'])
+  })
+})
+
+describe('the daily quota', () => {
+  it('answers null rather than zero when KV cannot be read', async () => {
+    // Zero would read as "today's allowance is spent" and close the app for
+    // everyone over what may be a moment's trouble.
+    expect(await getQuotaRemaining(fakeEnv(new Map(), 'get'))).toBeNull()
+  })
+
+  it('counts a request, and reports what is left', async () => {
+    const store = new Map<string, string>()
+    const env = fakeEnv(store)
+
+    const before = await getQuotaRemaining(env)
+    const after = await incrementQuota(env)
+
+    expect(before).not.toBeNull()
+    expect(after).toBe((before as number) - 1)
+  })
+
+  it('does not throw when it cannot count, so an answer already given survives', async () => {
+    // This runs after VRChat has replied. Throwing here reached the proxy's
+    // own `catch`, which reported a successful request as `502 Proxy error`.
+    expect(await incrementQuota(fakeEnv(new Map(), 'put'))).toBeNull()
   })
 })

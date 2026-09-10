@@ -8,6 +8,11 @@ import { instanceRequestBody, parseInstanceInfo } from '@/lib/vrchat-instances'
 import type { InstanceType } from '@/types/instances'
 import { db } from './db'
 import {
+  notifyBackendLimitReached,
+  readBackendLimitKind,
+  type BackendLimitKind,
+} from './backend-limit'
+import {
   isTurnstileEnabled,
   obtainTurnstileToken,
   TURNSTILE_TOKEN_HEADER,
@@ -148,6 +153,24 @@ export class VRChatApiError extends Error {
     readonly body: string,
   ) {
     super(`API error ${status}: ${body}`)
+  }
+}
+
+/**
+ * This app's own backend refused the request because one of its limits was
+ * reached -- not VRChat, and not anything the caller got wrong.
+ *
+ * It extends `VRChatApiError` so every existing `instanceof` check and every
+ * `status` test keeps working; what it adds is which limit it was, for the
+ * one listener that turns that into a sentence.
+ */
+export class BackendLimitError extends VRChatApiError {
+  constructor(
+    readonly kind: BackendLimitKind,
+    status: number,
+    body: string,
+  ) {
+    super(status, body)
   }
 }
 
@@ -295,6 +318,14 @@ async function apiFetch(
   await storeIssuedTokens(res)
   if (!res.ok) {
     const text = await res.text()
+    // Raised here rather than at each call site: every request goes through
+    // this function, and a limit reached on any of them means the same thing
+    // to the person waiting.
+    const limit = res.status === 429 ? readBackendLimitKind(text) : null
+    if (limit !== null) {
+      notifyBackendLimitReached(limit)
+      throw new BackendLimitError(limit, res.status, text)
+    }
     throw new VRChatApiError(res.status, text)
   }
   return res
