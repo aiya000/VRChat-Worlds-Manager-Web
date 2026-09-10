@@ -140,40 +140,11 @@ notification. No link opens the Android app straight into an instance, so this i
 
 ---
 
-## Getting Started
-
-### Prerequisites
-
-- [Bun](https://bun.sh/) (v1.2+)
-
-### Development
-
-```bash
-# Install dependencies
-bun install
-
-# Start development server
-bun run dev
-
-# Code quality checks (Prettier, ESLint, TypeCheck)
-bun run check
-
-# Run unit & integration tests
-bun run test
-
-# Run E2E tests (Playwright)
-bun run test:e2e
-
-# Build for production
-bun run build
-```
-
----
-
 ## Contributing
 
 Contributions are welcome!
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the guidelines and everything needed to run this locally -- the prerequisites, the commands, and how the project is built.
 
 ---
 

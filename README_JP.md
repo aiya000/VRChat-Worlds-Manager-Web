@@ -137,40 +137,11 @@ Androidでは、リンクからインスタンスへ直接入る方法がない�
 
 ---
 
-## 開発とセットアップ
-
-### 前提条件
-
-- [Bun](https://bun.sh/) (v1.2以上)
-
-### 開発コマンド
-
-```bash
-# 依存関係のインストール
-bun install
-
-# 開発サーバーの起動
-bun run dev
-
-# コード品質チェック（Prettier, ESLint, TypeCheck）
-bun run check
-
-# 単体・統合テストの実行
-bun run test
-
-# E2Eテストの実行（Playwright）
-bun run test:e2e
-
-# プロダクションビルド
-bun run build
-```
-
----
-
 ## コントリビュート
 
 貢献は大歓迎です！
-ガイドラインは [CONTRIBUTING.md](CONTRIBUTING.md) をご覧ください。
+
+ガイドラインと、手元で動かすために必要なこと（前提条件・コマンド・このプロジェクトの作り方）は、すべて [CONTRIBUTING.md](CONTRIBUTING.md) にあります。
 
 ---
 
