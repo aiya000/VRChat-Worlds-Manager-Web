@@ -10,6 +10,17 @@ VRCHAT_API_BASE = "https://api.vrchat.cloud/api/1"
 binding = "QUOTA"
 id = "INPUT_HERE_KV_NAMESPACE_ID"
 
+# Without this, the only way to learn that this Worker refused somebody is to
+# be watching `wrangler tail` at the moment it happened -- nothing is kept
+# (#170). With it on, every `console.error` below is retained and searchable
+# in the Cloudflare dashboard under Workers > this Worker > Logs.
+#
+# `wrangler.toml` is not tracked, so adding this here changes nothing on its
+# own: copy the block into your own `wrangler.toml` and deploy.
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 # Secrets are not listed here. `TURNSTILE_SECRET_KEY` (the Turnstile widget's
 # secret, #61) is set once with `bunx wrangler secret put TURNSTILE_SECRET_KEY`
 # and survives every `wrangler deploy`. Without it the Worker asks credential

@@ -749,5 +749,10 @@
   "fetch-recent:what-title": "What it does",
   "fetch-recent:what": "Fetches the list of worlds recently visited by the VRChat account you are signed in to. This list is not saved; to keep a world, add it to a folder from its card.",
   "fetch-recent:needs-title": "What it needs",
-  "fetch-recent:needs": "Being signed in to VRChat. VRChat's API has a rate limit, so avoid pressing it again and again."
+  "fetch-recent:needs": "Being signed in to VRChat. VRChat's API has a rate limit, so avoid pressing it again and again.",
+  "backend-limit:title": "The server has reached a limit",
+  "backend-limit:too-many-requests": "This app's server has stopped accepting requests for a while, after too many in a short time. It recovers in about an hour. Nothing you have saved is affected.",
+  "backend-limit:too-many-sign-ins": "Too many sign-in attempts. Please wait about an hour and try again -- this does not necessarily mean your password is wrong.",
+  "backend-limit:daily-quota-spent": "This app has used up its allowance for today. It resets when the date changes. The worlds and folders you have saved are still available.",
+  "exit-guard:press-back-again": "Press back again to leave the app."
 }

@@ -35,10 +35,11 @@ async function open(page: Page, path: string) {
 }
 
 /**
- * The sidebar collapses away at every width, and on a phone it is a drawer
- * with no edge gesture to open it. A page that draws no trigger is therefore
- * a page that cannot be left -- which is what "find worlds" was, before #183
- * split it into the two pages below.
+ * The sidebar collapses away at every width, and on a phone it is a drawer.
+ * A swipe rightwards opens that drawer, but only a phone sends one, so a page
+ * that draws no trigger is still a page that cannot be left anywhere else --
+ * which is what "find worlds" was, before #183 split it into the two pages
+ * below.
  */
 test.describe('getting back to the sidebar from', () => {
   for (const [name, path] of PAGES) {

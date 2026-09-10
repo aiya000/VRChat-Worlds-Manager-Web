@@ -11,19 +11,25 @@ export default function Home() {
   const router = useRouter()
   const { t } = useLocalization()
 
+  // Replaced, never pushed. This screen decides where the app starts and has
+  // nothing to show once it has decided, so leaving it in the history makes
+  // the back gesture bounce: back lands here, this runs again, and the app is
+  // pushed straight forward to where it came from. It is also the entry the
+  // app is launched at (`start_url` is `/`), so anything left here is what
+  // stands between the user and leaving.
   useEffect(() => {
     const checkFirstTime = async () => {
       const isFirstTime = await commands.requireInitialSetup()
 
       if (isFirstTime) {
-        router.push('/setup')
+        router.replace('/setup')
       } else {
         const checkFilesAndAuth = async () => {
           const result = await commands.checkFilesLoaded()
 
           if (result.status === 'error') {
             console.error(`Error loading files: ${result.error}`)
-            router.push(
+            router.replace(
               `${'/error/read_data_error'}?${encodeURIComponent(result.error)}`,
             )
             return
@@ -34,9 +40,9 @@ export default function Home() {
 
           if (authResult.status === 'ok') {
             console.info('User is authenticated')
-            router.push('/listview/folders/special/all')
+            router.replace('/listview/folders/special/all')
           } else {
-            router.push('/login')
+            router.replace('/login')
           }
         }
         checkFilesAndAuth()
