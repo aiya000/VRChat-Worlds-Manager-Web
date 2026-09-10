@@ -22,9 +22,20 @@ import { Card, CardContent } from '@/components/ui/card'
 import { WorldGrid } from '../../../components/world-grid'
 import { WorldGridSkeleton } from '../../../components/world-grid/skeleton'
 import MultiFilterItemSelector from '@/components/multi-filter-item-selector'
+import { PlatformFilterCheckboxes } from '@/components/platform-filter-checkboxes'
+import {
+  matchesPlatformFilters,
+  searchablePlatforms,
+  type SearchablePlatform,
+} from '@/lib/platform-filter'
 import { useSelectedWorldsStore } from '../../../hook/use-selected-worlds'
 import { HelpHint } from '@/components/help-hint'
 import { useFolders } from '@/app/listview/hook/use-folders'
+
+// How many of VRChat's pages one press may walk through while looking for
+// worlds that survive the platform filter. Without a filter the first page
+// always answers, so this only costs requests when one is set.
+const MAX_PAGES_PER_SEARCH = 5
 
 export default function FindWorldsPage() {
   const { t } = useLocalization()
@@ -46,6 +57,9 @@ export default function FindWorldsPage() {
   const [selectedSort, setSelectedSort] = useState('popularity')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [selectedExcludedTags, setSelectedExcludedTags] = useState<string[]>([])
+  const [selectedPlatforms, setSelectedPlatforms] = useState<
+    SearchablePlatform[]
+  >([])
   const [availableTags, setAvailableTags] = useState<string[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -200,39 +214,59 @@ export default function FindWorldsPage() {
     }
 
     try {
-      const page = loadMore ? currentPage + 1 : 1
+      // VRChat is asked about one platform at most -- it answers a
+      // comma-separated pair with nothing at all -- so the rest of the AND is
+      // finished here. A page can therefore filter down to nothing while the
+      // search has plenty left, and an empty grid would stop the infinite
+      // scroll from ever asking for the next one, so keep asking for a few
+      // pages until there is something to show.
+      let page = loadMore ? currentPage + 1 : 1
+      let shown: WorldDisplayData[] = []
+      let received = 0
 
-      const result = await commands.searchWorlds(
-        selectedSort,
-        selectedTags,
-        selectedExcludedTags,
-        searchQuery,
-        page,
-      )
-
-      if (result.status === 'ok') {
-        console.info(`Search results: ${result.data.length} worlds found`)
-        if (loadMore) {
-          // Append new results to existing ones
-          setSearchResults((prev) => [...prev, ...result.data])
-          setCurrentPage(currentPage + 1)
-          setLoadMoreBackoffUntil(null) // reset backoff after success
-        } else {
-          // Replace results for new search
-          setSearchResults(result.data)
-          setCurrentPage(1)
+      for (let attempt = 0; attempt < MAX_PAGES_PER_SEARCH; attempt++) {
+        const result = await commands.searchWorlds(
+          selectedSort,
+          selectedTags,
+          selectedExcludedTags,
+          searchQuery,
+          page,
+          selectedPlatforms,
+        )
+        if (result.status !== 'ok') {
+          throw new Error(result.error)
         }
-
-        // Check if we've reached the end of results
-        setHasMoreResults(result.data.length > 0)
-
-        if (result.data.length === 0 && !loadMore) {
-          toast(t('find-page:no-more-results'), {
-            description: t('find-page:try-different-search'),
-          })
+        received = result.data.length
+        shown = result.data.filter((world) =>
+          matchesPlatformFilters(world.platform, selectedPlatforms),
+        )
+        console.info(
+          `Search results: page=${page} received=${received} shown=${shown.length}`,
+        )
+        if (shown.length > 0 || received === 0) {
+          break
         }
+        page++
+      }
+
+      if (loadMore) {
+        // Append new results to existing ones
+        setSearchResults((prev) => [...prev, ...shown])
+        setLoadMoreBackoffUntil(null) // reset backoff after success
       } else {
-        throw new Error(result.error)
+        // Replace results for new search
+        setSearchResults(shown)
+      }
+      setCurrentPage(page)
+
+      // Whether there is another page is decided by what VRChat sent, not by
+      // what survived the filter.
+      setHasMoreResults(received > 0)
+
+      if (shown.length === 0 && !loadMore) {
+        toast(t('find-page:no-more-results'), {
+          description: t('find-page:try-different-search'),
+        })
       }
     } catch (err) {
       console.error(`Search error: ${err}`)
@@ -558,6 +592,15 @@ export default function FindWorldsPage() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Third row: platform filters. "Unknown" is not offered
+                      here -- VRChat has no way to be asked about it. */}
+                  <PlatformFilterCheckboxes
+                    options={searchablePlatforms}
+                    values={selectedPlatforms}
+                    onValuesChange={setSelectedPlatforms}
+                    idPrefix="find"
+                  />
                 </CardContent>
               </Card>
             </div>
