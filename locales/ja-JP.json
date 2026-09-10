@@ -749,5 +749,9 @@
   "fetch-recent:what-title": "何をするか",
   "fetch-recent:what": "ログイン中の VRChat アカウントで最近訪れたワールドの一覧を取り直します。この一覧は保存されないので、残したいワールドはカードからフォルダに追加してください。",
   "fetch-recent:needs-title": "必要なもの",
-  "fetch-recent:needs": "VRChat へのログインです。VRChat の API には回数制限があるので、続けて何度も押さないでください。"
+  "fetch-recent:needs": "VRChat へのログインです。VRChat の API には回数制限があるので、続けて何度も押さないでください。",
+  "backend-limit:title": "サーバー側の上限に達しました",
+  "backend-limit:too-many-requests": "短い時間に何度もアクセスしたため、このアプリのサーバーが一時的に受け付けを止めています。1 時間ほど待つと元に戻ります。アプリやワールドのデータが失われることはありません。",
+  "backend-limit:too-many-sign-ins": "ログインの試行回数が上限に達しました。1 時間ほど待ってから、もう一度お試しください。パスワードが間違っているとは限りません。",
+  "backend-limit:daily-quota-spent": "このアプリ全体の 1 日分の通信量を使い切りました。日付が変わると元に戻ります。保存済みのワールドとフォルダは、これまでどおりご覧いただけます。"
 }
