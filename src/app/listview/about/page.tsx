@@ -29,17 +29,13 @@ const AboutRow: FC<{
   href: string
   icon: LucideIcon
   title: string
-  description: string
-}> = ({ href, icon: Icon, title, description }) => (
+}> = ({ href, icon: Icon, title }) => (
   <Link
     href={href}
     className="flex items-center gap-4 px-4 py-4 transition-colors hover:bg-accent/50"
   >
     <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
-    <span className="min-w-0 flex-1">
-      <span className="block text-sm font-medium">{title}</span>
-      <span className="block text-xs text-muted-foreground">{description}</span>
-    </span>
+    <span className="min-w-0 flex-1 text-sm font-medium">{title}</span>
     <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
   </Link>
 )
@@ -69,19 +65,16 @@ export default function AboutSection() {
               href={backToHere('/terms')}
               icon={FileText}
               title={t('terms:link-label')}
-              description={t('about-section:terms-description')}
             />
             <AboutRow
               href={backToHere('/privacy')}
               icon={Shield}
               title={t('privacy-policy:link-label')}
-              description={t('about-section:privacy-description')}
             />
             <AboutRow
               href={`${ABOUT}/credits`}
               icon={Heart}
               title={t('about-section:credits-title')}
-              description={t('about-section:credits-description')}
             />
           </CardContent>
         </Card>
