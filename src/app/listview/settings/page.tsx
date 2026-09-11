@@ -240,7 +240,7 @@ export default function SettingsPage() {
               world={{
                 worldId: '1',
                 name: t('settings-page:preview-world'),
-                thumbnailUrl: '/icons/1.png',
+                thumbnailUrl: '/icons/world-preview.png',
                 authorName: t('general:author'),
                 lastUpdated: '2025-02-28',
                 visits: 1911,
