@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import jaJP from '../../locales/ja-JP.json'
 
 const GUIDE = '/listview/guide'
-const CREDITS = '/listview/about'
+const ABOUT = '/listview/about'
 
 async function openList(page: Page) {
   await page.goto('/listview/folders/special/all')
@@ -32,41 +32,18 @@ test.describe('the guide page', () => {
     await expect(page.getByTestId('vr-projection-notice')).toBeVisible()
   })
 
-  test('leaves the About page to the credits', async ({ page }) => {
+  test('leaves the About page to what the app is, not how to use it', async ({
+    page,
+  }) => {
     await openList(page)
 
-    await page.getByText(jaJP['app-sidebar:credits'], { exact: true }).click()
+    await page.getByText(jaJP['app-sidebar:about'], { exact: true }).click()
 
-    await expect(page).toHaveURL(new RegExp(`${CREDITS}$`))
+    await expect(page).toHaveURL(new RegExp(`${ABOUT}$`))
     await expect(
-      page.getByText(jaJP['about-section:original-title']),
+      page.getByRole('heading', { name: jaJP['about-section:title'] }),
     ).toBeVisible()
     await expect(page.getByTestId('pwa-install-notice')).toBeHidden()
     await expect(page.getByTestId('vr-projection-notice')).toBeHidden()
-  })
-
-  // On a phone the sidebar is the whole screen, so every row it gains is a
-  // folder pushed out of view. The credits link shares the privacy policy's
-  // row rather than taking one of its own.
-  test('keeps the credits link on the privacy policy row', async ({ page }) => {
-    await openList(page)
-
-    const privacy = page.getByText(jaJP['privacy-policy:link-label'], {
-      exact: true,
-    })
-    const credits = page.getByText(jaJP['app-sidebar:credits'], {
-      exact: true,
-    })
-    await expect(privacy).toBeVisible()
-    await expect(credits).toBeVisible()
-
-    const [privacyBox, creditsBox] = await Promise.all([
-      privacy.boundingBox(),
-      credits.boundingBox(),
-    ])
-    expect(privacyBox).not.toBeNull()
-    expect(creditsBox).not.toBeNull()
-    expect(Math.abs(privacyBox!.y - creditsBox!.y)).toBeLessThan(2)
-    expect(creditsBox!.x).toBeGreaterThan(privacyBox!.x)
   })
 })

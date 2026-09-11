@@ -21,7 +21,7 @@ const PAGES = [
   ['reordering folders', '/listview/folders/reorder'],
   ['settings', '/listview/settings'],
   ['the guide', '/listview/guide'],
-  ['the credits', '/listview/about'],
+  ['what this app is', '/listview/about'],
 ] as const
 
 async function open(page: Page, path: string) {

@@ -54,14 +54,33 @@ test('the terms of use page states every clause', async ({ page }) => {
 })
 
 // Reachable from every screen that leads up to signing in, and from the About
-// page after it. Not from the sidebar: its footer row is full, and a row it
-// gains is a folder pushed out of view on a phone (see guide-page.spec.ts).
-test('the About footer links to the terms of use', async ({ page }) => {
+// page after it -- which the sidebar reaches in one row, so what was agreed to
+// by signing in can be read again without hunting for it.
+test('the About page links to the terms of use, and says to come back', async ({
+  page,
+}) => {
   await page.goto(ABOUT)
 
   await expect(
     page.getByRole('link', { name: jaJP['terms:link-label'] }),
-  ).toHaveAttribute('href', TERMS)
+  ).toHaveAttribute('href', `${TERMS}?back=${encodeURIComponent(ABOUT)}`)
+})
+
+test('the sidebar reaches the terms of use from anywhere in the app', async ({
+  page,
+}) => {
+  await page.goto('/listview/folders/special/all')
+  await hideDevOverlay(page)
+
+  await page.getByText(jaJP['app-sidebar:about'], { exact: true }).click()
+  await page.getByText(jaJP['terms:link-label'], { exact: true }).click()
+
+  await expect(
+    page.getByRole('heading', { name: jaJP['terms:title'] }),
+  ).toBeVisible()
+
+  await page.getByRole('link', { name: jaJP['terms:back'] }).click()
+  await expect(page).toHaveURL(new RegExp(`${ABOUT}$`))
 })
 
 test('the setup screen links to the terms of use', async ({ page }) => {
