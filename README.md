@@ -158,7 +158,7 @@ Contributions are welcome!
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-Some components are licensed under [CC-BY-NC-4.0](https://creativecommons.org/licenses/by-nc/4.0/) and are for non-commercial use only. See the [LICENSE_ADDITIONAL](LICENSE_ADDITIONAL) file for details.
+No part of the current release is under a licence other than MIT. [LICENSE_ADDITIONAL](LICENSE_ADDITIONAL) records the components that once were.
 
 ---
 
@@ -166,6 +166,6 @@ Some components are licensed under [CC-BY-NC-4.0](https://creativecommons.org/li
 
 - Original application: [VRC Worlds Manager v2](https://github.com/Raifa21/VRC-Worlds-Manager-v2) by Raifa and siloneco
 - Special thanks to VRChat and the VRChat API Community for providing API documentation.
-- VRChat-like sidebar icons provided by 黒音キト, licensed under CC-BY-NC-4.0.
+- The former sidebar icons were provided by 黒音キト under CC-BY-NC-4.0. They are no longer in use; the credit is kept here as a special thanks.
 - The former application icon used Ciel-chan, with ArmoireLepus's permission. It is no longer in use; the credit is kept here as a special thanks.
 - Thank you all.

@@ -155,7 +155,7 @@ Androidでは、リンクからインスタンスへ直接入る方法がない�
 
 本プロジェクトはMITライセンスです。詳細は [LICENSE](LICENSE) ファイルをご覧ください。
 
-一部のコンポーネントは [CC-BY-NC-4.0](https://creativecommons.org/licenses/by-nc/4.0/) ライセンスで提供されており、非営利目的でのみ使用できます。詳細は [LICENSE_ADDITIONAL](LICENSE_ADDITIONAL) ファイルをご覧ください。
+現在のリリースに、MIT 以外のライセンスのコンポーネントは含まれていません。かつて含まれていたものは [LICENSE_ADDITIONAL](LICENSE_ADDITIONAL) ファイルに記録しています。
 
 ---
 
@@ -163,6 +163,6 @@ Androidでは、リンクからインスタンスへ直接入る方法がない�
 
 - オリジナルアプリ: [VRC Worlds Manager v2](https://github.com/Raifa21/VRC-Worlds-Manager-v2) by Raifa & siloneco
 - VRChatおよびVRChat APIコミュニティの皆様、APIドキュメントの提供に感謝します。
-- サイドバーアイコンは黒音キト様よりCC-BY-NC-4.0ライセンスで提供されています。
+- 旧サイドバーアイコンは黒音キト様よりCC-BY-NC-4.0ライセンスで提供されていました。現在は未使用です。スペシャルサンクスとして、ここに情報を残させて頂いています。
 - 旧アプリケーションアイコンはCiel-chanを使用。ArmoireLepus様の許可を得ています。ただし現在は未使用。スペシャルサンクスとして、ここに情報を残させて頂いています。
 - 皆様、ありがとうございます。
