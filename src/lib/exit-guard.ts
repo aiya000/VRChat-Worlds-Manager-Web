@@ -7,18 +7,38 @@
  * Nothing here closes the app, and nothing can -- a page may not close a
  * window it did not open. The second press closes it because by then there is
  * no history left to go back to, which is the browser's own way out.
+ *
+ * **The entry is only ever added from a user gesture.** Chrome's back button
+ * and back gesture skip every entry a page added without one: a `pushState`
+ * from a document that has had no user activation marks that document's
+ * entries as skippable, and the gesture then goes straight past them and out
+ * of the app (Chromium's history manipulation intervention). A press of back
+ * ends the activation for this purpose, so the next `pushState` needs a fresh
+ * tap -- and a tap is also what clears the mark. The guard therefore goes up
+ * at a tap, comes down when back spends it, and goes up again at the next
+ * tap. Nothing puts it up from an effect or a timer: an entry added that way
+ * is one the gesture would not stop at, which is how the app came to close at
+ * the first press (#188).
  */
 
 import { isRunningInstalled } from '@/lib/pwa'
 
-/** What marks the history entry that stands between the app and the way out. */
+/** What marks the entry that stands between the app and the way out. */
 export const EXIT_GUARD_KEY = '__exitGuard'
+
+/**
+ * What marks the entry below the guard: the one the app was opened at, and
+ * the one a press of back lands on when it spends the guard. Marked so that
+ * landing here can be told from landing on a screen deeper in the app, which
+ * is also a pop of an entry that is not the guard's.
+ */
+export const EXIT_STOP_KEY = '__exitStop'
 
 /** The screen that only decides where the app starts, and replaces itself. */
 export const STARTUP_PATH = '/'
 
-/** How long the warning stands before the guard is put back. */
-export const EXIT_GUARD_WINDOW_MS = 2000
+/** How long the warning is shown. */
+export const EXIT_GUARD_WARNING_MS = 2000
 
 export interface ExitGuardSurroundings {
   /** `history.length`: 1 means this app is all there is behind the button. */
@@ -35,12 +55,11 @@ export interface ExitGuardSurroundings {
  * Whether to stand in the way of the back gesture at all.
  *
  * An **installed app always qualifies.** Back leaves it whatever the history
- * says, and the history says different things on different devices: a PWA does
- * not reliably launch with one entry behind it, and reading `length === 1`
- * there is how the guard came to be missing on a real phone (#188). A PWA owns
- * its window, so the guard's own machinery -- one entry at a time, and a pop
- * of that entry telling a genuine back from a step deeper in -- is what keeps
- * it from firing mid-navigation, not this check.
+ * says, and the history says different things on different devices: a PWA
+ * does not reliably launch with one entry behind it. A PWA owns its window,
+ * so the guard's own machinery -- one entry at a time, and a pop of that
+ * entry telling a genuine back from a step deeper in -- is what keeps it from
+ * firing mid-navigation, not this check.
  *
  * A plain browser tab is the other case, and there the history can be trusted:
  * guard only when **the device has a back gesture** (a desktop tab does
@@ -65,20 +84,10 @@ export function wantsExitGuard({
   return historyLength === 1 || onGuardEntry
 }
 
-/** How long to wait for the step back over the guard before giving up on it. */
-const STEP_BACK_TIMEOUT_MS = 400
-
-/**
- * Where the guard stands, kept outside React: the screen the app starts at
- * has to hand the guard back before it replaces itself, and that happens in a
- * page, not in the hook.
- */
+/** Where the guard stands, kept outside React so it survives every screen. */
 const guard = {
+  /** Whether the guard entry is somewhere at or above the entry on screen. */
   inPlace: false,
-  /** Whether it was put up while the screen the app starts at was showing. */
-  atStartupScreen: false,
-  /** Whether the step back below is under way, and its popstate is ours. */
-  steppingBack: false,
   /** The answer to `wantsExitGuard()`, which is asked once. */
   wanted: null as boolean | null,
 }
@@ -90,12 +99,11 @@ const guard = {
  * **Asking again later would get a different answer, and a wrong one.** The
  * guard is a history entry, so an app that has put one up has two entries
  * where it had one, and "there is nothing behind this app" then reads as
- * false -- the app would be measuring what it added itself. That is how the
- * guard came to be missing from the screen the app starts at (#188).
+ * false -- the app would be measuring what it added itself.
  *
  * Whether there was anything behind the app is a fact about how it was
  * opened. It cannot change while it is open, so it is settled where it is
- * true: at the first screen drawn.
+ * true: at the first screen drawn, before anything has been pushed.
  */
 export function shouldGuardExit(): boolean {
   if (guard.wanted === null) {
@@ -110,24 +118,40 @@ export function shouldGuardExit(): boolean {
 }
 
 /**
- * Puts the guard in place: a second entry for the page already on screen, so
- * that the next press of back has something of the app's to spend.
+ * Puts the guard in place: marks the entry on screen as the one to stop at,
+ * and pushes a second entry for the same screen above it, so that the next
+ * press of back has something of the app's to spend.
+ *
+ * **Call this from a user gesture and from nowhere else** -- see the note at
+ * the top of this file. A reload of the guard entry lands on one that is
+ * already in place, and nothing is pushed then.
  *
  * The router's own state is carried over rather than replaced -- Next reads
  * the entry it lands on, and an entry it does not recognise costs a reload.
  */
-export function armExitGuard(atStartupScreen: boolean): void {
+export function armExitGuard(): void {
   guard.inPlace = true
-  guard.atStartupScreen = atStartupScreen
-  // A reload of the guard entry lands on one that is already in place.
-  if (isGuardEntry(window.history.state)) {
+  const state: unknown = window.history.state
+  if (isGuardEntry(state)) {
     return
   }
-  window.history.pushState(
-    { ...window.history.state, [EXIT_GUARD_KEY]: true },
-    '',
-    window.location.href,
-  )
+  const here = window.location.href
+  window.history.replaceState(markedAs(state, EXIT_STOP_KEY), '', here)
+  window.history.pushState(markedAs(state, EXIT_GUARD_KEY), '', here)
+}
+
+/** The entry's state with one of the app's marks on it, and no other. */
+function markedAs(state: unknown, key: string): Record<string, unknown> {
+  const marked: Record<string, unknown> = {}
+  if (state !== null && typeof state === 'object') {
+    for (const [name, value] of Object.entries(state)) {
+      if (name !== EXIT_GUARD_KEY && name !== EXIT_STOP_KEY) {
+        marked[name] = value
+      }
+    }
+  }
+  marked[key] = true
+  return marked
 }
 
 /** Whether the guard is standing between the app and the way out right now. */
@@ -135,77 +159,32 @@ export function isExitGuardInPlace(): boolean {
   return guard.inPlace
 }
 
-/**
- * Puts the guard up while the screen the app starts at decides where to go.
- *
- * Driven from that screen rather than the hook on purpose: the hook must not
- * touch `/` at all. An arm from the hook would race the step back off this
- * screen -- fire while the guard is still the current entry, take the "already
- * there" path in `armExitGuard`, and leave the flag set with nothing behind
- * it, so back closed the app at the first press (#188).
- */
-export function armStartupGuard(): void {
-  if (!guard.inPlace && shouldGuardExit()) {
-    armExitGuard(true)
-  }
-}
-
 /** Called once a press of back has spent the guard, so it is no longer there. */
 export function noteExitGuardSpent(): void {
   guard.inPlace = false
-  guard.atStartupScreen = false
-}
-
-/** Whether the popstate now arriving is the step back this module asked for. */
-export function isSteppingBackOverGuard(): boolean {
-  return guard.steppingBack
 }
 
 /**
- * Hands the guard back before the screen the app starts at replaces itself.
- *
- * That screen only decides where the app begins, and deciding takes a request
- * to VRChat -- a second or three on a phone, all of it spent with back still
- * meaning "close the app". The guard therefore goes up while it is deciding,
- * and comes down here, because what happens next is `replace`: it would write
- * over whichever entry is showing, and the entry showing is the guard's.
- *
- * Stepping back onto the screen the app starts at leaves that entry current
- * again, so the replace lands on it and the app's history holds no trace of a
- * screen there is nothing to go back to. Awaiting the step matters -- until
- * the browser says it has moved, the entry underneath is not the one showing.
+ * Called when the guard entry is shown again without being pushed: a press
+ * of back from deeper in the app, or of forward after the guard was spent.
  */
-export function releaseStartupGuard(): Promise<void> {
-  if (!guard.inPlace || !guard.atStartupScreen) {
-    return Promise.resolve()
-  }
-
-  guard.inPlace = false
-  guard.atStartupScreen = false
-  guard.steppingBack = true
-
-  return new Promise((resolve) => {
-    const done = () => {
-      window.removeEventListener('popstate', done)
-      clearTimeout(givingUp)
-      guard.steppingBack = false
-      resolve()
-    }
-    // A step the browser never takes would leave the app on the screen it
-    // starts at for good, so this gives up rather than waiting for ever. The
-    // guard is then one entry further out than it should be, which costs a
-    // press of back and nothing else.
-    const givingUp = setTimeout(done, STEP_BACK_TIMEOUT_MS)
-
-    window.addEventListener('popstate', done)
-    window.history.back()
-  })
+export function noteExitGuardReached(): void {
+  guard.inPlace = true
 }
 
-/** Whether a popped history entry is the guard, rather than what is beyond it. */
+/** Whether a history entry's state is the guard's. */
 export function isGuardEntry(state: unknown): boolean {
+  return hasMark(state, EXIT_GUARD_KEY)
+}
+
+/** Whether a history entry's state is the entry below the guard. */
+export function isStopEntry(state: unknown): boolean {
+  return hasMark(state, EXIT_STOP_KEY)
+}
+
+function hasMark(state: unknown, key: string): boolean {
   if (state === null || typeof state !== 'object') {
     return false
   }
-  return (state as Record<string, unknown>)[EXIT_GUARD_KEY] === true
+  return (state as Record<string, unknown>)[key] === true
 }

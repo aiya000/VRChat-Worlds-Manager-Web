@@ -347,6 +347,41 @@ Three things about reading a phone that way:
   Quote the whole remote command — a `;` in the URL is otherwise cut by the phone's shell — and
   do not try `data:` or `file://` URLs, which Chrome refuses from an intent
 
+### Back closes the app unless a tap came first: Chrome's history intervention
+
+Chrome's back button and Android's back gesture **skip every history entry a page added
+without a user gesture** (the history manipulation intervention). The rules, read from
+Chromium and measured in `tests/e2e/exit-guard.spec.ts`:
+
+- A `pushState` from a document that has had no user activation marks **every entry of that
+  document** as skippable, not only the new one. Back then goes straight past them and, when
+  nothing is left, out of the app
+- A tap on the document clears the marks, and every `pushState` after it is honoured -- until
+  **a press of back ends the activation for this purpose**. After that, the next `pushState`
+  is marked again until the next tap
+- `history.back()` from script does not skip, and neither does Playwright's `page.goBack()`.
+  That is why three fixes for #188 were green here and closed the app at the first press on a
+  phone: the guard was pushed from an effect, marked, and skipped
+
+So the exit guard (`src/lib/exit-guard.ts`, `src/hooks/use-exit-guard.ts`) is **armed only
+from a trusted `click` or `keydown`, never from an effect or a timer**. Two things follow that
+cannot be fixed, only known: the launch screen and an untouched list view are not guarded, and
+after the "press back again" warning the next press leaves for as long as the user does not
+touch the app again -- a tap puts the guard back.
+
+What can be observed without a phone: Chromium reports each marking as a DevTools issue,
+`Audits.issueAdded` with `genericIssueDetails.errorType === 'NavigationEntryMarkedSkippable'`,
+on a CDP session. The spec watches for it and asserts none is ever raised.
+
+Two traps in measuring that:
+
+- **Playwright's `page.evaluate()` runs as from a user gesture, and so does every locator**
+  (they evaluate too). One of them grants the document a sticky activation, after which Chrome
+  marks nothing. Read "the user has not touched the app" state through a raw
+  `Runtime.evaluate` on a CDP session, and keep locators out of the way until a tap is meant
+- A mouse "back" button or Alt+Left dispatched through CDP reaches the page as input first,
+  grants the activation, and only then navigates. It cannot stand in for the gesture
+
 ### The stale-bundle notice means the bundle is old, not the data
 
 `StaleBundleNotice` appears on exactly one condition: the schema version recorded in
@@ -541,6 +576,8 @@ Things that have cost real time here before:
 - **Measure nothing until the sync button is there.** It renders nothing while the connection
   state is being read, and the header row settles only once it appears; a bounding box taken
   before that is of a different layout
+- **`page.goBack()` is not the back gesture, and `page.evaluate()` is a user gesture.** See
+  "Chrome's history intervention" above before asserting anything about back closing the app
 - **Delete throwaway debug specs** (`tests/e2e/__debug.spec.ts` and friends) as soon as
   the thing they were written to answer is answered
 

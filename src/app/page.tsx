@@ -6,15 +6,6 @@ import Image from 'next/image'
 import { Loader2 } from 'lucide-react'
 import { commands } from '@/lib/commands'
 import { useLocalization } from '@/hooks/use-localization'
-import { armStartupGuard, releaseStartupGuard } from '@/lib/exit-guard'
-
-/**
- * Where this screen decided the app begins, kept for as long as the page is
- * loaded. Deciding costs a request to VRChat, and this screen can be shown a
- * second time -- the exit guard steps back onto it -- with the answer already
- * known.
- */
-let decided: string | null = null
 
 export default function Home() {
   const router = useRouter()
@@ -26,37 +17,23 @@ export default function Home() {
   // pushed straight forward to where it came from. It is also the entry the
   // app is launched at (`start_url` is `/`), so anything left here is what
   // stands between the user and leaving.
+  //
+  // Not guarded against back while it decides: the exit guard is a history
+  // entry, and Chrome skips one added before the user has touched the app, so
+  // there is nothing this screen could put up that back would stop at (#188).
   useEffect(() => {
-    // Put the guard up for the seconds this screen spends deciding: the hook
-    // leaves `/` alone, so this is the only thing standing between a press of
-    // back and the app closing while it waits on VRChat.
-    armStartupGuard()
-
-    // The guard comes down before the replace: a replace writes over the entry
-    // that is showing, and while the guard is up that entry is the guard's own.
-    const leaveFor = async (path: string) => {
-      decided = path
-      await releaseStartupGuard()
-      router.replace(path)
-    }
-
     const checkFirstTime = async () => {
-      if (decided !== null) {
-        await leaveFor(decided)
-        return
-      }
-
       const isFirstTime = await commands.requireInitialSetup()
 
       if (isFirstTime) {
-        await leaveFor('/setup')
+        router.replace('/setup')
       } else {
         const checkFilesAndAuth = async () => {
           const result = await commands.checkFilesLoaded()
 
           if (result.status === 'error') {
             console.error(`Error loading files: ${result.error}`)
-            await leaveFor(
+            router.replace(
               `${'/error/read_data_error'}?${encodeURIComponent(result.error)}`,
             )
             return
@@ -67,9 +44,9 @@ export default function Home() {
 
           if (authResult.status === 'ok') {
             console.info('User is authenticated')
-            await leaveFor('/listview/folders/special/all')
+            router.replace('/listview/folders/special/all')
           } else {
-            await leaveFor('/login')
+            router.replace('/login')
           }
         }
         await checkFilesAndAuth()
