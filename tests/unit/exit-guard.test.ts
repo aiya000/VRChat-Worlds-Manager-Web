@@ -29,7 +29,16 @@ describe('deciding whether to stand in the way of the back gesture', () => {
     ).toBe(true)
   })
 
-  it('does not where back means the page before this one', () => {
+  // A PWA does not reliably launch with one entry behind it, so its history
+  // length says nothing about whether back would leave. Guarding it anyway is
+  // what #188 turned on: reading length there left the guard off entirely.
+  it('does on an installed app even with history behind it', () => {
+    expect(
+      wantsExitGuard(surroundings({ installed: true, historyLength: 3 })),
+    ).toBe(true)
+  })
+
+  it('does not in a browser tab where back means the page before this one', () => {
     expect(wantsExitGuard(surroundings({ historyLength: 3 }))).toBe(false)
   })
 

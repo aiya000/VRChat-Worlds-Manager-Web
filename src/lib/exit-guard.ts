@@ -34,12 +34,19 @@ export interface ExitGuardSurroundings {
 /**
  * Whether to stand in the way of the back gesture at all.
  *
- * Two things have to be true. **The device has to have a back gesture**, or
- * the warning is about something that will never happen: a desktop browser
- * showing the first page of a tab does nothing at all when back is pressed.
- * And **there has to be nothing behind this app in the history**, or back
- * means "the page I was on before", which is not leaving and must not be
- * described as leaving.
+ * An **installed app always qualifies.** Back leaves it whatever the history
+ * says, and the history says different things on different devices: a PWA does
+ * not reliably launch with one entry behind it, and reading `length === 1`
+ * there is how the guard came to be missing on a real phone (#188). A PWA owns
+ * its window, so the guard's own machinery -- one entry at a time, and a pop
+ * of that entry telling a genuine back from a step deeper in -- is what keeps
+ * it from firing mid-navigation, not this check.
+ *
+ * A plain browser tab is the other case, and there the history can be trusted:
+ * guard only when **the device has a back gesture** (a desktop tab does
+ * nothing on back, so there is nothing to warn about) and **there is nothing
+ * behind the app** (or back means "the page I was on before", which is not
+ * leaving and must not be dressed up as it).
  *
  * Asked once, at the first screen the app draws -- see `shouldGuardExit()`.
  */
@@ -49,7 +56,10 @@ export function wantsExitGuard({
   installed,
   touch,
 }: ExitGuardSurroundings): boolean {
-  if (!installed && !touch) {
+  if (installed) {
+    return true
+  }
+  if (!touch) {
     return false
   }
   return historyLength === 1 || onGuardEntry
@@ -123,6 +133,21 @@ export function armExitGuard(atStartupScreen: boolean): void {
 /** Whether the guard is standing between the app and the way out right now. */
 export function isExitGuardInPlace(): boolean {
   return guard.inPlace
+}
+
+/**
+ * Puts the guard up while the screen the app starts at decides where to go.
+ *
+ * Driven from that screen rather than the hook on purpose: the hook must not
+ * touch `/` at all. An arm from the hook would race the step back off this
+ * screen -- fire while the guard is still the current entry, take the "already
+ * there" path in `armExitGuard`, and leave the flag set with nothing behind
+ * it, so back closed the app at the first press (#188).
+ */
+export function armStartupGuard(): void {
+  if (!guard.inPlace && shouldGuardExit()) {
+    armExitGuard(true)
+  }
 }
 
 /** Called once a press of back has spent the guard, so it is no longer there. */
