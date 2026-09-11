@@ -11,10 +11,9 @@ import {
   isGuardEntry,
   isSteppingBackOverGuard,
   noteExitGuardSpent,
+  shouldGuardExit,
   STARTUP_PATH,
-  wantsExitGuard,
 } from '@/lib/exit-guard'
-import { isRunningInstalled } from '@/lib/pwa'
 
 /**
  * Asks for the back gesture twice before the app is left, the way an Android
@@ -48,16 +47,7 @@ export function useExitGuard(): void {
   // Runs again on every screen: the guard is handed back when the app leaves
   // the screen it starts at, and has to be put up again where it lands.
   useEffect(() => {
-    if (isExitGuardInPlace()) {
-      return
-    }
-    const wanted = wantsExitGuard({
-      historyLength: window.history.length,
-      onGuardEntry: isGuardEntry(window.history.state),
-      installed: isRunningInstalled(),
-      touch: navigator.maxTouchPoints > 0,
-    })
-    if (wanted) {
+    if (!isExitGuardInPlace() && shouldGuardExit()) {
       armExitGuard(pathname === STARTUP_PATH)
     }
   }, [pathname])

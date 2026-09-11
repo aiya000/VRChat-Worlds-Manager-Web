@@ -14,10 +14,28 @@ const START = '/listview/folders/special/all'
  * drives has one entry behind it and the app would rightly leave the back
  * gesture alone. Saying the history is one entry long is what a launch from
  * the home screen looks like, which is the case being tested.
+ *
+ * Only the first read is answered that way, and every one after it gets the
+ * truth. "Nothing is behind the app" is true of the launch and of nothing
+ * else: the guard itself is a history entry, so an app that measures again
+ * after putting one up measures what it added. Answering 1 for ever hid
+ * exactly that, and the app shipped without a guard on the screen it starts
+ * at (#188).
  */
 async function pretendNothingIsBehind(page: Page) {
   await page.addInitScript(() => {
-    Object.defineProperty(window.history, 'length', { get: () => 1 })
+    const real = Object.getOwnPropertyDescriptor(History.prototype, 'length')
+    let asked = false
+    Object.defineProperty(window.history, 'length', {
+      configurable: true,
+      get() {
+        if (asked) {
+          return real?.get?.call(window.history)
+        }
+        asked = true
+        return 1
+      },
+    })
   })
 }
 
@@ -156,6 +174,40 @@ test.describe('pressing back while the app is still starting up', () => {
     await expect.poll(() => guardEntry(page)).toBe(true)
     await page.goBack()
     await expect(page.getByText(WARNING)).toBeVisible()
+    await page.goBack()
+    await expect.poll(() => page.url()).toBe('about:blank')
+  })
+
+  // The whole way a phone travels: in through the screen the app starts at,
+  // deeper into the app, and back out again. Each press has to answer for
+  // itself -- the screen below first, then the warning, then the way out.
+  test('walks back out of the app the way it walked in', async ({ page }) => {
+    await pretendNothingIsBehind(page)
+    await page.addInitScript(() => {
+      localStorage.setItem('setupComplete', 'true')
+    })
+    await page.route('**/auth/user*', (route) =>
+      route.fulfill({ status: 200, body: '{}' }),
+    )
+
+    await page.goto('/')
+    await page.waitForURL(/\/listview/)
+    await page.addStyleTag({
+      content: 'nextjs-portal { display: none !important; }',
+    })
+    await expect.poll(() => guardEntry(page)).toBe(true)
+
+    await page.locator('[data-sidebar="trigger"]').click()
+    await page.getByRole('dialog').getByText(SETTINGS_LABEL).click()
+    await expect(page).toHaveURL(/\/listview\/settings/)
+
+    await page.goBack()
+    await expect(page).toHaveURL(/special\/all/)
+    await expect(page.getByText(WARNING)).toHaveCount(0)
+
+    await page.goBack()
+    await expect(page.getByText(WARNING)).toBeVisible()
+
     await page.goBack()
     await expect.poll(() => page.url()).toBe('about:blank')
   })

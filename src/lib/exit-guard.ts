@@ -9,6 +9,8 @@
  * no history left to go back to, which is the browser's own way out.
  */
 
+import { isRunningInstalled } from '@/lib/pwa'
+
 /** What marks the history entry that stands between the app and the way out. */
 export const EXIT_GUARD_KEY = '__exitGuard'
 
@@ -38,6 +40,8 @@ export interface ExitGuardSurroundings {
  * And **there has to be nothing behind this app in the history**, or back
  * means "the page I was on before", which is not leaving and must not be
  * described as leaving.
+ *
+ * Asked once, at the first screen the app draws -- see `shouldGuardExit()`.
  */
 export function wantsExitGuard({
   historyLength,
@@ -65,6 +69,34 @@ const guard = {
   atStartupScreen: false,
   /** Whether the step back below is under way, and its popstate is ours. */
   steppingBack: false,
+  /** The answer to `wantsExitGuard()`, which is asked once. */
+  wanted: null as boolean | null,
+}
+
+/**
+ * Whether this app is one the back gesture would leave, answered once for as
+ * long as the page is loaded.
+ *
+ * **Asking again later would get a different answer, and a wrong one.** The
+ * guard is a history entry, so an app that has put one up has two entries
+ * where it had one, and "there is nothing behind this app" then reads as
+ * false -- the app would be measuring what it added itself. That is how the
+ * guard came to be missing from the screen the app starts at (#188).
+ *
+ * Whether there was anything behind the app is a fact about how it was
+ * opened. It cannot change while it is open, so it is settled where it is
+ * true: at the first screen drawn.
+ */
+export function shouldGuardExit(): boolean {
+  if (guard.wanted === null) {
+    guard.wanted = wantsExitGuard({
+      historyLength: window.history.length,
+      onGuardEntry: isGuardEntry(window.history.state),
+      installed: isRunningInstalled(),
+      touch: navigator.maxTouchPoints > 0,
+    })
+  }
+  return guard.wanted
 }
 
 /**
