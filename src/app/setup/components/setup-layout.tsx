@@ -97,12 +97,20 @@ export function SetupLayout({
           {/* On every step rather than only the first: someone deciding whether
               to hand this app their VRChat account should not have to go
               looking for what it does with what they type. */}
-          <Link
-            href="/privacy"
-            className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-          >
-            {t('privacy-policy:link-label')}
-          </Link>
+          <div className="flex gap-4">
+            <Link
+              href="/terms"
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              {t('terms:link-label')}
+            </Link>
+            <Link
+              href="/privacy"
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              {t('privacy-policy:link-label')}
+            </Link>
+          </div>
         </CardFooter>
       </Card>
     </div>

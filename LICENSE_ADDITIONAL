@@ -1,3 +1,5 @@
-Some components of this project are licensed under the Creative Commons Attribution-NonCommercial 4.0 International (CC-BY-NC 4.0) License. These components are for non-commercial use only.
+No component of the current release is licensed under anything other than the MIT License in LICENSE.
 
-Launchpad Icons © 黒音キト are licensed under CC-BY-NC-4.0. You can view a copy of the license at https://creativecommons.org/licenses/by-nc/4.0/.
+This file records components that were once included under another licence, so that the history of the repository stays attributable:
+
+- Launchpad Icons (the former sidebar icons: Gear.svg, Logout.svg, Saturn.svg, VennColorQPc.svg, VennColorQPcQ.svg, VennColorQQ.svg) © 黒音キト were licensed under the Creative Commons Attribution-NonCommercial 4.0 International (CC-BY-NC 4.0) License, https://creativecommons.org/licenses/by-nc/4.0/. They were removed from the application in September 2026 and are no longer distributed with it.

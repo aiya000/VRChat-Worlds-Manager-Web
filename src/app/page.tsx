@@ -17,6 +17,10 @@ export default function Home() {
   // pushed straight forward to where it came from. It is also the entry the
   // app is launched at (`start_url` is `/`), so anything left here is what
   // stands between the user and leaving.
+  //
+  // Not guarded against back while it decides: the exit guard is a history
+  // entry, and Chrome skips one added before the user has touched the app, so
+  // there is nothing this screen could put up that back would stop at (#188).
   useEffect(() => {
     const checkFirstTime = async () => {
       const isFirstTime = await commands.requireInitialSetup()
@@ -45,7 +49,7 @@ export default function Home() {
             router.replace('/login')
           }
         }
-        checkFilesAndAuth()
+        await checkFilesAndAuth()
       }
     }
     checkFirstTime()
@@ -74,7 +78,13 @@ export default function Home() {
           in the statically exported HTML of `/` rather than only past the
           redirect above. Kept down here as an ordinary footer: under the
           spinner it read as something floating rather than something meant. */}
-      <footer className="pb-6 text-center">
+      <footer className="flex justify-center gap-4 pb-6 text-center">
+        <Link
+          href="/terms"
+          className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+        >
+          {t('terms:link-label')}
+        </Link>
         <Link
           href="/privacy"
           className="text-xs text-muted-foreground underline-offset-2 hover:underline"

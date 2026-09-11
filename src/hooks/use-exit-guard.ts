@@ -1,36 +1,39 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 import { useLocalization } from '@/hooks/use-localization'
 import {
   armExitGuard,
-  EXIT_GUARD_WINDOW_MS,
+  EXIT_GUARD_WARNING_MS,
+  isExitGuardInPlace,
   isGuardEntry,
-  wantsExitGuard,
+  isStopEntry,
+  noteExitGuardReached,
+  noteExitGuardSpent,
+  shouldGuardExit,
+  STARTUP_PATH,
 } from '@/lib/exit-guard'
-import { isRunningInstalled } from '@/lib/pwa'
-
-/** The screen that only decides where the app starts, and replaces itself. */
-const SPLASH_PATH = '/'
 
 /**
  * Asks for the back gesture twice before the app is left, the way an Android
- * app does: the first press says what the next one will do, and only a press
- * that comes within the couple of seconds after it goes through.
+ * app does: the first press says what the next one will do.
  *
- * The app keeps one history entry of its own on top of the one it was opened
- * at. Back spends that entry rather than the app, and this is what notices --
- * a press deeper in the app pops an entry of the router's instead and is left
- * alone. Once the warning has been shown the guard is gone, so a second press
- * finds no history at all and the browser closes the app itself; if the couple
- * of seconds pass without one, the guard is put back and the next press starts
- * over.
+ * The app keeps one history entry of its own above the one it was opened at.
+ * Back spends that entry rather than the app, and landing on the entry below
+ * is what this notices; a press deeper in the app lands somewhere else and is
+ * left alone. Once the warning has been shown the entry is gone, so the next
+ * press finds no history at all and the browser closes the app itself.
+ *
+ * The entry goes up at a tap and never on its own. Chrome skips an entry
+ * added without a gesture, and one added after a press of back until the next
+ * gesture, so the warning is followed by a way out for as long as the user
+ * does not touch the app again -- a tap after it puts the guard back (#188).
+ * The screen the app starts at is left alone: it replaces itself, and the tap
+ * that counts is one on wherever it lands.
  */
 export function useExitGuard(): void {
   const { t } = useLocalization()
-  const pathname = usePathname()
 
   // `t` is a new function on every render, and this listens for the life of
   // the page, so it is kept current from an effect rather than depended on.
@@ -39,58 +42,57 @@ export function useExitGuard(): void {
     tRef.current = t
   })
 
-  const armed = useRef(false)
-
-  // Not on the splash screen, which replaces itself with wherever the app
-  // starts: an entry pushed there guards a page that is about to become
-  // another one, and the user would see the splash again on the way out.
   useEffect(() => {
-    if (armed.current || pathname === SPLASH_PATH) {
-      return
-    }
-    const onGuardEntry = isGuardEntry(window.history.state)
-    const wanted = wantsExitGuard({
-      historyLength: window.history.length,
-      onGuardEntry,
-      installed: isRunningInstalled(),
-      touch: navigator.maxTouchPoints > 0,
-    })
-    if (!wanted) {
-      return
+    // Decided here, before anything has been pushed, so that the history it
+    // reads is the one the app was opened with. A reload of the guard entry
+    // lands with the guard already in place, and nothing to push.
+    if (shouldGuardExit() && isGuardEntry(window.history.state)) {
+      noteExitGuardReached()
     }
 
-    armed.current = true
-    // A reload of the guard entry lands on one that is already in place.
-    if (!onGuardEntry) {
-      armExitGuard()
-    }
-  }, [pathname])
-
-  useEffect(() => {
-    let rearming: ReturnType<typeof setTimeout> | null = null
-
-    const handlePopState = (event: PopStateEvent) => {
-      // Landing on the guard is the app's own entry being shown again, not an
-      // attempt to leave: the press came from somewhere deeper in the app.
-      if (!armed.current || isGuardEntry(event.state) || rearming !== null) {
+    const arm = (event: Event) => {
+      // Only a gesture of the user's grants the activation the entry needs;
+      // a `click()` from a script does not, and nor does Escape, which is
+      // the one key Chrome leaves out.
+      if (!event.isTrusted) {
         return
       }
-
-      toast(tRef.current('exit-guard:press-back-again'), {
-        duration: EXIT_GUARD_WINDOW_MS,
-      })
-      rearming = setTimeout(() => {
-        rearming = null
+      if (event instanceof KeyboardEvent && event.key === 'Escape') {
+        return
+      }
+      if (window.location.pathname === STARTUP_PATH) {
+        return
+      }
+      if (!isExitGuardInPlace() && shouldGuardExit()) {
         armExitGuard()
-      }, EXIT_GUARD_WINDOW_MS)
+      }
     }
 
+    const handlePopState = (event: PopStateEvent) => {
+      // Back from deeper in, or forward after the warning: the guard entry is
+      // on screen again, and stands.
+      if (isGuardEntry(event.state)) {
+        noteExitGuardReached()
+        return
+      }
+      if (!isStopEntry(event.state) || !isExitGuardInPlace()) {
+        return
+      }
+      noteExitGuardSpent()
+      toast(tRef.current('exit-guard:press-back-again'), {
+        duration: EXIT_GUARD_WARNING_MS,
+      })
+    }
+
+    // Capturing, so the guard is pushed before a tap on a link has the router
+    // push the screen it leads to: the guard has to sit below that screen.
+    window.addEventListener('click', arm, true)
+    window.addEventListener('keydown', arm, true)
     window.addEventListener('popstate', handlePopState)
     return () => {
+      window.removeEventListener('click', arm, true)
+      window.removeEventListener('keydown', arm, true)
       window.removeEventListener('popstate', handlePopState)
-      if (rearming !== null) {
-        clearTimeout(rearming)
-      }
     }
   }, [])
 }
