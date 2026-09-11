@@ -78,7 +78,13 @@ export default function Home() {
           in the statically exported HTML of `/` rather than only past the
           redirect above. Kept down here as an ordinary footer: under the
           spinner it read as something floating rather than something meant. */}
-      <footer className="pb-6 text-center">
+      <footer className="flex justify-center gap-4 pb-6 text-center">
+        <Link
+          href="/terms"
+          className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+        >
+          {t('terms:link-label')}
+        </Link>
         <Link
           href="/privacy"
           className="text-xs text-muted-foreground underline-offset-2 hover:underline"

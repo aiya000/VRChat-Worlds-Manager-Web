@@ -6,7 +6,7 @@ import { useLocalization } from '@/hooks/use-localization'
 import { Button } from '@/components/ui/button'
 import { UserProfile } from '@/app/listview/about/components/user-profile'
 import { SiGithub, SiDiscord } from '@icons-pack/react-simple-icons'
-import { ScrollText, Shield } from 'lucide-react'
+import { FileText, ScrollText, Shield } from 'lucide-react'
 import Link from 'next/link'
 
 export default function AboutSection() {
@@ -188,6 +188,12 @@ export default function AboutSection() {
                 <SiDiscord className="h-4 w-4" />
                 {t('about-section:report-issue')}
               </a>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/terms" className="flex flex-row gap-2">
+                <FileText className="h-4 w-4" />
+                {t('terms:link-label')}
+              </Link>
             </Button>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/privacy" className="flex flex-row gap-2">

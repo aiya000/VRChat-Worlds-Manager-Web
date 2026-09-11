@@ -16,6 +16,7 @@ import {
   INVALID_TWO_FACTOR_CODE_ERROR,
 } from '@/lib/services/vrchat-api'
 import { useLocalization } from '@/hooks/use-localization'
+import { rememberTermsAccepted } from '@/lib/terms'
 import { Loader2 } from 'lucide-react'
 export default function Login() {
   const router = useRouter()
@@ -58,6 +59,7 @@ export default function Login() {
       }
 
       console.info('Login successful, redirecting to listview')
+      rememberTermsAccepted()
       router.push('/listview/folders/special/all')
     } finally {
       setLoading(false)
@@ -87,6 +89,7 @@ export default function Login() {
         return
       }
       console.info('2FA verification successful, redirecting to listview')
+      rememberTermsAccepted()
       router.push('/listview/folders/special/all')
     } catch (e) {
       const errorMessage = (e as string) || t('login-page:error-invalid-2fa')
@@ -157,9 +160,16 @@ export default function Login() {
             </p>
           </div>
 
-          {/* This is the screen where a VRChat password gets typed, so what
-              happens to it is worth being one tap away. */}
-          <p className="text-center">
+          {/* Signing in is what agrees to the terms, and this is the screen
+              where a VRChat password gets typed, so both documents are one
+              tap away from the button that does it. */}
+          <p className="flex justify-center gap-4 text-center">
+            <Link
+              href="/terms"
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              {t('terms:link-label')}
+            </Link>
             <Link
               href="/privacy"
               className="text-xs text-muted-foreground underline-offset-2 hover:underline"
