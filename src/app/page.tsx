@@ -22,18 +22,31 @@ export default function Home() {
   // entry, and Chrome skips one added before the user has touched the app, so
   // there is nothing this screen could put up that back would stop at (#188).
   useEffect(() => {
+    // The sign-in check below waits on the network, and the footer links are
+    // pressable for the whole of that wait. Nothing about leaving this screen
+    // stops the work in flight, so without this the answer arrives and
+    // replaces the document the user went to read with the app's own idea of
+    // where to start.
+    let leftTheLaunchScreen = false
+    const goTo = (path: string) => {
+      if (leftTheLaunchScreen) {
+        return
+      }
+      router.replace(path)
+    }
+
     const checkFirstTime = async () => {
       const isFirstTime = await commands.requireInitialSetup()
 
       if (isFirstTime) {
-        router.replace('/setup')
+        goTo('/setup')
       } else {
         const checkFilesAndAuth = async () => {
           const result = await commands.checkFilesLoaded()
 
           if (result.status === 'error') {
             console.error(`Error loading files: ${result.error}`)
-            router.replace(
+            goTo(
               `${'/error/read_data_error'}?${encodeURIComponent(result.error)}`,
             )
             return
@@ -44,15 +57,19 @@ export default function Home() {
 
           if (authResult.status === 'ok') {
             console.info('User is authenticated')
-            router.replace('/listview/folders/special/all')
+            goTo('/listview/folders/special/all')
           } else {
-            router.replace('/login')
+            goTo('/login')
           }
         }
         await checkFilesAndAuth()
       }
     }
     checkFirstTime()
+
+    return () => {
+      leftTheLaunchScreen = true
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

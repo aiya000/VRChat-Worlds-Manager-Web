@@ -31,16 +31,19 @@ test('the privacy policy page states where each kind of data goes', async ({
   ).toHaveAttribute('href', 'https://myaccount.google.com/permissions')
 })
 
-test('the About footer links to the privacy policy', async ({ page }) => {
+test('the About page links to the privacy policy, and says to come back', async ({
+  page,
+}) => {
   await page.goto(ABOUT)
 
   await expect(
     page.getByRole('link', { name: jaJP['privacy-policy:link-label'] }),
-  ).toHaveAttribute('href', PRIVACY)
+  ).toHaveAttribute('href', `${PRIVACY}?back=${encodeURIComponent(ABOUT)}`)
 })
 
 // Reachable from the sidebar too, from wherever someone happens to be. A
-// policy that has to be hunted for reads as one that would rather not be read.
+// policy that has to be hunted for reads as one that would rather not be read
+// -- one row named after what is behind it is not hunting.
 test('the sidebar reaches the privacy policy from anywhere in the app', async ({
   page,
 }) => {
@@ -51,14 +54,19 @@ test('the sidebar reaches the privacy policy from anywhere in the app', async ({
     content: 'nextjs-portal { display: none !important; }',
   })
 
+  await page.getByText(jaJP['app-sidebar:about'], { exact: true }).click()
   await page
     .getByText(jaJP['privacy-policy:link-label'], { exact: true })
     .click()
 
-  await expect(page).toHaveURL(new RegExp(`${PRIVACY}$`))
+  await expect(page).toHaveURL(new RegExp(`${PRIVACY}\\?`))
   await expect(
     page.getByRole('heading', { name: jaJP['privacy-policy:title'] }),
   ).toBeVisible()
+
+  // And the way back from it is the page it was opened from.
+  await page.getByRole('link', { name: jaJP['privacy-policy:back'] }).click()
+  await expect(page).toHaveURL(new RegExp(`${ABOUT}$`))
 })
 
 // The two screens someone reaches before they have agreed to anything: the

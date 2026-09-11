@@ -6,6 +6,7 @@ import {
   BookOpen,
   FileQuestion,
   History,
+  Info,
   Plus,
   ArrowUpDown,
   ChevronRight,
@@ -485,44 +486,26 @@ export function AppSidebar() {
               </div>
               <span>{t('general:settings')}</span>
             </div>
-            {/* Quieter than the entries above it, but deliberately here rather
-                than only on the About page: a privacy policy that takes
-                looking for reads as one someone would rather you did not find.
-                The text is small; the row is not, so a VR laser can still hit
-                it. The credits share the row: on a phone this sidebar is the
-                whole screen, and every row it gains is a folder pushed out
-                of view. */}
-            <div className="mt-3 flex flex-wrap">
-              <div
-                className={`
-                px-3 py-2 cursor-pointer text-xs rounded-lg whitespace-nowrap
-                ${
-                  pathname === `/privacy`
-                    ? sidebarStyles.activeLink
-                    : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
-                }
-              `}
-                onClick={() => {
-                  navigate('/privacy')
-                }}
-              >
-                {t('privacy-policy:link-label')}
-              </div>
-              <div
-                className={`
-                px-3 py-2 cursor-pointer text-xs rounded-lg whitespace-nowrap
-                ${
-                  pathname === `/listview/about`
-                    ? sidebarStyles.activeLink
-                    : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
-                }
-              `}
-                onClick={() => {
-                  navigate('/listview/about')
-                }}
-              >
-                {t('app-sidebar:credits')}
-              </div>
+            {/* One row for everything about the app rather than about the
+                worlds in it: the terms, the privacy policy and the credits
+                are all a tap behind it. On a phone this sidebar is the whole
+                screen, so every row it gains is a folder pushed out of view,
+                and three rows here would have cost three. */}
+            <div
+              className={`
+              px-3 py-2 cursor-pointer text-sm font-medium rounded-lg overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-3
+              ${
+                pathname.startsWith('/listview/about')
+                  ? sidebarStyles.activeLink
+                  : 'hover:bg-accent/50 hover:text-accent-foreground'
+              }
+            `}
+              onClick={() => {
+                navigate('/listview/about')
+              }}
+            >
+              <Info className="h-5 w-5" />
+              <span>{t('app-sidebar:about')}</span>
             </div>
           </SidebarGroup>
         </footer>
