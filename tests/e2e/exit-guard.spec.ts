@@ -46,6 +46,32 @@ async function open(page: Page) {
   })
 }
 
+/**
+ * Makes the page look like the app launched from the home screen, which is how
+ * a phone runs it. `isRunningInstalled()` reads the display mode, so answering
+ * `standalone` there is the whole of it. No history is faked here on purpose:
+ * an installed app has to be guarded whatever its history length, and a real
+ * launch does not reliably leave one entry behind (#188).
+ */
+async function pretendInstalled(page: Page) {
+  await page.addInitScript(() => {
+    const real = window.matchMedia.bind(window)
+    window.matchMedia = (query: string) =>
+      query.includes('display-mode: standalone')
+        ? ({
+            matches: true,
+            media: query,
+            onchange: null,
+            addEventListener() {},
+            removeEventListener() {},
+            addListener() {},
+            removeListener() {},
+            dispatchEvent: () => false,
+          } as unknown as MediaQueryList)
+        : real(query)
+  })
+}
+
 const guardEntry = (page: Page) =>
   page.evaluate(
     () => (history.state as { __exitGuard?: boolean } | null)?.__exitGuard,
@@ -210,6 +236,26 @@ test.describe('pressing back while the app is still starting up', () => {
 
     await page.goBack()
     await expect.poll(() => page.url()).toBe('about:blank')
+  })
+})
+
+// A phone runs this as an installed app, and there the history length is not
+// the "one entry, nothing behind" a browser tab shows on its first page. The
+// guard read that length and stayed down, so back closed the app at the first
+// press wherever it landed (#188). An installed app is guarded on its own say.
+test.describe('an installed app, where the history length cannot be trusted', () => {
+  test.use({ viewport: PHONE, hasTouch: true, isMobile: true })
+
+  test('is guarded even with entries behind it', async ({ page }) => {
+    await pretendInstalled(page)
+    // Deliberately not pretendNothingIsBehind: Playwright's own `about:blank`
+    // leaves a real length of 2 here, which is the case the old check refused.
+    await open(page)
+    await expect.poll(() => guardEntry(page)).toBe(true)
+
+    await page.goBack()
+
+    await expect(page.getByText(WARNING)).toBeVisible()
   })
 })
 

@@ -44,11 +44,20 @@ export function useExitGuard(): void {
     tRef.current = t
   })
 
-  // Runs again on every screen: the guard is handed back when the app leaves
-  // the screen it starts at, and has to be put up again where it lands.
+  // Runs again on every screen the app settles on, to put the guard back where
+  // it lands after the screen it starts at hands it over.
+  //
+  // The screen the app starts at, and the step back off it, are left to
+  // `page.tsx` and `releaseStartupGuard()`. This never arms on `/`, nor while
+  // that step is under way: an arm there would race the step, fire while the
+  // guard is still current, and leave the flag set with no entry behind it --
+  // which is how back came to close the app at the first press (#188).
   useEffect(() => {
+    if (pathname === STARTUP_PATH || isSteppingBackOverGuard()) {
+      return
+    }
     if (!isExitGuardInPlace() && shouldGuardExit()) {
-      armExitGuard(pathname === STARTUP_PATH)
+      armExitGuard(false)
     }
   }, [pathname])
 

@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { Loader2 } from 'lucide-react'
 import { commands } from '@/lib/commands'
 import { useLocalization } from '@/hooks/use-localization'
-import { releaseStartupGuard } from '@/lib/exit-guard'
+import { armStartupGuard, releaseStartupGuard } from '@/lib/exit-guard'
 
 /**
  * Where this screen decided the app begins, kept for as long as the page is
@@ -27,9 +27,13 @@ export default function Home() {
   // app is launched at (`start_url` is `/`), so anything left here is what
   // stands between the user and leaving.
   useEffect(() => {
-    // Guarded while it decides, and the guard comes down before the replace:
-    // a replace writes over the entry that is showing, and while the guard is
-    // up that entry is the guard's own.
+    // Put the guard up for the seconds this screen spends deciding: the hook
+    // leaves `/` alone, so this is the only thing standing between a press of
+    // back and the app closing while it waits on VRChat.
+    armStartupGuard()
+
+    // The guard comes down before the replace: a replace writes over the entry
+    // that is showing, and while the guard is up that entry is the guard's own.
     const leaveFor = async (path: string) => {
       decided = path
       await releaseStartupGuard()
