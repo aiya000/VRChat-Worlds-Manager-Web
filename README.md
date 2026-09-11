@@ -129,6 +129,12 @@ notification. No link opens the Android app straight into an instance, so this i
 
 ---
 
+## Known Issues
+
+- **On Android, pressing back right after launch closes the app without the "press back again" warning.** This is how Chrome works, not a bug in the app: Chrome's back gesture skips any history entry a page added before you have touched it, so there is nothing the app can put in the way until your first tap. Once you have tapped anything, back asks twice as intended. The same rule applies after the warning itself: if you do not touch the app again, the next press leaves, and a tap puts the warning back.
+
+---
+
 ## Tech Stack
 
 - **Frontend**: Next.js 16 + React 19 + Tailwind CSS 4 + Shadcn/UI
