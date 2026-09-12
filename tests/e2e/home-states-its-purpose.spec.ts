@@ -43,3 +43,36 @@ test('the launch screen fits a narrow panel', async ({ page }) => {
   )
   expect(overflows).toBe(false)
 })
+
+/**
+ * The two proofs that this domain is ours, which is what Google's brand
+ * verification for the OAuth consent screen rests on. `pages.dev` gives us no
+ * DNS to prove ownership with, so these are the only methods open to us, and
+ * deleting either revokes what it proves.
+ *
+ * The file is only ever served through Cloudflare's 308 from `.html` to the
+ * extensionless path -- which is why the meta tag is carried as well.
+ */
+test.describe('proving the domain is ours', () => {
+  test('the home page carries the Search Console meta tag', async ({
+    request,
+  }) => {
+    const response = await request.get('/')
+
+    expect(response.ok()).toBe(true)
+    expect(await response.text()).toContain(
+      '<meta name="google-site-verification" content="F0K7K2bqSmwGscKVE1YWHcmyAwfEWD0Nf3Yb2Rba7SQ"',
+    )
+  })
+
+  test('the Search Console file still answers, redirect and all', async ({
+    request,
+  }) => {
+    const response = await request.get('/google1115d8bfd0d506b1.html')
+
+    expect(response.ok()).toBe(true)
+    expect(await response.text()).toContain(
+      'google-site-verification: google1115d8bfd0d506b1.html',
+    )
+  })
+})

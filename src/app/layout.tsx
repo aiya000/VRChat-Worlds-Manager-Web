@@ -56,6 +56,16 @@ export const metadata: Metadata = {
     description,
     images: ['/og-image.png'],
   },
+  // Search Console's "HTML tag" method, alongside the file method that
+  // `public/google1115d8bfd0d506b1.html` already answers. Both prove the same
+  // ownership, and the ownership is what Google's brand verification for the
+  // OAuth consent screen rests on; the file is only ever served through
+  // Cloudflare's 308 from `.html` to the extensionless path, so a second
+  // method that needs no redirect is worth carrying. Not a secret: it is
+  // published in the markup by design.
+  verification: {
+    google: 'F0K7K2bqSmwGscKVE1YWHcmyAwfEWD0Nf3Yb2Rba7SQ',
+  },
 }
 
 export default function RootLayout({
