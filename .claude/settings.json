@@ -1,5 +1,7 @@
 {
   "permissions": {
-    "allow": ["Bash(git push:*)", "Bash(git fetch:*)", "Bash(git pull:*)"]
+    "allow": ["Bash(git push:*)", "Bash(git fetch:*)", "Bash(git pull:*)"],
+    "// WSLg（GUI）を使うものは必ず確認を取る。2026-09-12にchrome-devtools MCPが6セット常駐し、OOMでセッションが落ちたため": "",
+    "ask": ["mcp__chrome-devtools", "mcp__chrome-attach"]
   }
 }
