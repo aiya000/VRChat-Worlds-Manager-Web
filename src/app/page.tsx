@@ -85,6 +85,20 @@ export default function Home() {
           priority
           className="app-breathe h-32 w-32 select-none"
         />
+        {/* Google's brand verification fetches this page and looks for the
+            app's own name and a sentence saying what it is for; it found
+            neither -- the name was in an `alt` attribute and the purpose only
+            in a `<meta>` -- and refused the consent screen's branding for it
+            (#107). Both are read out of the exported HTML, before any script
+            runs, so they have to be here rather than past the redirect above.
+            The name is not translated: it is what the consent screen shows,
+            character for character. */}
+        <div className="max-w-md space-y-2 text-center">
+          <h1 className="text-xl font-semibold">VRChat Worlds Manager Web</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {t('home:tagline')}
+          </p>
+        </div>
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           {t('general:loading')}
