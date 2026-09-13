@@ -5,6 +5,9 @@ export const CONTACT_ISSUES_URL =
   'https://github.com/aiya000/VRChat-Worlds-Manager-Web/issues/new'
 export const CONTACT_DISCORD_URL = 'https://discord.gg/g5nq5GuGPJ'
 
+/** The page that names both of the above, for screens that have room for one link. */
+export const CONTACT_PAGE_PATH = '/listview/about/contact'
+
 /**
  * The two ways to reach the author, offered together wherever one of them was
  * offered alone.

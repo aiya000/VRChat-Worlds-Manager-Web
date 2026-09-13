@@ -5,6 +5,10 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
 import { useLocalization } from '@/hooks/use-localization'
 import { VrProjectionNotice } from '@/components/vr-projection-notice'
 import { PwaInstallNotice } from '@/components/pwa-install-notice'
+import { Button } from '@/components/ui/button'
+import { CONTACT_PAGE_PATH } from '@/components/contact-links'
+import { MessageSquareWarning } from 'lucide-react'
+import Link from 'next/link'
 
 /**
  * How to keep this app, and how to use it in a headset.
@@ -43,6 +47,20 @@ export default function GuidePage() {
             <VrProjectionNotice />
           </CardContent>
         </Card>
+      </div>
+
+      {/* Where a reader ends up when the guide did not answer them. Drawn as
+          quietly as the About footer, because it is a way out rather than the
+          point of the page. */}
+      <div className="w-full border-t bg-background/80 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-2 flex flex-wrap justify-end items-center gap-y-1">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={CONTACT_PAGE_PATH} className="flex flex-row gap-2">
+              <MessageSquareWarning className="h-4 w-4" />
+              {t('about-section:report-issue')}
+            </Link>
+          </Button>
+        </div>
       </div>
     </div>
   )
