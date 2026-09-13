@@ -12,16 +12,19 @@
  * `presetWorldDateAdded`.
  */
 export const PRESET_WORLD_IDS = [
-  'wrld_4432ea9b-729c-46e3-8eaf-846aa0a37fdd',
-  'wrld_bf51e60f-f372-48b1-a757-88ba8331d926',
-  'wrld_fae3fa95-bc18-46f0-af57-f0c97c0ca90a',
-  'wrld_01e19bb8-dce9-4416-8d0d-dbcaa9324fb2',
-  'wrld_3d12fbc0-c470-4e97-9191-3cf3aeba8832',
-  'wrld_2bb48979-53f4-4f6f-9893-ebc837c1ce2c',
-  'wrld_5855da31-030c-4abb-bfc4-20e7b2df4ab8',
-  'wrld_4c9bdba1-fc50-47f1-99c0-30e453fe7153',
-  'wrld_c02e7709-b0f2-4957-a97d-10b1fd4ac278',
-  'wrld_88204da2-a487-46e9-8bfa-f3a5d3aeccb5',
+  // Named in comments because an id says nothing about what moving it would
+  // do: the two worlds by one author belong together and in this order, and a
+  // reorder that splits a pair is the one mistake worth catching in review.
+  'wrld_4432ea9b-729c-46e3-8eaf-846aa0a37fdd', // VRChat Home -- vrchat
+  'wrld_bf51e60f-f372-48b1-a757-88ba8331d926', // ［JP］Tutorial world -- tamsco274
+  'wrld_fae3fa95-bc18-46f0-af57-f0c97c0ca90a', // The room of the rain -- Ivaj15
+  'wrld_01e19bb8-dce9-4416-8d0d-dbcaa9324fb2', // ［JP］クエストトビラ -- UMIUSiO
+  'wrld_3d12fbc0-c470-4e97-9191-3cf3aeba8832', // ［JP］USiOPORT -- UMIUSiO
+  'wrld_4c9bdba1-fc50-47f1-99c0-30e453fe7153', // 終末駅 -- tiwa
+  'wrld_c02e7709-b0f2-4957-a97d-10b1fd4ac278', // 星巡りの湖 -- tiwa
+  'wrld_2bb48979-53f4-4f6f-9893-ebc837c1ce2c', // Just HappyBirthDay! -- 千夏あい
+  'wrld_5855da31-030c-4abb-bfc4-20e7b2df4ab8', // Make me to a fairy! -- 千夏あい
+  'wrld_88204da2-a487-46e9-8bfa-f3a5d3aeccb5', // Vket Unofficial Portal -- UMIUSiO
 ] as const
 
 /**
