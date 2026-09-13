@@ -319,7 +319,7 @@
   "guide-page:install-steps-ios": "共有ボタンから「ホーム画面に追加」を選んでください。",
   "contact-page:description": "不具合の報告や、こうしてほしいという要望を受け付けています。下のどちらからでも構いません。",
   "contact-page:or": "もしくは",
-  "contact-page:issues-description": "GitHub のアカウントが必要です。やり取りは公開されます。",
+  "contact-page:issues-description": "GitHub のアカウントが必要です。",
   "contact-page:discord-description": "Discord のサーバーに参加して、そこで伝えられます。",
   "about-section:original-title": "オリジナル（VRC Worlds Manager v2）",
   "settings-page:section-preferences": "UIのカスタマイズ",
