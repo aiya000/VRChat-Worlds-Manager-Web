@@ -18,7 +18,7 @@ Neither is a statement about who is welcome. If you are comfortable in neither, 
 
 ## This Project Is Vibe Coded, End to End
 
-Every line in this repository is written by an AI agent working from a conversation. That is not a phase this project is passing through; it is how it is built.
+Every line in this repository is written by an AI agent working from a conversation, except for the code inherited from [VRC Worlds Manager v2](https://github.com/Raifa21/VRC-Worlds-Manager-v2), the desktop application this project was forked from. That is not a phase this project is passing through; it is how it is built.
 
 Two things follow from it, and it is only fair to say them before you spend an evening on a patch:
 
