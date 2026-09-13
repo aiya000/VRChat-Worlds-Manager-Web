@@ -1,15 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { commands } from '@/lib/commands'
 import {
   PRESET_WORLD_IDS,
-  clearPresetWorldsPending,
+  isPresetNoticeOwed,
   isPresetWorldsPending,
+  isSeedingPresetWorlds,
+  presetNoticeShown,
   presetWorldDateAdded,
+  presetWorldsAdded,
+  setSeedingPresetWorlds,
+  subscribeToPresetSeeding,
 } from '@/lib/preset-worlds'
 import { refreshViews } from '@/lib/services/refresh-views'
 import { worldForCollection } from '@/lib/world-collection'
 
 export type UsePresetWorldsResult = {
+  /**
+   * Whether the worlds are on their way. The grid shows a spinner for this and
+   * nothing else -- an empty collection that is about to stop being empty
+   * otherwise reads as an app that did not react to being opened.
+   */
+  isSeeding: boolean
   /** Whether to tell the reader that the worlds below were put there. */
   isNoticeOpen: boolean
   dismissNotice: () => void
@@ -19,26 +30,39 @@ export type UsePresetWorldsResult = {
  * Puts the preset worlds into the collection, once, on the first list view
  * after a setup that started with nothing.
  *
- * Two things are deliberate about how it fails:
+ * Three things are deliberate about how it behaves when it is left alone:
  *
  * - **Nothing is written unless all ten arrived.** VRChat is asked for each in
  *   turn and the rows are held back until the last one answers, so a device
  *   that was offline, rate-limited or signed out gets no half a preset and no
- *   notice claiming one. The flag stays, and the next list view tries again
- * - **The world-details rows each request leaves behind are kept.** They are a
- *   cache the detail popup reads, they are correct whether or not the rest of
- *   the run succeeded, and throwing them away would only mean asking VRChat
- *   for them twice
+ *   notice claiming one. What is owed stays owed, and the next list view tries
+ *   again -- the spinner simply stops, with nothing said
+ * - **Leaving the list does not cancel it.** The awaits run to the end and the
+ *   worlds land either way; what waits is the notice, which is owed to the
+ *   reader rather than to the screen that started the run, and so is shown by
+ *   whichever list view is open when there is one to show
+ * - **Only one run at a time.** The flag saying a run is in flight lives
+ *   outside the component, so the next folder page joins the run rather than
+ *   starting a second one
+ *
+ * The world-details rows each request leaves behind are kept even when the run
+ * ends with nothing written: they are a cache the detail popup reads, they are
+ * correct either way, and dropping them would only mean asking VRChat twice.
  */
 export function usePresetWorlds(): UsePresetWorldsResult {
   const [isNoticeOpen, setIsNoticeOpen] = useState(false)
+  const isSeeding = useSyncExternalStore(
+    subscribeToPresetSeeding,
+    isSeedingPresetWorlds,
+    // The server render has no run in flight and no local storage to ask.
+    () => false,
+  )
 
   useEffect(() => {
-    if (!isPresetWorldsPending()) {
+    if (!isPresetWorldsPending() || isSeedingPresetWorlds()) {
       return
     }
-
-    let leftTheList = false
+    setSeedingPresetWorlds(true)
 
     const seed = async () => {
       const base = Date.now()
@@ -70,28 +94,34 @@ export function usePresetWorlds(): UsePresetWorldsResult {
       }
 
       // Only now: until this point the run could still have ended with nothing
-      // written, and a cleared flag would have spent the one chance to do it.
-      clearPresetWorldsPending()
+      // written, and marking it done would have spent the one chance to do it.
+      presetWorldsAdded()
 
-      // Nothing here watches Dexie, so the grid is still showing the empty
-      // collection it read on mount until this says otherwise.
+      // Nothing here watches Dexie, so every list on screen is still showing
+      // the empty collection it read on mount until this says otherwise.
       await refreshViews()
-
-      if (leftTheList) {
-        return
-      }
-      setIsNoticeOpen(true)
     }
 
-    seed()
-
-    return () => {
-      leftTheList = true
-    }
+    seed().finally(() => setSeedingPresetWorlds(false))
   }, [])
 
+  // Runs on mount, and again the moment a run finishes. Both matter: the
+  // notice may be owed from a session that ended before anyone read it.
+  useEffect(() => {
+    const showIfOwed = () => {
+      if (!isSeeding && isPresetNoticeOwed()) {
+        setIsNoticeOpen(true)
+      }
+    }
+    showIfOwed()
+  }, [isSeeding])
+
   return {
+    isSeeding,
     isNoticeOpen,
-    dismissNotice: () => setIsNoticeOpen(false),
+    dismissNotice: () => {
+      presetNoticeShown()
+      setIsNoticeOpen(false)
+    },
   }
 }

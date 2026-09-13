@@ -19,9 +19,17 @@ const nameOfPreset = (index: number) => `Preset World ${index + 1}`
  * `failing` names the ones VRChat refuses, which is how the "all or nothing"
  * rule is exercised without waiting for a real outage.
  */
-async function describeThePresets(page: Page, failing: string[] = []) {
+async function describeThePresets(
+  page: Page,
+  options: { failing?: string[]; delayMs?: number; asked?: string[] } = {},
+) {
+  const { failing = [], delayMs = 0, asked } = options
   for (const [index, worldId] of PRESET_WORLD_IDS.entries()) {
     await page.route(`**/api/1/worlds/${worldId}`, async (route) => {
+      asked?.push(worldId)
+      if (delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+      }
       if (failing.includes(worldId)) {
         await route.fulfill({
           status: 404,
@@ -138,12 +146,48 @@ test.describe('the worlds a device is started off with', () => {
     await expect(cardNames(page)).toHaveCount(PRESET_WORLD_IDS.length)
   })
 
+  // The whole of what the reader sees while the ten are on their way: an
+  // empty grid that never reacted to being opened reads as an app that did
+  // not start.
+  test('spin something unnamed while the worlds are on their way', async ({
+    page,
+  }) => {
+    await describeThePresets(page, { delayMs: 120 })
+    await markPresetsPending(page)
+    await openListView(page)
+
+    await expect(page.getByTestId('preset-worlds-spinner')).toBeVisible()
+
+    await expect(notice(page)).toBeVisible()
+    await expect(page.getByTestId('preset-worlds-spinner')).toHaveCount(0)
+  })
+
+  // Nothing says so, because nothing was promised -- the grid goes back to
+  // being the ordinary empty list.
+  test('stop the spinner without a word when a world cannot be fetched', async ({
+    page,
+  }) => {
+    await describeThePresets(page, {
+      failing: [PRESET_WORLD_IDS[4]],
+      delayMs: 60,
+    })
+    await markPresetsPending(page)
+    await openListView(page)
+
+    await expect(page.getByTestId('preset-worlds-spinner')).toBeVisible()
+    await expect(page.getByTestId('preset-worlds-spinner')).toHaveCount(0)
+    await expect(notice(page)).toHaveCount(0)
+    await expect(
+      page.getByText(jaJP['listview-page:no-worlds-all']),
+    ).toBeVisible()
+  })
+
   // A half-filled collection is worse than an empty one: the order is wrong,
   // and the notice would be claiming worlds that are not there.
   test('are not added at all when one of them cannot be fetched', async ({
     page,
   }) => {
-    await describeThePresets(page, [PRESET_WORLD_IDS[4]])
+    await describeThePresets(page, { failing: [PRESET_WORLD_IDS[4]] })
     await markPresetsPending(page)
     await openListView(page)
 
@@ -154,6 +198,44 @@ test.describe('the worlds a device is started off with', () => {
     expect(
       await page.evaluate(() => localStorage.getItem('presetWorldsPending')),
     ).toBe('true')
+  })
+})
+
+/**
+ * Leaving the list half way through the run: the fetches are not tied to the
+ * screen that started them, and the next screen must not start its own.
+ */
+test.describe('a list view left while the worlds are still coming', () => {
+  const DESKTOP = { width: 1280, height: 900 }
+
+  test('finishes the run and shows the notice on the page moved to', async ({
+    page,
+  }) => {
+    const asked: string[] = []
+    await describeThePresets(page, { delayMs: 120, asked })
+    // Before the flag is written: a resize remounts the list view, and a
+    // remount with the flag already set starts a run that the `goto` below
+    // then reloads away -- a request this test would count as a second run.
+    await page.setViewportSize(DESKTOP)
+    await markPresetsPending(page)
+    await openListView(page)
+    await expect(page.getByTestId('preset-worlds-spinner')).toBeVisible()
+
+    // The sidebar navigates within the same document -- a `goto` here would be
+    // a reload, which really does cancel the fetches, and is not what tapping
+    // a folder does.
+    await page
+      .getByText(jaJP['general:unclassified-worlds'], { exact: true })
+      .click()
+    await expect(page).toHaveURL(/special\/unclassified$/)
+
+    await expect(notice(page)).toBeVisible()
+    await dismissNotice(page)
+    await expect(cardNames(page)).toHaveCount(PRESET_WORLD_IDS.length)
+
+    // Ten worlds, ten requests: the page moved to joined the run rather than
+    // starting a second one of its own.
+    expect(asked).toHaveLength(PRESET_WORLD_IDS.length)
   })
 })
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Plus } from 'lucide-react'
+import { Loader2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DriveSyncButton } from './drive-sync-button'
 import { SearchBar } from './searchbar'
@@ -52,6 +52,7 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
     openAddWorld,
     openMoveSelected,
     isSelectionMode,
+    isSeedingPresets,
     isPresetNoticeOpen,
     dismissPresetNotice,
   } = useWorldFolderPage({
@@ -116,6 +117,18 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
           <div className="flex-1">
             {isLoading && worlds.length === 0 ? (
               <WorldGridSkeleton />
+            ) : isSeedingPresets && worlds.length === 0 ? (
+              /* Unlabelled on purpose: the worlds on their way have not been
+                 asked for, and naming them before they are here would promise
+                 something a failed fetch then has to take back. It simply
+                 stops -- what is left is the ordinary empty list. */
+              <div
+                className="flex justify-center p-8"
+                role="status"
+                data-testid="preset-worlds-spinner"
+              >
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
             ) : filteredWorlds.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 {worlds.length === 0 ? emptyAllMessage : emptyFilteredMessage}
