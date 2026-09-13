@@ -173,6 +173,7 @@
   "world-card:field-last-updated": "Last Updated",
   "world-card:field-favorites": "Favorites",
   "world-grid:search-placeholder": "Search worlds...",
+  "world-grid:clear-search": "Clear search",
   "world-grid:sort-placeholder": "Sort by...",
   "world-grid:sort-name": "Name",
   "world-grid:sort-visits": "Visits",

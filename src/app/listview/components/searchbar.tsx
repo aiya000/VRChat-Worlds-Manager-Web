@@ -22,6 +22,7 @@ import { usePopupStore } from '../hook/usePopups/store'
 import { Badge } from '@/components/ui/badge'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { FolderType } from '@/types/folders'
+import { cn } from '@/lib/utils'
 import { useWorldFiltersStore } from '../hook/use-filters'
 
 type SortField =
@@ -113,8 +114,30 @@ export function SearchBar({ currentFolder }: SearchBarProps) {
                 placeholder={t('world-grid:search-placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 pr-10"
+                className={cn(
+                  'h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                  searchQuery === '' ? 'pr-10' : 'pr-20',
+                )}
               />
+
+              {/* Emptying the field from the keyboard means selecting the text
+                  first, which a VR controller cannot do, so this is the only
+                  way back to the whole list for a coarse pointer. It sits to
+                  the left of the advanced-search button so that button does
+                  not move as the field fills and empties. Focus is left where
+                  it was: pulling it back to the input reopens the keyboard on
+                  a phone, over the list the press was meant to reveal. */}
+              {searchQuery !== '' && (
+                <Button
+                  variant="ghost"
+                  data-testid="search-clear"
+                  aria-label={t('world-grid:clear-search')}
+                  className="absolute right-10 top-1/2 -translate-y-1/2 h-10 w-10 p-0 m-0"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
 
               {/* Advanced Search button */}
               <Button

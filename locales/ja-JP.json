@@ -173,6 +173,7 @@
   "world-card:field-last-updated": "最終更新",
   "world-card:field-favorites": "お気に入り数",
   "world-grid:search-placeholder": "ワールドを検索...",
+  "world-grid:clear-search": "検索をクリア",
   "world-grid:sort-placeholder": "並び替え...",
   "world-grid:sort-name": "名前",
   "world-grid:sort-visits": "訪問数",
