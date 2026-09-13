@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useLocalization } from '@/hooks/use-localization'
 import { Button } from '@/components/ui/button'
-import { Loader2, Search } from 'lucide-react'
+import { Loader2, Search, X } from 'lucide-react'
 import { commands, WorldDisplayData } from '@/lib/commands'
 import { SpecialFolders } from '@/types/folders'
 import { toast } from 'sonner'
@@ -331,12 +331,32 @@ export default function SearchWorldsPage() {
                   <Label htmlFor="search-query">
                     {t('find-page:search-query')}
                   </Label>
-                  <Input
-                    id="search-query"
-                    placeholder={t('find-page:search-placeholder')}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="search-query"
+                      placeholder={t('find-page:search-placeholder')}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={searchQuery === '' ? undefined : 'pr-9'}
+                    />
+                    {/* Emptying the field from the keyboard means selecting
+                        the text first, which a VR controller cannot do. It
+                        clears the word alone and does not search again: this
+                        page only ever asks VRChat when the button is pressed
+                        (#124), and the press does free the sort dropdown,
+                        which a query pins to "relevance". */}
+                    {searchQuery !== '' && (
+                      <Button
+                        variant="ghost"
+                        data-testid="find-search-clear"
+                        aria-label={t('world-grid:clear-search')}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 h-9 w-9 p-0 m-0"
+                        onClick={() => setSearchQuery('')}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Sort options */}

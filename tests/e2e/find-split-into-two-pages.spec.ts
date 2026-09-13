@@ -98,7 +98,10 @@ test.describe('the two pages "find worlds" was split into', () => {
 
     await expect(page.getByLabel(jaJP['find-page:search-query'])).toBeVisible()
     await expect(
-      page.getByRole('button', { name: jaJP['find-page:search-button'] }),
+      page.getByRole('button', {
+        name: jaJP['find-page:search-button'],
+        exact: true,
+      }),
     ).toBeVisible()
   })
 })

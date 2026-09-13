@@ -4,8 +4,16 @@ import { Card, CardContent } from '@/components/ui/card'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { useLocalization } from '@/hooks/use-localization'
 import { Button } from '@/components/ui/button'
-import { SiGithub, SiDiscord } from '@icons-pack/react-simple-icons'
-import { ChevronRight, FileText, Heart, ScrollText, Shield } from 'lucide-react'
+import { SiGithub } from '@icons-pack/react-simple-icons'
+import { CONTACT_PAGE_PATH } from '@/components/contact-links'
+import {
+  ChevronRight,
+  FileText,
+  Heart,
+  MessageSquareWarning,
+  ScrollText,
+  Shield,
+} from 'lucide-react'
 import type { FC } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import Link from 'next/link'
@@ -106,16 +114,13 @@ export default function AboutSection() {
                 {t('about-section:source-code')}
               </a>
             </Button>
+            {/* Both ways of reporting live on a page of their own, so this
+                does not have to choose one of them for the reader. */}
             <Button variant="ghost" size="sm" asChild>
-              <a
-                href="https://discord.gg/g5nq5GuGPJ"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-row gap-2"
-              >
-                <SiDiscord className="h-4 w-4" />
+              <Link href={CONTACT_PAGE_PATH} className="flex flex-row gap-2">
+                <MessageSquareWarning className="h-4 w-4" />
                 {t('about-section:report-issue')}
-              </a>
+              </Link>
             </Button>
           </div>
         </div>

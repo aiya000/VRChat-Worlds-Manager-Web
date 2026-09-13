@@ -6,6 +6,7 @@ import { usePopupStore } from './usePopups/store'
 import { useWorldFilters } from './use-filters'
 import { useSelectedWorldsStore } from './use-selected-worlds'
 import { useWorlds } from './use-worlds'
+import { usePresetWorlds } from './use-preset-worlds'
 import { commands, WorldDisplayData } from '@/lib/commands'
 import { toast } from 'sonner'
 
@@ -29,6 +30,9 @@ export type UseWorldFolderPageResult = {
   openAddWorld: () => void
   openMoveSelected: () => void
   isSelectionMode: boolean
+  isSeedingPresets: boolean
+  isPresetNoticeOpen: boolean
+  dismissPresetNotice: () => void
 }
 
 export const useWorldFolderPage = (
@@ -44,6 +48,13 @@ export const useWorldFolderPage = (
   const { t } = useLocalization()
   const { refresh: refreshFolders } = useFolders()
   const { worlds, refresh, isLoading } = useWorlds(folderId)
+  // Whichever folder page is opened first is the one that seeds: the preset
+  // worlds go in unfiled, so they are in "all" and "unclassified" either way.
+  const {
+    isSeeding: isSeedingPresets,
+    isNoticeOpen: isPresetNoticeOpen,
+    dismissNotice: dismissPresetNotice,
+  } = usePresetWorlds()
   const { filteredWorlds } = useWorldFilters(worlds)
   const setPopup = usePopupStore((s) => s.setPopup)
   const {
@@ -133,5 +144,8 @@ export const useWorldFolderPage = (
     openAddWorld,
     openMoveSelected,
     isSelectionMode,
+    isSeedingPresets,
+    isPresetNoticeOpen,
+    dismissPresetNotice,
   }
 }

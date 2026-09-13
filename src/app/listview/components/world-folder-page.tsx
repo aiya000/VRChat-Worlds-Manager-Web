@@ -1,11 +1,12 @@
 import React from 'react'
-import { Plus } from 'lucide-react'
+import { Loader2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DriveSyncButton } from './drive-sync-button'
 import { SearchBar } from './searchbar'
 import { UiScaleControl } from './ui-scale-control'
 import { WorldGrid } from './world-grid'
 import { WorldGridSkeleton } from './world-grid/skeleton'
+import { PresetWorldsNotice } from './preset-worlds-notice'
 import { useWorldFolderPage } from '../hook/use-world-folder-page'
 import { WorldDisplayData } from '@/lib/commands'
 
@@ -51,6 +52,9 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
     openAddWorld,
     openMoveSelected,
     isSelectionMode,
+    isSeedingPresets,
+    isPresetNoticeOpen,
+    dismissPresetNotice,
   } = useWorldFolderPage({
     folderId,
     showPreReloadToast,
@@ -59,6 +63,10 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
 
   return (
     <div className="flex h-full">
+      <PresetWorldsNotice
+        open={isPresetNoticeOpen}
+        onDismiss={dismissPresetNotice}
+      />
       <div ref={gridScrollRef} className="flex-1 flex flex-col overflow-auto">
         {/* The title row and the search row are controls; the grid below them
             is not, and stays as dense as it is at any scale. */}
@@ -109,6 +117,18 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
           <div className="flex-1">
             {isLoading && worlds.length === 0 ? (
               <WorldGridSkeleton />
+            ) : isSeedingPresets && worlds.length === 0 ? (
+              /* Unlabelled on purpose: the worlds on their way have not been
+                 asked for, and naming them before they are here would promise
+                 something a failed fetch then has to take back. It simply
+                 stops -- what is left is the ordinary empty list. */
+              <div
+                className="flex justify-center p-8"
+                role="status"
+                data-testid="preset-worlds-spinner"
+              >
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
             ) : filteredWorlds.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 {worlds.length === 0 ? emptyAllMessage : emptyFilteredMessage}
