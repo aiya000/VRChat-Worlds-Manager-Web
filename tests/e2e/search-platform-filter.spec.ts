@@ -57,7 +57,7 @@ async function openTheSearchPage(page: Page) {
 
 async function search(page: Page) {
   await page
-    .getByRole('button', { name: jaJP['find-page:search-button'] })
+    .getByRole('button', { name: jaJP['find-page:search-button'], exact: true })
     .click()
 }
 

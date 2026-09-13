@@ -3,13 +3,18 @@ import jaJP from '../../locales/ja-JP.json'
 import { seedWorld } from './seed-world'
 
 const LIST_VIEW = '/listview/folders/special/all'
+const FIND_PAGE = '/listview/search'
 
 const PHONE = { width: 390, height: 844 }
 
 const SEARCH_PLACEHOLDER = jaJP['world-grid:search-placeholder']
+const FIND_PLACEHOLDER = jaJP['find-page:search-placeholder']
 
 const searchInput = (page: Page) => page.getByPlaceholder(SEARCH_PLACEHOLDER)
 const clearButton = (page: Page) => page.getByTestId('search-clear')
+
+const findInput = (page: Page) => page.getByPlaceholder(FIND_PLACEHOLDER)
+const findClearButton = (page: Page) => page.getByTestId('find-search-clear')
 
 async function openListView(page: Page) {
   await page.setViewportSize(PHONE)
@@ -83,6 +88,72 @@ test.describe('the search field clear button', () => {
     expect(clear!.height).toBeGreaterThanOrEqual(32)
 
     const textRight = await searchInput(page).evaluate((element) => {
+      const input = element as HTMLInputElement
+      const style = getComputedStyle(input)
+      return (
+        input.getBoundingClientRect().right - parseFloat(style.paddingRight)
+      )
+    })
+    expect(textRight).toBeLessThanOrEqual(clear!.x + 1)
+  })
+})
+
+// The find page has a search field of its own, in its own component, so
+// nothing about the list view's button carries over to it.
+test.describe('the find page clear button', () => {
+  async function openFindPage(page: Page) {
+    await page.setViewportSize(PHONE)
+    await page.goto(FIND_PAGE)
+    await page.addStyleTag({
+      content: 'nextjs-portal { display: none !important; }',
+    })
+    await expect(findInput(page)).toBeVisible()
+  }
+
+  test('appears only once something has been typed', async ({ page }) => {
+    await openFindPage(page)
+
+    await expect(findClearButton(page)).toHaveCount(0)
+
+    await findInput(page).fill('チュートリアル')
+    await expect(findClearButton(page)).toBeVisible()
+  })
+
+  // A query pins the sort to "relevance" and disables the dropdown, so what
+  // the press gives back is the choice of order, not only an empty field.
+  test('empties the field and frees the sort dropdown again', async ({
+    page,
+  }) => {
+    await openFindPage(page)
+    const sort = page.locator('#sort')
+
+    await findInput(page).fill('チュートリアル')
+    await expect(sort).toBeDisabled()
+
+    await findClearButton(page).click()
+
+    await expect(findInput(page)).toHaveValue('')
+    await expect(findClearButton(page)).toHaveCount(0)
+    await expect(sort).toBeEnabled()
+  })
+
+  test('stays inside the field without covering the text', async ({ page }) => {
+    await openFindPage(page)
+    await findInput(page).fill('チュートリアル')
+
+    const clear = await findClearButton(page).boundingBox()
+    const input = await findInput(page).boundingBox()
+
+    expect(clear).not.toBe(null)
+    expect(input).not.toBe(null)
+
+    expect(clear!.x + clear!.width).toBeLessThanOrEqual(
+      input!.x + input!.width + 1,
+    )
+    expect(clear!.width).toBeGreaterThanOrEqual(32)
+    expect(clear!.height).toBeGreaterThanOrEqual(32)
+
+    const textRight = await findInput(page).evaluate((element) => {
       const input = element as HTMLInputElement
       const style = getComputedStyle(input)
       return (
