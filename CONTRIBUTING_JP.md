@@ -69,8 +69,6 @@ Pull Request を作ったあとで、翻訳のコントリビュートを募る�
 
 - [Bun](https://bun.sh/)（v1.2 以上）
 
-エディタは [VSCode](https://code.visualstudio.com/) をおすすめしますが、好きなものを使って構いません。
-
 > [!IMPORTANT]
 > **このプロジェクトが使うパッケージマネージャは Bun だけです。** `npm`、`yarn`、`pnpm` はいずれも `bun.lock` の隣に独自のロックファイルを書き、依存関係の解決も異なります。
 

@@ -69,8 +69,6 @@ Install the following:
 
 - [Bun](https://bun.sh/) (v1.2+)
 
-We recommend using [VSCode](https://code.visualstudio.com/), but you can use any editor you prefer.
-
 > [!IMPORTANT]
 > **This project uses Bun, and only Bun.** `npm`, `yarn` and `pnpm` all write a lock file of their own beside `bun.lock` and resolve dependencies differently.
 
