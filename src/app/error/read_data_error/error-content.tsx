@@ -3,10 +3,14 @@
 import { useSearchParams } from 'next/navigation'
 import { useLocalization } from '@/hooks/use-localization'
 import { Button } from '@/components/ui/button'
-import { SiGithub } from '@icons-pack/react-simple-icons'
+import { SiDiscord, SiGithub } from '@icons-pack/react-simple-icons'
 import { Globe } from 'lucide-react'
 import { useState, useContext } from 'react'
 import { LocalizationContext } from '@/components/localization-context'
+import {
+  CONTACT_DISCORD_URL,
+  CONTACT_ISSUES_URL,
+} from '@/components/contact-links'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,15 +81,30 @@ export function ErrorContent() {
         </p>
 
         <div className="flex flex-col gap-4 items-center">
+          {/* Both ways out, not only the one that needs a GitHub account: the
+              people who reach this screen are the ones least able to work
+              round it on their own. */}
           <Button variant="secondary" className="gap-2 w-full" asChild>
             <a
-              href="https://github.com/aiya000/VRChat-Worlds-Manager-Web/issues/new"
+              href={CONTACT_ISSUES_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center"
             >
               <SiGithub className="h-4 w-4" />
               <span>{t('error-page:contact-support')}</span>
+            </a>
+          </Button>
+
+          <Button variant="secondary" className="gap-2 w-full" asChild>
+            <a
+              href={CONTACT_DISCORD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center"
+            >
+              <SiDiscord className="h-4 w-4" />
+              <span>{t('general:discord')}</span>
             </a>
           </Button>
 

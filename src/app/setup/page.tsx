@@ -27,6 +27,7 @@ import {
 } from '@/lib/commands'
 import { SetupLayout } from '@/app/setup/components/setup-layout'
 import { markPresetWorldsPending } from '@/lib/preset-worlds'
+import { ContactLinks } from '@/components/contact-links'
 import { useLocalization } from '@/hooks/use-localization'
 import { LocalizationContext } from '@/components/localization-context'
 import {
@@ -44,7 +45,6 @@ import {
 } from '@/app/setup/components/restore-source-choice'
 import { ArrowLeft, ExternalLink, FolderOpen, Info } from 'lucide-react'
 import { MigrationConfirmationPopup } from '@/app/listview/settings/components/popups/migration-confirmation-popup'
-import { SiGithub } from '@icons-pack/react-simple-icons'
 
 const WelcomePage: React.FC = () => {
   const router = useRouter()
@@ -507,15 +507,7 @@ const WelcomePage: React.FC = () => {
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {t('setup-page:not-first-time:foretext')}
-                  <a
-                    href="https://github.com/aiya000/VRChat-Worlds-Manager-Web/issues/new"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-blue-500 hover:underline"
-                  >
-                    <SiGithub className="h-4 w-4" />
-                    {t('setup-page:github-issues')}
-                  </a>{' '}
+                  <ContactLinks />
                   {t('setup-page:not-first-time:posttext')}
                 </p>
               </div>
@@ -913,15 +905,7 @@ const WelcomePage: React.FC = () => {
                 <div className="pt-6">
                   <p className="text-sm text-muted-foreground">
                     {t('setup-page:need-help:foretext')}
-                    <a
-                      href="https://github.com/aiya000/VRChat-Worlds-Manager-Web/issues/new"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-blue-500 hover:underline"
-                    >
-                      <SiGithub className="h-4 w-4" />
-                      {t('setup-page:github-issues')}
-                    </a>
+                    <ContactLinks />
                     {t('setup-page:need-help:posttext')}
                   </p>
                 </div>
