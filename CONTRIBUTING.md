@@ -1,5 +1,7 @@
 # Contributing to VRChat Worlds Manager Web
 
+[日本語はこちら / 日本語のCONTRIBUTINGはCONTRIBUTING_JP.mdを参照してください。](./CONTRIBUTING_JP.md)
+
 Thank you for considering contributing to VRChat Worlds Manager Web!  
 We welcome all kinds of contributions, including bug reports, feature requests, translations, and code improvements.
 
