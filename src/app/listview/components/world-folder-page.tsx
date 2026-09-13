@@ -6,6 +6,7 @@ import { SearchBar } from './searchbar'
 import { UiScaleControl } from './ui-scale-control'
 import { WorldGrid } from './world-grid'
 import { WorldGridSkeleton } from './world-grid/skeleton'
+import { PresetWorldsNotice } from './preset-worlds-notice'
 import { useWorldFolderPage } from '../hook/use-world-folder-page'
 import { WorldDisplayData } from '@/lib/commands'
 
@@ -51,6 +52,8 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
     openAddWorld,
     openMoveSelected,
     isSelectionMode,
+    isPresetNoticeOpen,
+    dismissPresetNotice,
   } = useWorldFolderPage({
     folderId,
     showPreReloadToast,
@@ -59,6 +62,10 @@ export function WorldFolderPage(props: WorldFolderPageProps) {
 
   return (
     <div className="flex h-full">
+      <PresetWorldsNotice
+        open={isPresetNoticeOpen}
+        onDismiss={dismissPresetNotice}
+      />
       <div ref={gridScrollRef} className="flex-1 flex flex-col overflow-auto">
         {/* The title row and the search row are controls; the grid below them
             is not, and stays as dense as it is at any scale. */}

@@ -26,6 +26,7 @@ import {
   WorldDetailFieldVisibility,
 } from '@/lib/commands'
 import { SetupLayout } from '@/app/setup/components/setup-layout'
+import { markPresetWorldsPending } from '@/lib/preset-worlds'
 import { useLocalization } from '@/hooks/use-localization'
 import { LocalizationContext } from '@/components/localization-context'
 import {
@@ -107,6 +108,8 @@ const WelcomePage: React.FC = () => {
     null,
   )
   const [showMigrationConfirm, setShowMigrationConfirm] = useState(false)
+  /** Whether this run answered "start with nothing" -- see `finishSetup`. */
+  const [startedFresh, setStartedFresh] = useState(false)
 
   useEffect(() => {
     console.info(`Theme changed to: ${preferences.theme}`)
@@ -138,6 +141,11 @@ const WelcomePage: React.FC = () => {
    * step that exists only to be dismissed.
    */
   const chooseRestoreSource = (source: RestoreSource) => {
+    // Kept apart from `restoreSource`, which stays `null` for "fresh" so the
+    // migration step below knows there is nothing to restore. This only
+    // records the answer, and a later change of mind unrecords it -- someone
+    // who goes back and picks a restore instead is not starting with nothing.
+    setStartedFresh(source === 'fresh')
     if (source === 'fresh') {
       setPage(4)
       return
@@ -256,6 +264,14 @@ const WelcomePage: React.FC = () => {
   const finishSetup = async (): Promise<void> => {
     await commands.createEmptyAuth()
     await commands.createEmptyFiles()
+    // A collection restored from anywhere has worlds in it already; only the
+    // one that starts with nothing has nothing to press. The worlds themselves
+    // come from VRChat, and nobody is signed in until the screen after this
+    // one, so all that is left here is the note to do it -- the first list
+    // view reads it (`usePresetWorlds`).
+    if (startedFresh) {
+      markPresetWorldsPending()
+    }
     router.push('/login')
   }
 

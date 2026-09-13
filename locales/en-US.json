@@ -767,6 +767,8 @@
   "sync-explanation:action-sync": "Sync",
   "sync-explanation:action-connect": "Connect in settings",
   "general:close": "Close",
+  "preset-worlds:notice-title": "Some worlds are here to start you off",
+  "preset-worlds:notice-body": "Try opening them, launching one, sorting them into folders, and deleting one.\nWith a file backup saved, a world you delete can be restored later.",
   "general:help-about": "More about {0}",
   "general:help-hint": "Press \"?\" for details.",
   "general:ui-scale-smaller": "Make the controls smaller",

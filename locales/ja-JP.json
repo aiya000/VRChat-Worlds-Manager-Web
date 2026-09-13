@@ -767,6 +767,8 @@
   "sync-explanation:action-sync": "同期する",
   "sync-explanation:action-connect": "設定で接続する",
   "general:close": "閉じる",
+  "preset-worlds:notice-title": "プリセットワールドを用意しました",
+  "preset-worlds:notice-body": "閲覧、ワールドの起動、フォルダ分け、削除などをお試しください。\nファイルバックアップをしておけば、削除したワールドもあとから復元できます。",
   "general:help-about": "{0} について詳しく",
   "general:help-hint": "詳しくは「?」を押してください。",
   "general:ui-scale-smaller": "操作を小さくする",
