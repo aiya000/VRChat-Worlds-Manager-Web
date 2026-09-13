@@ -317,7 +317,7 @@
   "guide-page:install-action": "Install this app",
   "guide-page:install-steps-browser": "Choose \"Install app\" or \"Add to Home screen\" from your browser's menu.",
   "guide-page:install-steps-ios": "Tap the share button, then \"Add to Home Screen\".",
-  "contact-page:description": "Bug reports and requests for changes are both welcome. Either of the two below is fine.",
+  "contact-page:description": "Bug reports are welcome. Either of the two below is fine.",
   "contact-page:or": "or",
   "contact-page:issues-description": "Needs a GitHub account.",
   "contact-page:discord-description": "Join the Discord server and say it there.",
