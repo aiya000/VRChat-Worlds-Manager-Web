@@ -116,6 +116,27 @@ function getItem<T>(key: string, fallback: T): T {
   }
 }
 
+/**
+ * What to show someone who has never chosen. It was `ja-JP` flat, so an
+ * English speaker opening the app for the first time got a Japanese setup
+ * wizard and had to find the language control to read it.
+ *
+ * Only the language subtag is read: `ja`, `ja-JP` and `ja-Hira` are all
+ * Japanese, and everything else this app has no translation for falls to
+ * English, which is the fallback the rest of the localization already uses.
+ */
+function preferredLanguage(): string {
+  if (typeof navigator === 'undefined') {
+    return 'en-US'
+  }
+  const languages: readonly string[] = navigator.languages ?? []
+  const preferred = languages.length > 0 ? languages[0] : navigator.language
+  if (preferred === undefined || preferred === '') {
+    return 'en-US'
+  }
+  return preferred.toLowerCase().split('-')[0] === 'ja' ? 'ja-JP' : 'en-US'
+}
+
 function setItem(key: string, value: unknown): void {
   if (typeof window === 'undefined') {
     return
@@ -130,7 +151,8 @@ function setItem(key: string, value: unknown): void {
 export const PreferencesServiceLive = Layer.succeed(PreferencesService, {
   getTheme: () => Effect.succeed(getItem<string>('theme', 'system')),
   setTheme: (theme) => Effect.sync(() => setItem('theme', theme)),
-  getLanguage: () => Effect.succeed(getItem<string>('language', 'ja-JP')),
+  getLanguage: () =>
+    Effect.succeed(getItem<string>('language', preferredLanguage())),
   setLanguage: (language) => Effect.sync(() => setItem('language', language)),
   getCardSize: () => Effect.succeed(getItem<CardSize>('cardSize', 'Normal')),
   setCardSize: (cardSize) => Effect.sync(() => setItem('cardSize', cardSize)),
