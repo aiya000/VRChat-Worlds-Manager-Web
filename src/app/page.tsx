@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import { LanguageToggle } from '@/components/language-toggle'
 import { useLocalization } from '@/hooks/use-localization'
 
 /**
@@ -29,7 +30,13 @@ export default function Home() {
 
   return (
     <div className="flex min-h-svh w-full flex-col">
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center gap-10 px-6 py-16">
+      {/* The only language control a first-time visitor can reach: everything
+          else that switches it is behind the setup wizard or the settings
+          screen. */}
+      <div className="mx-auto flex w-full max-w-2xl justify-end px-6 pt-4">
+        <LanguageToggle />
+      </div>
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center gap-10 px-6 pb-16 pt-8">
         <div className="flex flex-col items-center gap-6 text-center">
           {/* 512px for a 128px slot: the icon has fine linework that would go
               soft on a phone's display otherwise. */}

@@ -15,6 +15,11 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'on-first-retry',
+    // The app answers in the browser's own language when nobody has chosen
+    // one, and almost every spec here reads the Japanese strings. Left to the
+    // machine's locale, the same suite would pass on one and fail on another.
+    // A spec about the language itself overrides this per-describe.
+    locale: 'ja-JP',
   },
   webServer: {
     command: `bunx next dev --turbopack --port ${PORT}`,
