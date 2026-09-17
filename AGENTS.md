@@ -734,6 +734,28 @@ to prove ownership with, so the HTML-file method is the only one open to us.
 - If the file method is ever rejected, the fallback is Search Console's "HTML tag" method:
   `verification: { google: '...' }` in the `metadata` of `src/app/layout.tsx`
 
+### `/` is the brand-verification landing page, and it must never navigate on its own
+
+Google's brand verification for the OAuth consent screen opens the home page URL **in a
+browser**, and its requirements are that the home page "must be static and cannot redirect"
+and "cannot require user login to view application information".
+
+`/` used to be the screen that decided where the app starts, and it replaced itself the moment
+it loaded. Putting the app name and the purpose into its static HTML was not enough -- the
+review is a person, and the person was already on `/setup` before they read anything. Three
+submissions were refused that way (#107).
+
+- **`/` (`src/app/page.tsx`) is a landing page. It renders and stops.** The app is entered by
+  pressing the link to `/start`
+- **`/start` (`src/app/start/page.tsx`) is the launch screen** -- the redirect that decides
+  where to go. `start_url` in `public/manifest.json` points at it, and `STARTUP_PATH` in
+  `src/lib/exit-guard.ts` has to agree with it
+- `/` carries, in the exported HTML before any script runs: the app name **verbatim as the
+  consent screen shows it** (never translated), what the app is for, why it asks for a Google
+  account and what `drive.file` reaches, and links to `/privacy` and `/terms`.
+  `tests/e2e/home-states-its-purpose.spec.ts` guards all of it, including that `/` stays put
+- An in-app link that means "back to the app" goes to `/start`, not `/`
+
 ### The Worker deploys from `main` alone
 
 `.github/workflows/deploy-backend.yml` is wired to `main` and deliberately not to `develop`:

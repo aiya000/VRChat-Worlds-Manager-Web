@@ -1,114 +1,76 @@
 'use client'
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Loader2 } from 'lucide-react'
-import { commands } from '@/lib/commands'
+import { Button } from '@/components/ui/button'
 import { useLocalization } from '@/hooks/use-localization'
 
+/**
+ * The home page Google's brand verification is given, and nothing else.
+ *
+ * It used to be the screen that decided where the app starts, which replaced
+ * itself the moment it loaded. The name and the purpose were put into its
+ * static HTML for the review (#107) and the review still refused the
+ * branding three times: the check is a person opening the URL in a browser,
+ * and a person never saw any of it -- the redirect had already taken them to
+ * the setup wizard or the sign-in form. Google's own requirements say as
+ * much, that the home page "must be static and cannot redirect" and "cannot
+ * require user login to view application information".
+ *
+ * So nothing here navigates on its own. The app is entered by pressing a
+ * button, and `start_url` in the manifest points straight at `/start` so an
+ * installed app never stops here.
+ *
+ * What the review looks for, all of it in the exported HTML before any script
+ * runs: the app's own name, what the app is for, why it asks for the Google
+ * account it asks for, and a link to the privacy policy.
+ */
 export default function Home() {
-  const router = useRouter()
   const { t } = useLocalization()
-
-  // Replaced, never pushed. This screen decides where the app starts and has
-  // nothing to show once it has decided, so leaving it in the history makes
-  // the back gesture bounce: back lands here, this runs again, and the app is
-  // pushed straight forward to where it came from. It is also the entry the
-  // app is launched at (`start_url` is `/`), so anything left here is what
-  // stands between the user and leaving.
-  //
-  // Not guarded against back while it decides: the exit guard is a history
-  // entry, and Chrome skips one added before the user has touched the app, so
-  // there is nothing this screen could put up that back would stop at (#188).
-  useEffect(() => {
-    // The sign-in check below waits on the network, and the footer links are
-    // pressable for the whole of that wait. Nothing about leaving this screen
-    // stops the work in flight, so without this the answer arrives and
-    // replaces the document the user went to read with the app's own idea of
-    // where to start.
-    let leftTheLaunchScreen = false
-    const goTo = (path: string) => {
-      if (leftTheLaunchScreen) {
-        return
-      }
-      router.replace(path)
-    }
-
-    const checkFirstTime = async () => {
-      const isFirstTime = await commands.requireInitialSetup()
-
-      if (isFirstTime) {
-        goTo('/setup')
-      } else {
-        const checkFilesAndAuth = async () => {
-          const result = await commands.checkFilesLoaded()
-
-          if (result.status === 'error') {
-            console.error(`Error loading files: ${result.error}`)
-            goTo(
-              `${'/error/read_data_error'}?${encodeURIComponent(result.error)}`,
-            )
-            return
-          }
-
-          // Then check authentication
-          const authResult = await commands.tryLogin()
-
-          if (authResult.status === 'ok') {
-            console.info('User is authenticated')
-            goTo('/listview/folders/special/all')
-          } else {
-            goTo('/login')
-          }
-        }
-        await checkFilesAndAuth()
-      }
-    }
-    checkFirstTime()
-
-    return () => {
-      leftTheLaunchScreen = true
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex min-h-svh w-full flex-col">
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6">
-        {/* 512px for a 128px slot: the icon has fine linework that would go
-            soft on a phone's display otherwise. */}
-        <Image
-          src="/icons/icon-512.png"
-          alt="VRChat Worlds Manager Web"
-          width={128}
-          height={128}
-          priority
-          className="app-breathe h-32 w-32 select-none"
-        />
-        {/* Google's brand verification fetches this page and looks for the
-            app's own name and a sentence saying what it is for; it found
-            neither -- the name was in an `alt` attribute and the purpose only
-            in a `<meta>` -- and refused the consent screen's branding for it
-            (#107). Both are read out of the exported HTML, before any script
-            runs, so they have to be here rather than past the redirect above.
-            The name is not translated: it is what the consent screen shows,
-            character for character. */}
-        <div className="max-w-md space-y-2 text-center">
-          <h1 className="text-xl font-semibold">VRChat Worlds Manager Web</h1>
-          <p className="text-sm leading-relaxed text-muted-foreground">
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center gap-10 px-6 py-16">
+        <div className="flex flex-col items-center gap-6 text-center">
+          {/* 512px for a 128px slot: the icon has fine linework that would go
+              soft on a phone's display otherwise. */}
+          <Image
+            src="/icons/icon-512.png"
+            alt=""
+            width={128}
+            height={128}
+            priority
+            className="h-32 w-32 select-none"
+          />
+          {/* Not translated: it is what the consent screen shows, character
+              for character, and the review compares the two. */}
+          <h1 className="text-2xl font-semibold">VRChat Worlds Manager Web</h1>
+          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
             {t('home:tagline')}
           </p>
+          <Button asChild size="lg">
+            <Link href="/start">{t('home:open-app')}</Link>
+          </Button>
         </div>
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {t('general:loading')}
-        </p>
-      </div>
-      {/* Google's brand verification fetches the app's home page and expects
-          to find the privacy policy linked from it, so this link has to live
-          in the statically exported HTML of `/` rather than only past the
-          redirect above. Kept down here as an ordinary footer: under the
-          spinner it read as something floating rather than something meant. */}
+
+        <section className="w-full space-y-3">
+          <h2 className="text-lg font-semibold">{t('home:features-title')}</h2>
+          <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-muted-foreground">
+            <li>{t('home:features-item-folders')}</li>
+            <li>{t('home:features-item-anywhere')}</li>
+            <li>{t('home:features-item-instances')}</li>
+          </ul>
+        </section>
+
+        <section className="w-full space-y-3">
+          <h2 className="text-lg font-semibold">{t('home:google-title')}</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {t('home:google-body')}
+          </p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {t('home:google-scope')}
+          </p>
+        </section>
+      </main>
       <footer className="flex justify-center gap-4 pb-6 text-center">
         <Link
           href="/terms"

@@ -92,9 +92,9 @@ test('the login screen links to the privacy policy', async ({ page }) => {
 
 /**
  * Google's brand verification fetches the home page and looks for the privacy
- * policy linked from it. It is not a browser session: nothing waits for the
- * redirect on `/` to run, so the link has to be in the markup the server hands
- * back. Fetching without a page is what makes that the thing being checked.
+ * policy linked from it. It is not a browser session: no script runs, so the
+ * link has to be in the markup the server hands back. Fetching without a page
+ * is what makes that the thing being checked.
  */
 test('the home page links to the privacy policy without running any script', async ({
   request,

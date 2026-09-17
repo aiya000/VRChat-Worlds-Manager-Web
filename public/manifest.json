@@ -2,7 +2,7 @@
   "name": "VRChat Worlds Manager Web",
   "short_name": "VRCWW",
   "description": "Manage your VRChat worlds with ease",
-  "start_url": "/",
+  "start_url": "/start",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
