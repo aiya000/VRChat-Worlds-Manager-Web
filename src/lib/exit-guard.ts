@@ -34,8 +34,12 @@ export const EXIT_GUARD_KEY = '__exitGuard'
  */
 export const EXIT_STOP_KEY = '__exitStop'
 
-/** The screen that only decides where the app starts, and replaces itself. */
-export const STARTUP_PATH = '/'
+/**
+ * The screen that only decides where the app starts, and replaces itself.
+ * Not `/`: that is the landing page Google's brand verification is given,
+ * and it stays put (#107).
+ */
+export const STARTUP_PATH = '/start'
 
 /** How long the warning is shown. */
 export const EXIT_GUARD_WARNING_MS = 2000

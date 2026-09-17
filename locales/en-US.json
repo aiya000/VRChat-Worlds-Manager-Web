@@ -1,5 +1,13 @@
 {
   "home:tagline": "A web app that sorts your VRChat favourite worlds into folders and opens them from any device. It runs in the browser alone, and works from a VR overlay or a phone.",
+  "home:open-app": "Open the app",
+  "home:features-title": "What it does",
+  "home:features-item-folders": "Sorts your VRChat favourite worlds into folders of your own, with memos and tags to find them by.",
+  "home:features-item-anywhere": "Runs in the browser alone, so the same data opens from a PC, a phone, or a VR overlay browser.",
+  "home:features-item-instances": "Creates an instance of a world and joins it, straight from the list you sorted.",
+  "home:google-title": "What the Google account is for",
+  "home:google-body": "This app keeps its data in your browser. Only if you want the same data on more than one device do you connect Google Drive, from the settings screen. The connection is optional, and everything except syncing works without it.",
+  "home:google-scope": "The only permission this app asks for is drive.file, which reaches nothing in Google Drive but the files this app created itself. What is synced is stored in your own Google Drive, and its author cannot read it.",
   "general:loading": "Loading...",
   "general:worlds-data": "Worlds Data",
   "general:folders-data": "Folders Data",

@@ -48,7 +48,7 @@ export default function MigrationGuideV2Page() {
       <div className="container mx-auto max-w-3xl space-y-6 p-6">
         <div className="space-y-4">
           <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2">
-            <Link href="/">
+            <Link href="/start">
               <ArrowLeft className="h-4 w-4" />
               {t('migration-guide:back')}
             </Link>

@@ -158,7 +158,7 @@ test.describe('leaving an installed app by pressing back', () => {
   }) => {
     const chrome = await attach(page)
 
-    await page.goto('/')
+    await page.goto('/start')
     await page.waitForURL(/\/listview/)
     await page.waitForTimeout(1000)
 
@@ -175,7 +175,7 @@ test.describe('leaving an installed app by pressing back', () => {
     page,
   }) => {
     const chrome = await attach(page)
-    await page.goto('/')
+    await page.goto('/start')
     await page.waitForURL(/\/listview/)
     await hideDevOverlay(page)
 
@@ -194,7 +194,7 @@ test.describe('leaving an installed app by pressing back', () => {
     page,
   }) => {
     const chrome = await attach(page)
-    await page.goto('/')
+    await page.goto('/start')
     await page.waitForURL(/\/listview/)
     await hideDevOverlay(page)
     await touch(page)
@@ -219,7 +219,7 @@ test.describe('leaving an installed app by pressing back', () => {
     page,
   }) => {
     const chrome = await attach(page)
-    await page.goto('/')
+    await page.goto('/start')
     await page.waitForURL(/\/listview/)
     await hideDevOverlay(page)
     await touch(page)
@@ -239,7 +239,7 @@ test.describe('leaving an installed app by pressing back', () => {
 
   test('leaves a press from deeper in the app alone', async ({ page }) => {
     const chrome = await attach(page)
-    await page.goto('/')
+    await page.goto('/start')
     await page.waitForURL(/\/listview/)
     await hideDevOverlay(page)
     await touch(page)
@@ -258,7 +258,7 @@ test.describe('leaving an installed app by pressing back', () => {
   // guard nor the entry below it. That used to read as leaving.
   test('leaves a press two screens deep alone as well', async ({ page }) => {
     const chrome = await attach(page)
-    await page.goto('/')
+    await page.goto('/start')
     await page.waitForURL(/\/listview/)
     await hideDevOverlay(page)
     await touch(page)
@@ -283,7 +283,7 @@ test.describe('leaving an installed app by pressing back', () => {
 
   test('stands again after a reload of its own entry', async ({ page }) => {
     const chrome = await attach(page)
-    await page.goto('/')
+    await page.goto('/start')
     await page.waitForURL(/\/listview/)
     await hideDevOverlay(page)
     await touch(page)
@@ -303,7 +303,7 @@ test.describe('leaving an installed app by pressing back', () => {
   // itself -- the screen below first, then the warning, then the way out.
   test('walks back out of the app the way it walked in', async ({ page }) => {
     const chrome = await attach(page)
-    await page.goto('/')
+    await page.goto('/start')
     await page.waitForURL(/\/listview/)
     await hideDevOverlay(page)
     await touch(page)
@@ -351,7 +351,7 @@ test.describe('pressing back while the app is still starting up', () => {
       await route.fulfill({ status: 401, body: '{}' })
     })
 
-    await page.goto('/')
+    await page.goto('/start')
     await page.waitForTimeout(500)
     expect(await chrome.history()).toMatchObject({
       guard: null,
@@ -423,7 +423,7 @@ test.describe('pressing back where it would not leave the app', () => {
   test('does not land back on the screen the app started at', async ({
     page,
   }) => {
-    await page.goto('/')
+    await page.goto('/start')
     await page.waitForURL(/\/setup/)
 
     await page.goBack()

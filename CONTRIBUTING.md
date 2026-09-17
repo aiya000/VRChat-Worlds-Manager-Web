@@ -1,5 +1,7 @@
 # Contributing to VRChat Worlds Manager Web
 
+[日本語はこちら / 日本語のCONTRIBUTINGはCONTRIBUTING_JP.mdを参照してください。](./CONTRIBUTING_JP.md)
+
 Thank you for considering contributing to VRChat Worlds Manager Web!  
 We welcome all kinds of contributions, including bug reports, feature requests, translations, and code improvements.
 
@@ -16,7 +18,7 @@ Neither is a statement about who is welcome. If you are comfortable in neither, 
 
 ## This Project Is Vibe Coded, End to End
 
-Every line in this repository is written by an AI agent working from a conversation. That is not a phase this project is passing through; it is how it is built.
+Every line in this repository is written by an AI agent working from a conversation, except for the code inherited from [VRC Worlds Manager v2](https://github.com/Raifa21/VRC-Worlds-Manager-v2), the desktop application this project was forked from. That is not a phase this project is passing through; it is how it is built.
 
 Two things follow from it, and it is only fair to say them before you spend an evening on a patch:
 
@@ -66,8 +68,6 @@ After creating a PR, you can request translation contributions from others.
 Install the following:
 
 - [Bun](https://bun.sh/) (v1.2+)
-
-We recommend using [VSCode](https://code.visualstudio.com/), but you can use any editor you prefer.
 
 > [!IMPORTANT]
 > **This project uses Bun, and only Bun.** `npm`, `yarn` and `pnpm` all write a lock file of their own beside `bun.lock` and resolve dependencies differently.

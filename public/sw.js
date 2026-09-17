@@ -22,7 +22,7 @@ const CACHE_NAME = `vrcww-${VERSION}`
 // `cache.addAll` rejects the whole install if any of these 404s, so every entry
 // here has to be a file that actually ships.
 /** @type {string[]} */
-const PRECACHE_URLS = ['/', '/icons/icon-192.png']
+const PRECACHE_URLS = ['/', '/start', '/icons/icon-192.png']
 
 /**
  * Install event: precache static assets
@@ -80,7 +80,10 @@ self.addEventListener('fetch', (event) => {
         // truthy, so `|| new Response(...)` never ran: a navigation with
         // nothing precached resolved to `undefined` and the browser showed a
         // network error rather than this.
-        const cached = await caches.match('/')
+        // `/start`, not `/`: `/` is the landing page and goes nowhere on its
+        // own, so falling back to it offline would strand the user on a page
+        // whose only way forward is a link the network cannot serve.
+        const cached = await caches.match('/start')
         return cached ?? new Response('Offline', { status: 503 })
       }),
     )

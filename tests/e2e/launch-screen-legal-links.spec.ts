@@ -44,7 +44,7 @@ test.describe('leaving the launch screen for a legal document', () => {
       page,
     }) => {
       const releaseTheSignInCheck = await holdTheSignInCheck(page)
-      await page.goto('/')
+      await page.goto('/start')
       await page.addStyleTag({
         content: 'nextjs-portal { display: none !important; }',
       })

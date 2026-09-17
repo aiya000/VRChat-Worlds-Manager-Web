@@ -1,5 +1,7 @@
 # Contributor Covenant Code of Conduct
 
+[日本語はこちら / 日本語の行動規範はCODE_OF_CONDUCT_JP.mdを参照してください。](./CODE_OF_CONDUCT_JP.md)
+
 ## Our Pledge
 
 We as members, contributors, and leaders pledge to make participation in our

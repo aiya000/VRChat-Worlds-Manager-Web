@@ -43,7 +43,7 @@ export default function GoogleAuthReturnPage() {
           <p className="text-sm text-muted-foreground">
             {t('google-auth:nowhere-to-return')}
           </p>
-          <Link href="/" className="text-sm underline underline-offset-2">
+          <Link href="/start" className="text-sm underline underline-offset-2">
             {t('google-auth:go-home')}
           </Link>
         </>
