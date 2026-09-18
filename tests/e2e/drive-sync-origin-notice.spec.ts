@@ -48,9 +48,7 @@ const NOTICE_TEXT = jaJP['drive-origin:unavailable-here'].replace(
  * the explanation (#205).
  */
 test.describe('at pages.dev, where Google will not sign in', () => {
-  test('the Drive card says so, names the address, and does not offer to connect', async ({
-    page,
-  }) => {
+  test('the sync tab is the notice and nothing else', async ({ page }) => {
     await serveAsPagesDev(page)
     await page.goto(`${PAGES_DEV}${SETTINGS_SYNC}`)
     await hideDevOverlay(page)
@@ -66,16 +64,20 @@ test.describe('at pages.dev, where Google will not sign in', () => {
     await expect(link).toHaveAttribute('href', 'https://vrcww.com/start')
     await expect(link).toHaveAttribute('target', '_blank')
 
-    // Connecting could only end in Google's refusal.
+    // Every card this tab normally holds ends in a trip to Google that this
+    // address cannot make -- connect, sync now, push to every device -- so
+    // none of them is offered, and neither is the VR notice about making
+    // that trip succeed.
+    await expect(page.getByTestId('google-drive-section')).toBeHidden()
     await expect(
       page.getByRole('button', {
         name: jaJP['settings-page:google-drive-connect'],
         exact: true,
       }),
-    ).toBeDisabled()
-
-    // The VR notice is about making the trip to Google succeed; from here
-    // there is no trip to make.
+    ).toBeHidden()
+    await expect(
+      page.getByText(jaJP['settings-page:push-settings-title']),
+    ).toBeHidden()
     await expect(page.getByTestId('vr-projection-notice')).toBeHidden()
   })
 
@@ -100,7 +102,62 @@ test.describe('at pages.dev, where Google will not sign in', () => {
     // And the page stayed where it was.
     expect(new URL(page.url()).pathname).toBe(LIST_VIEW)
   })
+
+  test('a device that connected here before the move is told the same, and does not leave', async ({
+    page,
+  }) => {
+    await serveAsPagesDev(page)
+    // Google would answer a trip from here with `redirect_uri_mismatch`, so
+    // the trip itself is the thing to see not happen.
+    const google = await stubGoogleAuth(page, { token: 'unused' })
+    await page.goto(`${PAGES_DEV}${LIST_VIEW}`)
+    await hideDevOverlay(page)
+    await markConnected(page)
+    await page.reload()
+    await hideDevOverlay(page)
+
+    const button = page.getByTestId('drive-sync-button')
+    await expect(button).toContainText(jaJP['list-view:sync'])
+    await button.click()
+
+    await expect(page.getByTestId('drive-sync-origin-dialog')).toBeVisible()
+    // Neither the pre-sync explanation nor the sync itself.
+    await expect(page.getByTestId('sync-explanation')).toBeHidden()
+    expect(google.trips()).toBe(0)
+    expect(new URL(page.url()).pathname).toBe(LIST_VIEW)
+  })
 })
+
+/** What a successful connect leaves behind, written the way the app reads it. */
+async function markConnected(page: Page) {
+  await page.evaluate(async () => {
+    const open = async (): Promise<IDBDatabase> => {
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open('VRChatWorldsManager')
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+        if (db.objectStoreNames.contains('googleAuthState')) {
+          return db
+        }
+        db.close()
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      throw new Error('the googleAuthState store never appeared')
+    }
+    const db = await open()
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction('googleAuthState', 'readwrite')
+      transaction
+        .objectStore('googleAuthState')
+        .put({ key: 'connected', value: 'true' })
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+    })
+    db.close()
+  })
+}
 
 test.describe('at an address Google does sign in from', () => {
   test('nothing about pages.dev is said, and connecting works as before', async ({

@@ -189,11 +189,14 @@ export const DriveSyncButton: FC = () => {
   }, [])
 
   const press = () => {
+    // Connected or not: a device connected here before the move is refused
+    // by Google just the same (`redirect_uri_mismatch`), so the press says
+    // where to go instead of leaving.
+    if (unavailableHostname !== null) {
+      setExplainingOrigin(true)
+      return
+    }
     if (connected !== true) {
-      if (unavailableHostname !== null) {
-        setExplainingOrigin(true)
-        return
-      }
       setExplaining('connect')
       return
     }
