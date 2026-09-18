@@ -207,7 +207,9 @@ describe('isOriginAllowed', () => {
 
     it('allows each one that is listed', () => {
       expect(isOriginAllowed('https://vrcww.com', CONFIGURED)).toBe(true)
-      expect(isOriginAllowed('https://develop.vrcww.com', CONFIGURED)).toBe(true)
+      expect(isOriginAllowed('https://develop.vrcww.com', CONFIGURED)).toBe(
+        true,
+      )
       expect(
         isOriginAllowed(
           'https://vrchat-worlds-manager-web.pages.dev',
