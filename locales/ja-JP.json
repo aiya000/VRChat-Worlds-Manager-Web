@@ -408,6 +408,8 @@
   "settings-page:logout-title": "VRChatからログアウト",
   "settings-page:logout-description": "VRChatアカウントからログアウトします",
   "settings-page:logout": "ログアウト",
+  "settings-page:signed-in-as": "サインイン中のアカウント:",
+  "settings-page:signed-in-unknown": "サインイン中のアカウントを確認できませんでした。",
   "settings-page:error-load-preferences": "設定の読み込みに失敗しました",
   "settings-page:error-save-preferences": "設定の保存に失敗しました",
   "settings-page:select-backup-directory": "バックアップ場所を選択",

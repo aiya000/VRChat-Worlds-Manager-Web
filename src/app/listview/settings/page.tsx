@@ -17,6 +17,7 @@ import { VR_UI_SCALE } from '@/lib/ui-scale'
 import { GoogleDriveSection } from './components/google-drive-section'
 import { MemoConflictsSection } from './components/memo-conflicts-section'
 import { PushSettingsSection } from './components/push-settings-section'
+import { SignedInAccount } from './components/signed-in-account'
 import { WorldCardPreview } from '@/components/world-card'
 import { WorldCardFieldToggles } from '@/components/world-card-field-toggles'
 import { WorldDetailFieldToggles } from '@/components/world-detail-field-toggles'
@@ -623,6 +624,7 @@ export default function SettingsPage() {
               <div className="text-sm text-muted-foreground">
                 {t('settings-page:logout-description')}
               </div>
+              <SignedInAccount />
             </div>
             <Button variant="outline" onClick={handleLogout} className="gap-2">
               <LogOut className="h-4 w-4" />
