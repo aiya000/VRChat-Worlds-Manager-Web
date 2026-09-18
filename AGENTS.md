@@ -711,8 +711,17 @@ selector and always wires a new domain to production, so the record has to be ed
 afterwards (and left proxied, or it falls back to production).
 
 Every one of these four is a stable address, not a per-build preview, so each can be
-registered with third parties -- they are the authorised JavaScript origins on the
-Google OAuth client, and they are what `ALLOWED_ORIGIN` lists for the Worker.
+registered with third parties. **A new origin has to be added in three places, and only one
+of them is in this repository:**
+
+- the Google OAuth client: as an authorised JavaScript origin, and `https://<origin>/google-auth`
+  as an authorised redirect URI
+- the Worker: `ALLOWED_ORIGIN` in `worker/wrangler.sample.toml`, a comma-separated list
+- **the Turnstile widget's Hostnames** (Cloudflare dashboard → Turnstile). This is the one that
+  was forgotten when `vrcww.com` was added: the widget refuses to run on a hostname it was not
+  given, the frontend reports that as a failed bot check, and every sign-in at the new origin
+  shows 「ボット確認に通りませんでした」 while the other two lists look right. Nothing in the
+  repository can catch it; the only test is signing in from the new origin in a real browser
 
 **Anything that has to be true of "the site" as the outside world sees it — a link an
 external verifier fetches, a file at a known path — is only true once it reaches
@@ -832,9 +841,11 @@ that they will notice, not every commit.
 
 Keep them about the length of an app-store update: a short list of what changed, with the
 one or two things people will notice in bold, and **no technical section** — the commits are
-the technical record. Lead with the note that Drive sync is still limited to registered
-test users for as long as that is true. A change that has not been checked on a real
-device does not go in the notes; leave it for the release after it is confirmed.
+the technical record. Up to v2.19.0 every set of notes led with "Drive sync is limited to
+registered test users"; since v3.0.0 the OAuth app is published with verified branding (#107)
+and any Google account can sync, so that line is gone and must not come back. A change that
+has not been checked on a real device does not go in the notes; leave it for the release
+after it is confirmed.
 
 ### A release PR re-runs CI that has already passed
 
