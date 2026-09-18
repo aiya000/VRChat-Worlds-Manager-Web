@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { useAbandonedGoogleTrip } from '@/hooks/use-abandoned-google-trip'
+import { useDriveSyncUnavailableHostname } from '@/hooks/use-drive-sync-origin'
 import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
 import { notifyDriveConnectionChanged } from '@/lib/services/drive-connection-changed'
+import { DriveSyncOriginNotice } from '@/components/drive-sync-origin-notice'
 import { VrProjectionNotice } from '@/components/vr-projection-notice'
 import {
   takeGoogleAuthResume,
@@ -68,6 +70,8 @@ export const GoogleDriveSection: FC<{
   const [unreadable, setUnreadable] = useState<string | null>(null)
   const [syncingElsewhere, setSyncingElsewhere] = useState(false)
   const [explaining, setExplaining] = useState(false)
+  // Google will not sign in from here (#205); connecting can only fail.
+  const unavailableHostname = useDriveSyncUnavailableHostname()
 
   /**
    * One press of the button: which failures are worth a sentence, and which
@@ -291,7 +295,9 @@ export const GoogleDriveSection: FC<{
           <Button
             variant="outline"
             className="gap-2"
-            disabled={busy || connected === null}
+            disabled={
+              busy || connected === null || unavailableHostname !== null
+            }
             onClick={connect}
           >
             <Cloud className="h-4 w-4" />
@@ -306,7 +312,13 @@ export const GoogleDriveSection: FC<{
           the step that goes to Google's sign-in, and this says where to open
           the app so that Google will answer. This card is also the Drive step
           of the first-run setup, so the same words appear there. */}
-      {connected !== true && <VrProjectionNotice />}
+      {unavailableHostname !== null ? (
+        // In place of the VR notice: that one is about making the trip to
+        // Google succeed, and from here there is no trip to make.
+        <DriveSyncOriginNotice hostname={unavailableHostname} />
+      ) : (
+        connected !== true && <VrProjectionNotice />
+      )}
 
       {/* Outside the connected block on purpose. It describes what connecting
           gets you -- a sync each time a button is pressed, and nothing else --

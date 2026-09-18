@@ -9,7 +9,9 @@ import {
   SyncExplanationDialog,
   type SyncExplanationMode,
 } from '@/components/sync-explanation-dialog'
+import { DriveSyncOriginDialog } from '@/components/drive-sync-origin-notice'
 import { useAbandonedGoogleTrip } from '@/hooks/use-abandoned-google-trip'
+import { useDriveSyncUnavailableHostname } from '@/hooks/use-drive-sync-origin'
 import { useLocalization } from '@/hooks/use-localization'
 import { commands } from '@/lib/commands'
 import {
@@ -61,6 +63,10 @@ export const DriveSyncButton: FC = () => {
   const [step, setStep] = useState<SyncStep | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [explaining, setExplaining] = useState<SyncExplanationMode | null>(null)
+  const [explainingOrigin, setExplainingOrigin] = useState(false)
+  // Google will not sign in from here (#205), so the press that would lead
+  // to connecting leads to saying where connecting works instead.
+  const unavailableHostname = useDriveSyncUnavailableHostname()
 
   useEffect(
     () =>
@@ -184,6 +190,10 @@ export const DriveSyncButton: FC = () => {
 
   const press = () => {
     if (connected !== true) {
+      if (unavailableHostname !== null) {
+        setExplainingOrigin(true)
+        return
+      }
       setExplaining('connect')
       return
     }
@@ -300,6 +310,13 @@ export const DriveSyncButton: FC = () => {
         }}
         onProceed={proceedAfterExplanation}
       />
+      {unavailableHostname !== null && (
+        <DriveSyncOriginDialog
+          hostname={unavailableHostname}
+          open={explainingOrigin}
+          onOpenChange={setExplainingOrigin}
+        />
+      )}
     </>
   )
 }
