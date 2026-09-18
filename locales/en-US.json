@@ -414,6 +414,8 @@
   "settings-page:logout-title": "Logout from VRChat",
   "settings-page:logout-description": "Logout from your VRChat account",
   "settings-page:logout": "Logout",
+  "settings-page:signed-in-as": "Signed in as:",
+  "settings-page:signed-in-unknown": "Could not confirm which account is signed in.",
   "settings-page:error-load-preferences": "Failed to load preferences",
   "settings-page:error-save-preferences": "Failed to save preferences",
   "settings-page:select-backup-directory": "Select Backup Location",
