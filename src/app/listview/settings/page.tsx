@@ -17,6 +17,9 @@ import { VR_UI_SCALE } from '@/lib/ui-scale'
 import { GoogleDriveSection } from './components/google-drive-section'
 import { MemoConflictsSection } from './components/memo-conflicts-section'
 import { PushSettingsSection } from './components/push-settings-section'
+import { SignedInAccount } from './components/signed-in-account'
+import { DriveSyncOriginNotice } from '@/components/drive-sync-origin-notice'
+import { useDriveSyncUnavailableHostname } from '@/hooks/use-drive-sync-origin'
 import { WorldCardPreview } from '@/components/world-card'
 import { WorldCardFieldToggles } from '@/components/world-card-field-toggles'
 import { WorldDetailFieldToggles } from '@/components/world-detail-field-toggles'
@@ -96,6 +99,7 @@ export default function SettingsPage() {
     openHiddenFolder,
     t,
   } = useSettingsPage()
+  const syncUnavailableHostname = useDriveSyncUnavailableHostname()
 
   return (
     <div className="ui-panel container max-w-4xl mx-auto p-6 space-y-6">
@@ -354,16 +358,24 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="sync" className="space-y-4">
-          <GoogleDriveSection />
-          {/* Renders nothing when there is nothing set aside, which is almost
-              always. */}
-          <MemoConflictsSection />
-          {/* Set apart from the cards above with extra room: this is the one
-              action here that overrules other devices, and it should not read
-              as an everyday neighbour of "sync now" (#119). */}
-          <div className="pt-6">
-            <PushSettingsSection />
-          </div>
+          {syncUnavailableHostname !== null ? (
+            // The whole tab, not a line in it: every card here ends in a trip
+            // to Google that this address cannot make, connected or not (#205).
+            <DriveSyncOriginNotice hostname={syncUnavailableHostname} />
+          ) : (
+            <>
+              <GoogleDriveSection />
+              {/* Renders nothing when there is nothing set aside, which is
+                  almost always. */}
+              <MemoConflictsSection />
+              {/* Set apart from the cards above with extra room: this is the
+                  one action here that overrules other devices, and it should
+                  not read as an everyday neighbour of "sync now" (#119). */}
+              <div className="pt-6">
+                <PushSettingsSection />
+              </div>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="data-management" className="space-y-4">
@@ -623,6 +635,7 @@ export default function SettingsPage() {
               <div className="text-sm text-muted-foreground">
                 {t('settings-page:logout-description')}
               </div>
+              <SignedInAccount />
             </div>
             <Button variant="outline" onClick={handleLogout} className="gap-2">
               <LogOut className="h-4 w-4" />
