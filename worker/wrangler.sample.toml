@@ -3,7 +3,13 @@ main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
 [vars]
-ALLOWED_ORIGIN = "https://vrchat-worlds-manager-web.pages.dev"
+# Comma-separated, and the first entry is what an origin this Worker turned
+# away is answered with. `vrcww.com` is the app's own domain; the `pages.dev`
+# one is kept because installed PWAs and bookmarks still reach the app there,
+# and listing it also keeps every branch preview working (`*.<project>.pages.dev`
+# is allowed by the rule in `isOriginAllowed`). `develop.vrcww.com` is named
+# outright: a custom domain's subdomains are not allowed on their own.
+ALLOWED_ORIGIN = "https://vrcww.com,https://develop.vrcww.com,https://vrchat-worlds-manager-web.pages.dev"
 VRCHAT_API_BASE = "https://api.vrchat.cloud/api/1"
 
 [[kv_namespaces]]

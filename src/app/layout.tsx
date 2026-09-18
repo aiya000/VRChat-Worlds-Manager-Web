@@ -31,7 +31,7 @@ const description =
 export const metadata: Metadata = {
   // Static export cannot resolve a relative OG image on its own, and the card
   // is fetched by a crawler that has no page to resolve it against.
-  metadataBase: new URL('https://vrchat-worlds-manager-web.pages.dev'),
+  metadataBase: new URL('https://vrcww.com'),
   title,
   description,
   openGraph: {
@@ -56,13 +56,17 @@ export const metadata: Metadata = {
     description,
     images: ['/og-image.png'],
   },
-  // Search Console's "HTML tag" method, alongside the file method that
-  // `public/google1115d8bfd0d506b1.html` already answers. Both prove the same
-  // ownership, and the ownership is what Google's brand verification for the
-  // OAuth consent screen rests on; the file is only ever served through
-  // Cloudflare's 308 from `.html` to the extensionless path, so a second
-  // method that needs no redirect is worth carrying. Not a secret: it is
-  // published in the markup by design.
+  // Search Console's "HTML tag" method for the `pages.dev` origin, alongside
+  // the file method that `public/google1115d8bfd0d506b1.html` answers.
+  //
+  // Neither is what the brand verification rests on any more -- `vrcww.com` is
+  // verified as a Search Console *domain property*, by a DNS TXT record, which
+  // is the one thing a `pages.dev` subdomain could never offer and the reason
+  // three submissions were refused (#107). These two stay because the app is
+  // still served at `pages.dev`, and dropping the proof of a domain the app
+  // answers at buys nothing.
+  //
+  // Not a secret: it is published in the markup by design.
   verification: {
     google: 'F0K7K2bqSmwGscKVE1YWHcmyAwfEWD0Nf3Yb2Rba7SQ',
   },
