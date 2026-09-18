@@ -689,7 +689,7 @@ Always write commit messages in English.
 - **`develop` branch is the primary working branch**:
   - Direct pushes and feature PRs should target `develop`.
 - **Do NOT routinely merge into `main` or create PRs targeting `main`**:
-  - The `main` branch represents production releases (e.g. deployed to https://vrchat-worlds-manager-web.pages.dev/ ).
+  - The `main` branch represents production releases (e.g. deployed to https://vrcww.com/ ).
   - **Only merge `develop` into `main` (via PR) when explicitly instructed by the user** (i.e. when a production release is specifically desired).
 - **Do not pass `--delete-branch` when merging a release PR** — the head branch is `develop`, and deleting it would remove the primary working branch.
 
@@ -697,14 +697,22 @@ Always write commit messages in English.
 
 `.github/workflows/deploy-frontend.yml` deploys on a push to either branch:
 
-| Branch    | URL                                                 |
-| --------- | --------------------------------------------------- |
-| `main`    | https://vrchat-worlds-manager-web.pages.dev         |
-| `develop` | https://develop.vrchat-worlds-manager-web.pages.dev |
+| Branch    | URL                       | Also answers at                                     |
+| --------- | ------------------------- | --------------------------------------------------- |
+| `main`    | https://vrcww.com         | https://vrchat-worlds-manager-web.pages.dev         |
+| `develop` | https://develop.vrcww.com | https://develop.vrchat-worlds-manager-web.pages.dev |
 
-The `develop` URL is a stable Cloudflare branch alias, not a per-build preview, so it
-can be registered with third parties (it is one of the authorised JavaScript origins on
-the Google OAuth client).
+`vrcww.com` is the app's own domain and the one Google is given. The `pages.dev` pair
+stays alive because installed PWAs and bookmarks still reach the app there.
+
+`develop.vrcww.com` is a Pages custom domain whose DNS `CNAME` was **hand-pointed at the
+branch alias** rather than at the project: the Custom domains screen has no branch
+selector and always wires a new domain to production, so the record has to be edited
+afterwards (and left proxied, or it falls back to production).
+
+Every one of these four is a stable address, not a per-build preview, so each can be
+registered with third parties -- they are the authorised JavaScript origins on the
+Google OAuth client, and they are what `ALLOWED_ORIGIN` lists for the Worker.
 
 **Anything that has to be true of "the site" as the outside world sees it — a link an
 external verifier fetches, a file at a known path — is only true once it reaches
@@ -721,18 +729,29 @@ Console verifier does follow it -- the HTML-file method verified through the 308
 an external service is told to look for a file at a literal path, expect the redirect and keep
 the meta-tag equivalent ready as a fallback.
 
-### `public/google1115d8bfd0d506b1.html` proves the domain is ours
+### Two domains are proven to be ours, in two different ways
 
-It is the Google Search Console site-ownership token, and the ownership it proves is what
-Google's brand verification for the OAuth consent screen rests on. `pages.dev` gives us no DNS
-to prove ownership with, so the HTML-file method is the only one open to us.
+Google's brand verification for the OAuth consent screen rests on owning the domain the home
+page is served from, and it wants that proven **for the whole domain, not for one URL**. That
+is a Search Console _domain property_, verified by a DNS `TXT` record.
 
-- **Deleting it revokes the domain ownership, and the brand verification with it.** It stays
-  even after Search Console says "verified"
+- **`vrcww.com` is a domain property**, verified by DNS. This is what the brand verification
+  now rests on. A `pages.dev` subdomain can never be one -- the zone belongs to Cloudflare, so
+  there is nowhere to put the record -- and that, not the page's content, is why three
+  submissions were refused (#107)
+- **`vrchat-worlds-manager-web.pages.dev` is a URL-prefix property**, proven twice over:
+  `public/google1115d8bfd0d506b1.html` (file method) and `verification: { google: '...' }` in
+  the `metadata` of `src/app/layout.tsx` (HTML-tag method)
+
+Both `pages.dev` proofs stay. The app still answers there, and dropping the proof of an origin
+the app is reachable at buys nothing.
+
+- **Do not delete `public/google1115d8bfd0d506b1.html`.** It stays even after Search Console
+  says "verified"
 - It is in `.prettierignore` deliberately. Google compares the bytes verbatim, including the
   absent trailing newline, so formatting the file breaks it
-- If the file method is ever rejected, the fallback is Search Console's "HTML tag" method:
-  `verification: { google: '...' }` in the `metadata` of `src/app/layout.tsx`
+- The file is only ever served through Cloudflare's 308 from `.html` to the extensionless
+  path, which is why the HTML-tag method is carried beside it
 
 ### `/` is the brand-verification landing page, and it must never navigate on its own
 

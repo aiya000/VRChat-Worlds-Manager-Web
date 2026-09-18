@@ -197,6 +197,58 @@ describe('isOriginAllowed', () => {
     expect(isOriginAllowed('https://anything.example.com', '*')).toBe(true)
   })
 
+  /**
+   * The app answers at its own domain and at the `pages.dev` one it was
+   * reached at before that domain existed, so the setting is a list.
+   */
+  describe('with several origins configured', () => {
+    const CONFIGURED =
+      'https://vrcww.com,https://develop.vrcww.com,https://vrchat-worlds-manager-web.pages.dev'
+
+    it('allows each one that is listed', () => {
+      expect(isOriginAllowed('https://vrcww.com', CONFIGURED)).toBe(true)
+      expect(isOriginAllowed('https://develop.vrcww.com', CONFIGURED)).toBe(true)
+      expect(
+        isOriginAllowed(
+          'https://vrchat-worlds-manager-web.pages.dev',
+          CONFIGURED,
+        ),
+      ).toBe(true)
+    })
+
+    it('still allows a Pages preview subdomain of the listed project', () => {
+      expect(
+        isOriginAllowed(
+          'https://feature-web.vrchat-worlds-manager-web.pages.dev',
+          CONFIGURED,
+        ),
+      ).toBe(true)
+    })
+
+    // The reason `develop.vrcww.com` is listed by name rather than reached by
+    // a rule: owning the domain is not a statement about every subdomain of it.
+    it('does not allow an unlisted subdomain of the custom domain', () => {
+      expect(isOriginAllowed('https://evil.vrcww.com', CONFIGURED)).toBe(false)
+    })
+
+    it('rejects a hostname that merely ends with a listed one', () => {
+      expect(isOriginAllowed('https://notvrcww.com', CONFIGURED)).toBe(false)
+    })
+
+    it('rejects a scheme downgrade on a listed origin', () => {
+      expect(isOriginAllowed('http://vrcww.com', CONFIGURED)).toBe(false)
+    })
+
+    it('ignores spacing around the separators', () => {
+      expect(
+        isOriginAllowed(
+          'https://develop.vrcww.com',
+          ' https://vrcww.com , https://develop.vrcww.com ',
+        ),
+      ).toBe(true)
+    })
+  })
+
   it('rejects an empty/malformed origin', () => {
     expect(
       isOriginAllowed('', 'https://vrchat-worlds-manager-web.pages.dev'),

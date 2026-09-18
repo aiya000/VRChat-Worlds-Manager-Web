@@ -279,12 +279,30 @@ export function buildVRChatCookieHeader(
 }
 
 /**
+ * The app is served from more than one origin -- its own domain, and the
+ * `pages.dev` one it was reached at before that domain existed -- so
+ * `ALLOWED_ORIGIN` is a comma-separated list and an origin need match only
+ * one entry. A single origin is still a list of one, so nothing that
+ * configured it that way has to change.
+ */
+function allowedOrigins(allowedOrigin: string): string[] {
+  return allowedOrigin
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== '')
+}
+
+/**
  * Cloudflare Pages serves every branch/preview deployment of a project under
  * `<branch>.<project>.pages.dev`, and only the project owner can deploy to
- * that subdomain — so when `allowedOrigin` is itself a `*.pages.dev` origin,
- * also allow its preview subdomains. This isn't a wildcard over all of
+ * that subdomain — so when an entry is itself a `*.pages.dev` origin, also
+ * allow its preview subdomains. This isn't a wildcard over all of
  * `pages.dev`: an unrelated project can never obtain a hostname ending in
  * `.<project>.pages.dev`.
+ *
+ * A custom domain gets no such treatment, deliberately: nothing about owning
+ * `example.com` says every `*.example.com` is this app. A subdomain that
+ * serves it -- `develop.` does -- is listed in `ALLOWED_ORIGIN` by name.
  */
 export function isOriginAllowed(
   origin: string,
@@ -293,27 +311,34 @@ export function isOriginAllowed(
   if (allowedOrigin === '*') {
     return true
   }
-  if (origin === allowedOrigin) {
+
+  const entries = allowedOrigins(allowedOrigin)
+  if (entries.includes(origin)) {
     return true
   }
 
-  try {
-    const allowed = new URL(allowedOrigin)
-    const requested = new URL(origin)
-    return (
-      requested.protocol === allowed.protocol &&
-      allowed.hostname.endsWith('.pages.dev') &&
-      requested.hostname.endsWith(`.${allowed.hostname}`)
-    )
-  } catch {
-    return false
-  }
+  return entries.some((entry) => {
+    try {
+      const allowed = new URL(entry)
+      const requested = new URL(origin)
+      return (
+        requested.protocol === allowed.protocol &&
+        allowed.hostname.endsWith('.pages.dev') &&
+        requested.hostname.endsWith(`.${allowed.hostname}`)
+      )
+    } catch {
+      return false
+    }
+  })
 }
 
 function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
+  // An origin this Worker turned away is still answered with a single valid
+  // origin rather than the whole list, which is not a value the header can
+  // carry. The first entry is the app's own domain.
   const effectiveOrigin = isOriginAllowed(origin, allowedOrigin)
     ? origin
-    : allowedOrigin
+    : (allowedOrigins(allowedOrigin)[0] ?? allowedOrigin)
   return {
     'Access-Control-Allow-Origin': effectiveOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',

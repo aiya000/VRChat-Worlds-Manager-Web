@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-const PRODUCTION = 'https://vrchat-worlds-manager-web.pages.dev'
+const PRODUCTION = 'https://vrcww.com'
 
 /**
  * The dev server streams the head and React renders it again, so a tag can
