@@ -6,6 +6,11 @@ const SETTINGS_SYNC = '/listview/settings?tab=sync'
 
 test.use({ serviceWorkers: 'block' })
 
+interface Point {
+  x: number
+  y: number
+}
+
 // Sonner draws each toast as a list item inside its notifications region.
 const toasts = (page: Page) =>
   page.getByRole('region', { name: /Notifications/ }).getByRole('listitem')
@@ -34,6 +39,67 @@ async function raiseAToast(page: Page): Promise<Locator> {
 }
 
 /**
+ * Where the toast is once it has stopped moving.
+ *
+ * A toast is visible from the moment it is in the DOM, but it slides in from
+ * below over sonner's 400ms, so a box taken straight away is of somewhere it
+ * is passing through -- a fast machine caught it settled and CI did not.
+ */
+async function settledCentre(toast: Locator): Promise<Point> {
+  await expect(toast).toHaveAttribute('data-mounted', 'true')
+  await toast.evaluate((element) =>
+    Promise.all(
+      element
+        .getAnimations({ subtree: true })
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  )
+  const box = (await toast.boundingBox())!
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+}
+
+/**
+ * A finger on the screen, delivered as Chrome delivers one.
+ *
+ * Sonner reads pointer events, and a `TouchEvent` built in the page (the way
+ * `sidebar-swipe.spec.ts` does it) never becomes one. A mouse drag does reach
+ * sonner, but ends in a `click` -- Chrome fires one however far a mouse moved
+ * between down and up -- and a click is now a way to put a toast away, so a
+ * mouse cannot show that a swipe is not. A touch through CDP is the phone's
+ * gesture as the page sees it: pointer events for sonner, touch events for
+ * the sidebar, and no click once the finger has moved.
+ */
+async function touch(page: Page, at: Point) {
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [at],
+  })
+  return {
+    async moveTo(to: Point, steps = 6) {
+      for (let step = 1; step <= steps; step += 1) {
+        await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: [
+            {
+              x: at.x + ((to.x - at.x) * step) / steps,
+              y: at.y + ((to.y - at.y) * step) / steps,
+            },
+          ],
+        })
+      }
+    },
+    async lift() {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchEnd',
+        touchPoints: [],
+      })
+      await cdp.detach()
+    },
+  }
+}
+
+/**
  * A swipe was the only way to put a toast away by hand, and it is the wrong
  * gesture on both of the screens this app is for: on a phone it is the
  * sidebar's, and in VR a laser cannot drag. A tap is what both can do (#211).
@@ -49,38 +115,32 @@ test.describe('putting a toast away', () => {
     await expect(toast).toBeHidden({ timeout: 1500 })
   })
 
-  test('a sideways drag is not a way any more', async ({ page }) => {
+  test('a sideways swipe is not a way any more', async ({ page }) => {
     const toast = await raiseAToast(page)
-    const box = (await toast.boundingBox())!
+    const centre = await settledCentre(toast)
 
-    // The drag a sidebar swipe would make, delivered as sonner sees it.
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, {
-      steps: 6,
-    })
-    await page.mouse.move(box.x + box.width / 2 + 160, box.y + box.height / 2, {
-      steps: 6,
-    })
-    await page.mouse.up()
+    const finger = await touch(page, centre)
+    await finger.moveTo({ x: centre.x + 160, y: centre.y })
+
+    // The finger did reach sonner -- it is holding the toast -- and the toast
+    // did not go with it. Without the first, the second would prove nothing.
+    await expect(toast).toHaveAttribute('data-swiping', 'true')
+    await expect(toast).toHaveAttribute('data-swiped', 'false')
+
+    await finger.lift()
 
     await page.waitForTimeout(500)
     await expect(toast).toBeVisible()
   })
 
-  test('a drag down still is', async ({ page }) => {
+  test('a swipe down still is', async ({ page }) => {
     const toast = await raiseAToast(page)
-    const box = (await toast.boundingBox())!
+    const centre = await settledCentre(toast)
 
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 40, {
-      steps: 6,
-    })
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 120, {
-      steps: 6,
-    })
-    await page.mouse.up()
+    const finger = await touch(page, centre)
+    await finger.moveTo({ x: centre.x, y: centre.y + 120 })
+    await expect(toast).toHaveAttribute('data-swiped', 'true')
+    await finger.lift()
 
     await expect(toast).toBeHidden({ timeout: 1500 })
   })
