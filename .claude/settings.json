@@ -6,6 +6,7 @@
       "Bash(git fetch:*)",
       "Bash(git pull:*)",
       "Bash(bunx playwright:*)",
+      "Bash(bun run test:*)",
       "mcp__chrome-devtools",
       "mcp__chrome-attach"
     ]
