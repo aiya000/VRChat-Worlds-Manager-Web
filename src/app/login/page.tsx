@@ -107,13 +107,19 @@ export default function Login() {
             password has to be told so before the fields rather than under
             them. Google Safe Browsing read the earlier layout -- a "Login to
             VRChat" heading sitting over credential fields on a domain that is
-            not VRChat's -- as a phishing page, and blocked the site. */}
-        <div className="rounded-md border-2 border-amber-500 bg-amber-50 p-4 dark:bg-amber-950/40">
+            not VRChat's -- as a phishing page, and blocked the site. Who runs
+            this site and what becomes of the credentials are the same
+            question, so both answers are read in one place. */}
+        <div className="space-y-2 rounded-md border-2 border-amber-500 bg-amber-50 p-4 dark:bg-amber-950/40">
           <p className="text-center text-sm font-bold">
             {t('login-page:unofficial-title')}
           </p>
-          <p className="mt-2 text-center text-xs">
+          <p className="text-center text-xs">
             {t('login-page:unofficial-text')}
+          </p>
+          <p className="text-center text-xs">
+            <span className="font-bold">{t('login-page:notice-title')}</span>{' '}
+            {t('login-page:notice-text')}
           </p>
         </div>
         <h2 className="text-2xl font-bold text-center">
@@ -163,15 +169,11 @@ export default function Login() {
             )}
           </Button>
 
-          <div className="mt-4 p-4 border-2 border-red-500 rounded-md">
-            <p className="text-sm text-center">
-              <span className="font-bold">{t('login-page:notice-title')}</span>{' '}
-              {t('login-page:notice-text')}
-            </p>
-            <p className="text-xs text-center mt-2">
-              {t('login-page:terms-text')}
-            </p>
-          </div>
+          {/* Signing in is the act that agrees, so the sentence saying so
+              stays beside the button rather than moving up with the rest. */}
+          <p className="text-xs text-center text-muted-foreground">
+            {t('login-page:terms-text')}
+          </p>
 
           {/* Signing in is what agrees to the terms, and this is the screen
               where a VRChat password gets typed, so both documents are one
