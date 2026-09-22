@@ -103,6 +103,19 @@ export default function Login() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-24">
       <div className="w-full max-w-md space-y-4">
+        {/* This is not vrchat.com, and the person about to type a VRChat
+            password has to be told so before the fields rather than under
+            them. Google Safe Browsing read the earlier layout -- a "Login to
+            VRChat" heading sitting over credential fields on a domain that is
+            not VRChat's -- as a phishing page, and blocked the site. */}
+        <div className="rounded-md border-2 border-amber-500 bg-amber-50 p-4 dark:bg-amber-950/40">
+          <p className="text-center text-sm font-bold">
+            {t('login-page:unofficial-title')}
+          </p>
+          <p className="mt-2 text-center text-xs">
+            {t('login-page:unofficial-text')}
+          </p>
+        </div>
         <h2 className="text-2xl font-bold text-center">
           {t('login-page:title')}
         </h2>
