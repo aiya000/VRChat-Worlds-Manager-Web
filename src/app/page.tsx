@@ -38,10 +38,14 @@ export default function Home() {
       </div>
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center gap-10 px-6 pb-16 pt-8">
         <div className="flex flex-col items-center gap-6 text-center">
-          {/* 512px for a 128px slot: the icon has fine linework that would go
-              soft on a phone's display otherwise. */}
+          {/* 384px for a 128px slot, in WebP: three times over keeps the
+              linework crisp on a phone, and the format is what stops that
+              costing 200KB. It used to be the 512px PNG `manifest.json`
+              installs, whose `priority` preload Cloudflare promotes to Early
+              Hints -- so it arrived ahead of the render-blocking CSS, and a
+              first visit with a cold cache painted at 2.4s because of it. */}
           <Image
-            src="/icons/icon-512.png"
+            src="/icons/icon-384.webp"
             alt=""
             width={128}
             height={128}
