@@ -1,12 +1,13 @@
 {
   "permissions": {
+    "// WSLg（GUI）を使うものは、2026-09-12にchrome-devtools MCPが6セット常駐しOOMでセッションが落ちたため、一度はaskにしていた。確認が多すぎたので2026-09-23に許可へ戻した。代わりに、開いたページとブラウザコンテキストはその場で閉じること": "",
     "allow": [
       "Bash(git push:*)",
       "Bash(git fetch:*)",
       "Bash(git pull:*)",
-      "Bash(bunx playwright:*)"
-    ],
-    "// WSLg（GUI）を使うものは必ず確認を取る。2026-09-12にchrome-devtools MCPが6セット常駐し、OOMでセッションが落ちたため": "",
-    "ask": ["mcp__chrome-devtools", "mcp__chrome-attach"]
+      "Bash(bunx playwright:*)",
+      "mcp__chrome-devtools",
+      "mcp__chrome-attach"
+    ]
   }
 }
