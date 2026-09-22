@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -12,16 +11,6 @@ import { StaleBundleNotice } from '@/components/stale-bundle-notice'
 import { UiScaleEffect } from '@/components/ui-scale-effect'
 import { BackendLimitNotice } from '@/components/backend-limit-notice'
 import { ExitGuard } from '@/components/exit-guard'
-
-const _geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-})
-
-const _geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
 
 const siteName = 'VRChat Worlds Manager Web'
 const title = 'VRChat Worlds Manager Web｜VRChat のお気に入りワールドを整理する'

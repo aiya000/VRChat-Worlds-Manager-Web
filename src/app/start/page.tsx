@@ -81,10 +81,13 @@ export default function Start() {
   return (
     <div className="flex min-h-svh w-full flex-col">
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6">
-        {/* 512px for a 128px slot: the icon has fine linework that would go
-            soft on a phone's display otherwise. */}
+        {/* 384px for a 128px slot, in WebP: three times over keeps the
+            linework crisp on a phone, and the format is what stops that
+            costing 200KB. The 512px PNG `manifest.json` installs is preloaded
+            ahead of the render-blocking CSS when it is used here, which is
+            what it cost `/` on a cold cache. */}
         <Image
-          src="/icons/icon-512.png"
+          src="/icons/icon-384.webp"
           alt="VRChat Worlds Manager Web"
           width={128}
           height={128}
