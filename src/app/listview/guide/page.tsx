@@ -47,6 +47,15 @@ export default function GuidePage() {
             <VrProjectionNotice />
           </CardContent>
         </Card>
+
+        {/* The two cards above answer for this device only. The public guide
+            holds the steps for every device, for someone setting up another. */}
+        <Link
+          href="/guide?back=%2Flistview%2Fguide"
+          className="inline-block text-sm underline underline-offset-2"
+        >
+          {t('guide-page:full-guide-link')}
+        </Link>
       </div>
 
       {/* Where a reader ends up when the guide did not answer them. Drawn as

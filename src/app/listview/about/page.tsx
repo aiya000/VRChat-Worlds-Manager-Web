@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { SiGithub } from '@icons-pack/react-simple-icons'
 import { CONTACT_PAGE_PATH } from '@/components/contact-links'
 import {
+  BookOpen,
   ChevronRight,
   FileText,
   Heart,
@@ -69,6 +70,11 @@ export default function AboutSection() {
 
         <Card>
           <CardContent className="divide-y p-0">
+            <AboutRow
+              href={backToHere('/guide')}
+              icon={BookOpen}
+              title={t('public-guide:link-label')}
+            />
             <AboutRow
               href={backToHere('/terms')}
               icon={FileText}

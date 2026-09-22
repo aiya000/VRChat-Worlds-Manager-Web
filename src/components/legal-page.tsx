@@ -35,7 +35,7 @@ const readBackHref = (): string => {
     : DEFAULT_BACK
 }
 
-const useBackHref = (): string =>
+export const useBackHref = (): string =>
   useSyncExternalStore(subscribeToNothing, readBackHref, () => DEFAULT_BACK)
 
 /**
