@@ -84,6 +84,12 @@ export default function Home() {
       </main>
       <footer className="flex justify-center gap-4 pb-6 text-center">
         <Link
+          href="/guide"
+          className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+        >
+          {t('public-guide:link-label')}
+        </Link>
+        <Link
           href="/terms"
           className="text-xs text-muted-foreground underline-offset-2 hover:underline"
         >

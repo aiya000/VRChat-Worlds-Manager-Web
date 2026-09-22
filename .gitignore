@@ -22,6 +22,9 @@
 # production
 /build
 
+# BOOTH PDFs, written by `bun run booth:pdf`
+/booth/dist/
+
 # misc
 .DS_Store
 *.pem
