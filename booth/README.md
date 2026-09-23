@@ -1,0 +1,31 @@
+# BOOTH
+
+What this app hands out on BOOTH, kept here so it can be edited like the rest of the repository (#162).
+
+The app itself is a web app, so the BOOTH item is only a way in: the item page points at `https://vrcww.com`, and the
+downloadable files are getting-started PDFs.
+
+| File                         | What it is                                                              |
+| ---------------------------- | ----------------------------------------------------------------------- |
+| `guide.ja.md`, `guide.en.md` | The source of the PDFs                                                  |
+| `description.md`             | The item's name, price and description, ready to paste into BOOTH       |
+| `assets.md`                  | Which images to upload and what to set when listing the item (Japanese) |
+| `dist/` (not tracked)        | The PDFs, written by `bun run booth:pdf`                                |
+
+## The PDF holds only what does not go stale
+
+A PDF someone has already downloaded cannot be corrected. So the PDF carries the outline of getting started and a link
+to `https://vrcww.com/guide`, and everything that changes with the browsers -- where the install button is, what the
+menu item is called -- lives on that page (`src/app/guide/page.tsx`).
+
+Change the PDF only when the outline or a URL changes. Anything more detailed belongs on `/guide`.
+
+## Writing the PDFs
+
+```sh
+bun run booth:pdf
+```
+
+It renders each `guide.<lang>.md` with the Chromium that Playwright installs for the e2e tests (`bunx playwright
+install chromium` once, if it is missing) and writes `dist/vrcww-guide-<lang>.pdf`. It needs a network connection: the
+font is fetched from Google Fonts, so every machine produces the same file.
