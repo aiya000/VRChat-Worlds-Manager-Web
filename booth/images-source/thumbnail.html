@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>BOOTH thumbnail</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        zoom: 2;
+      }
+      html,
+      body {
+        width: 1200px;
+        height: 1200px;
+        overflow: hidden;
+      }
+      body {
+        font-family: 'Noto Sans CJK JP', 'Noto Sans JP', sans-serif;
+        color: #fff;
+        background:
+          radial-gradient(
+            900px 600px at 15% 10%,
+            rgba(88, 120, 255, 0.45),
+            transparent 60%
+          ),
+          radial-gradient(
+            800px 700px at 95% 30%,
+            rgba(170, 90, 255, 0.4),
+            transparent 60%
+          ),
+          radial-gradient(
+            1000px 600px at 50% 110%,
+            rgba(40, 170, 255, 0.35),
+            transparent 60%
+          ),
+          linear-gradient(160deg, #0d1233 0%, #150f35 50%, #0a0d24 100%);
+        position: relative;
+      }
+      .sparkle {
+        position: absolute;
+        color: #fff;
+        opacity: 0.8;
+        font-size: 28px;
+      }
+      .header {
+        position: absolute;
+        top: 56px;
+        left: 56px;
+        right: 56px;
+        display: flex;
+        align-items: center;
+        gap: 28px;
+      }
+      .icon {
+        width: 330px;
+        height: 330px;
+        flex: none;
+        filter: drop-shadow(0 12px 30px rgba(80, 140, 255, 0.45));
+      }
+      .title {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .vrcww {
+        font-size: 150px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: 4px;
+        background: linear-gradient(
+          90deg,
+          #6fb6ff 0%,
+          #8f8bff 50%,
+          #d18cff 100%
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        filter: drop-shadow(0 4px 18px rgba(140, 120, 255, 0.5));
+      }
+      .full {
+        font-size: 43px;
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: 0.5px;
+      }
+      .tagline {
+        margin-top: 8px;
+        font-size: 39px;
+        font-weight: 700;
+        white-space: nowrap;
+        color: #fff;
+      }
+      .tagline em {
+        font-style: normal;
+        color: #ffd76a;
+      }
+      .badges {
+        position: absolute;
+        top: 432px;
+        left: 56px;
+        right: 56px;
+        display: flex;
+        gap: 18px;
+        justify-content: center;
+      }
+      .badge {
+        font-size: 38px;
+        font-weight: 900;
+        padding: 12px 30px;
+        border-radius: 999px;
+        border: 3px solid rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.08);
+        white-space: nowrap;
+      }
+      .badge.free {
+        background: #ff4f8b;
+        border-color: #ff4f8b;
+      }
+      .shot-wrap {
+        position: absolute;
+        left: 50%;
+        top: 560px;
+        width: 1100px;
+        transform: translateX(-50%) perspective(2400px) rotateX(8deg);
+        transform-origin: top center;
+      }
+      .shot {
+        width: 100%;
+        display: block;
+        border-radius: 22px;
+        border: 3px solid rgba(160, 170, 255, 0.55);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.6),
+          0 30px 80px rgba(60, 90, 255, 0.45),
+          0 0 120px rgba(170, 90, 255, 0.35);
+      }
+      .fade {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 110px;
+        background: linear-gradient(transparent, rgba(10, 13, 36, 0.9));
+      }
+    </style>
+  </head>
+  <body>
+    <span class="sparkle" style="top: 40px; left: 620px">✦</span>
+    <span class="sparkle" style="top: 380px; left: 1120px; font-size: 22px"
+      >✦</span
+    >
+    <span
+      class="sparkle"
+      style="top: 30px; left: 1110px; font-size: 36px; color: #c9a2ff"
+      >✦</span
+    >
+
+    <div class="header">
+      <img class="icon" src="../../public/icons/icon-512.png" alt="" />
+      <div class="title">
+        <div class="vrcww">VRCWW</div>
+        <div class="full">VRChat Worlds Manager Web</div>
+        <div class="tagline">お気に入りワールドを、<em>フォルダで整理</em></div>
+      </div>
+    </div>
+
+    <div class="badges">
+      <span class="badge free">無料</span>
+      <span class="badge">ブラウザで動く</span>
+      <span class="badge">PC / スマホ / VR</span>
+    </div>
+
+    <div class="shot-wrap">
+      <img class="shot" src="../images/desktop.png" alt="" />
+    </div>
+    <div class="fade"></div>
+  </body>
+</html>

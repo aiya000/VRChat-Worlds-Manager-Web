@@ -10,7 +10,18 @@ downloadable files are getting-started PDFs.
 | `guide.ja.md`, `guide.en.md` | The source of the PDFs                                                  |
 | `description.md`             | The item's name, price and description, ready to paste into BOOTH       |
 | `assets.md`                  | Which images to upload and what to set when listing the item (Japanese) |
+| `images/`                    | The images uploaded to the BOOTH item, as they were uploaded            |
+| `images-source/`             | What `images/` was made from, kept so an image can be made again        |
 | `dist/` (not tracked)        | The PDFs, written by `bun run booth:pdf`                                |
+
+## The item images
+
+`images/` holds exactly what is on the BOOTH item page, so it is the thing to compare against when the page is edited.
+
+- `booth-thumbnail.png` is `images-source/thumbnail.html` rendered at 2400 x 2400 (the page is 1200px at `zoom: 2`). It
+  draws the app icon from `public/icons/` and `images/desktop.png`, so render it from where it sits
+- The screenshots show demo worlds, not anyone's real collection. `images-source/worlds/` holds the thumbnails those
+  demo worlds were given
 
 ## The PDF holds only what does not go stale
 
