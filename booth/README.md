@@ -22,6 +22,18 @@ downloadable files are getting-started PDFs.
   draws the app icon from `public/icons/` and `images/desktop.png`, so render it from where it sits
 - The screenshots show demo worlds, not anyone's real collection. `images-source/worlds/` holds the thumbnails those
   demo worlds were given
+- `images-source/thumbnail.en.html` is the same thumbnail with its words in English, for the English README. Only the
+  words differ; the screenshot inside is still the Japanese UI. It is not on BOOTH, so its render is not in `images/`
+
+The READMEs show the thumbnail from `docs/thumbnail.ja.webp` and `docs/thumbnail.en.webp`: each render scaled to 960px
+and encoded as WebP (about 100KB, against 2.8MB for the PNG), shown at 480px. Change a thumbnail's HTML, and those two
+are made again from the new render:
+
+```sh
+bunx playwright screenshot --viewport-size=2400,2400 file://$PWD/booth/images-source/thumbnail.en.html en.png
+convert en.png -resize 960x960 en-960.png
+cwebp -q 88 en-960.png -o docs/thumbnail.en.webp
+```
 
 ## The PDF holds only what does not go stale
 
