@@ -82,7 +82,11 @@ export const PushSettingsSection: FC = () => {
   const push = async () => {
     // Refused rather than queued: a sync started from another button would
     // otherwise race this one against the same file.
-    if (!tryBeginSync()) {
+    const claim = tryBeginSync()
+    if (claim.kind === 'refused') {
+      if (claim.because === 'fetching') {
+        toast(t('settings-page:google-drive-sync-refused-fetching'))
+      }
       return
     }
     setPushing(true)
@@ -94,6 +98,7 @@ export const PushSettingsSection: FC = () => {
     try {
       const result = await commands.pushSettingsToAllDevices(
         SYNC_SETTINGS_PATH,
+        claim.signal,
         setStep,
       )
       if (result.status === 'error') {
@@ -106,6 +111,16 @@ export const PushSettingsSection: FC = () => {
       }
       if (result.data.kind === 'reauth-needed') {
         toast(t('settings-page:google-drive-reauth-needed'))
+        return
+      }
+      if (result.data.kind === 'aborted') {
+        toast(t('settings-page:google-drive-sync-aborted'))
+        return
+      }
+      if (result.data.kind === 'timed-out') {
+        toast(t('general:error-title'), {
+          description: t('settings-page:google-drive-sync-timed-out'),
+        })
         return
       }
 

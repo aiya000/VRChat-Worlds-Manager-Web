@@ -298,6 +298,16 @@ both sync buttons do -- or the folder list and the grid keep showing what they l
   it says a local change is waiting (`unsynced-changes.ts`), and the first press shows what
   syncing is. A sync without a press would now leave the page for Google with nobody having
   asked, which is worse than a blocked popup, so keep every sync behind a click
+- **Nothing may write to the local database while a sync runs (#221).** The sync writes back
+  what it read at the start, so a row changed in between reverts to the older copy.
+  `SyncProgressDialog` (root layout) covers the app until the sync ends, and a background job
+  that writes -- fetching favourites from VRChat is the one today -- has to run inside
+  `withoutSyncing()` so a sync cannot start under it. A new job like that needs the same
+  wrapper. The dialog's stop button aborts the sync's `AbortSignal`, and is disabled once the
+  sync reaches `applying`: before that nothing on the device has changed, and a merge already
+  written to Drive is simply merged again next time
+- **Every Drive request gives up after `DRIVE_REQUEST_TIMEOUT_MS` (#220)**, and the backup is
+  made with Drive's own copy rather than a second upload
 - **A pulled change must not be pushed straight back.** `asRemoteWrite()` in
   `local-changes.ts` marks writes that came from the remote so the change signal does not
   start another push
