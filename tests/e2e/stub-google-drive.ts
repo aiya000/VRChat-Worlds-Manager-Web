@@ -25,6 +25,11 @@ export interface FakeDrive {
    * reading the file and checking whether it still owns the write.
    */
   afterRead: ((file: FakeDriveFile) => void) | null
+  /**
+   * Leaves every later upload unanswered, the way the phone in #220 saw one
+   * go unanswered for minutes. The returned function lets them through.
+   */
+  stallUploads: () => () => void
 }
 
 function fieldOf(query: string, pattern: RegExp): string | null {
@@ -58,6 +63,7 @@ export async function stubGoogleDrive(
   const files: FakeDriveFile[] = [...seed]
   let nextId = files.length + 1
   let tokenExpired = false
+  let uploadsReleased: Promise<void> | null = null
 
   const drive: FakeDrive = {
     files,
@@ -74,6 +80,16 @@ export async function stubGoogleDrive(
       tokenExpired = true
     },
     afterRead: null,
+    stallUploads: () => {
+      let release = () => {}
+      uploadsReleased = new Promise((resolve) => {
+        release = () => {
+          uploadsReleased = null
+          resolve()
+        }
+      })
+      return release
+    },
   }
 
   await page.route('https://www.googleapis.com/**', async (route) => {
@@ -88,11 +104,40 @@ export async function stubGoogleDrive(
 
     const request = route.request()
     const url = new URL(request.url())
+    // A page that gave up on a stalled request has nobody left to answer.
     const json = (value: unknown) =>
-      route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify(value),
-      })
+      route
+        .fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify(value),
+        })
+        .catch(() => {})
+
+    if (url.pathname.startsWith('/upload/') && uploadsReleased !== null) {
+      // Then answered as usual. Drive may well carry out a write whose
+      // answer never reached the page, and so does this.
+      await uploadsReleased
+    }
+
+    const copyOf = url.pathname.match(/^\/drive\/v3\/files\/([^/]+)\/copy$/)
+    if (copyOf !== null && request.method() === 'POST') {
+      const source = files.find((f) => f.id === copyOf[1])
+      if (source === undefined) {
+        await route.fulfill({ status: 404, body: 'not found' })
+        return
+      }
+      const metadata = JSON.parse(request.postData() ?? '{}')
+      const created: FakeDriveFile = {
+        ...source,
+        id: `file-${nextId++}`,
+        name: metadata.name ?? source.name,
+        parents: metadata.parents ?? source.parents,
+        version: 1,
+      }
+      files.push(created)
+      await json({ id: created.id })
+      return
+    }
 
     const uploadId = url.pathname.match(/^\/upload\/drive\/v3\/files\/(.+)$/)
     if (uploadId !== null && request.method() === 'PATCH') {
@@ -132,6 +177,16 @@ export async function stubGoogleDrive(
     }
 
     const fileId = url.pathname.match(/^\/drive\/v3\/files\/(.+)$/)
+    if (fileId !== null && request.method() === 'DELETE') {
+      const index = files.findIndex((f) => f.id === fileId[1])
+      if (index === -1) {
+        await route.fulfill({ status: 404, body: 'not found' })
+        return
+      }
+      files.splice(index, 1)
+      await route.fulfill({ status: 204, body: '' })
+      return
+    }
     if (fileId !== null && request.method() === 'GET') {
       const file = files.find((f) => f.id === fileId[1])
       if (file === undefined) {

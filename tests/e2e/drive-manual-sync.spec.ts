@@ -281,7 +281,10 @@ test.describe('syncing with Google Drive by hand', () => {
     await connect(page)
     await syncNow(page)
 
-    await expect(page.getByText(/^\d+% — /)).toBeVisible()
+    // The card, not the "please wait" dialog that says the same over it.
+    await expect(
+      page.getByTestId('google-drive-section').getByText(/^\d+% — /),
+    ).toBeVisible()
     await expect(
       page.getByText(jaJP['settings-page:google-drive-do-not-reload']),
     ).toBeVisible()

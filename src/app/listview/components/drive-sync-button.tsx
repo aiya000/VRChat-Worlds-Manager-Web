@@ -110,7 +110,11 @@ export const DriveSyncButton: FC = () => {
     // Refused rather than queued: the settings button may already be running
     // this very sync, and a second one would only merge against a file the
     // first is about to replace.
-    if (!tryBeginSync()) {
+    const claim = tryBeginSync()
+    if (claim.kind === 'refused') {
+      if (claim.because === 'fetching') {
+        toast(t('settings-page:google-drive-sync-refused-fetching'))
+      }
       return
     }
     setStep('authorizing')
@@ -122,6 +126,7 @@ export const DriveSyncButton: FC = () => {
       // Back to this very list afterwards, filters and all.
       const result = await commands.syncGoogleDriveNow(
         window.location.pathname + window.location.search,
+        claim.signal,
         setStep,
       )
       if (result.status === 'error') {
@@ -134,6 +139,16 @@ export const DriveSyncButton: FC = () => {
       }
       if (result.data.kind === 'reauth-needed') {
         toast(t('settings-page:google-drive-reauth-needed'))
+        return
+      }
+      if (result.data.kind === 'aborted') {
+        toast(t('settings-page:google-drive-sync-aborted'))
+        return
+      }
+      if (result.data.kind === 'timed-out') {
+        toast(t('general:error-title'), {
+          description: t('settings-page:google-drive-sync-timed-out'),
+        })
         return
       }
 
