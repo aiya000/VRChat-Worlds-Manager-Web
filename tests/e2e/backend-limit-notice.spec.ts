@@ -44,7 +44,7 @@ test.describe("being turned away by this app's own backend", () => {
     ).toBeVisible()
   })
 
-  test('says to wait when it is the requests-per-hour limit', async ({
+  test('says to wait for the next day when it is the per-address limit', async ({
     page,
   }) => {
     await refuseWith(page, 'rate-limit-exceeded')
