@@ -4,6 +4,8 @@
 
 \- **[bɯi aːɾɯ ɕiː waɾawaɾa]** \-
 
+<a href="https://booth.pm/ja/items/8888398"><img src="docs/thumbnail.ja.webp" alt="VRCWW — お気に入りワールドを、フォルダで整理（BOOTH で無料配布中）" width="480"></a>
+
 [![Tests](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml/badge.svg)](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml)
 [![Web App](https://img.shields.io/badge/Web%20App-vrcww.com-blue?logo=cloudflarepages)](https://vrcww.com)
 [![Bun](https://img.shields.io/badge/Bun-%23000000.svg?logo=bun&logoColor=white)](https://bun.sh)
@@ -92,7 +94,7 @@ Androidでは、リンクからインスタンスへ直接入る方法がない�
   - 折りたたみ式サイドバー（モバイル時はドロワー化）やレーザーポインタ・タッチ操作に最適化したUI設計。
   - PWA（Progressive Web Apps）としてホーム画面やデスクトップにインストール可能です。
   - オリジナル版のVRC Worlds Manager v2と同様に、デスクトップアプリとしてお使いいただけます。
-  - **（Google審査中）** ~~デスクトップアプリで編集した内容（お気に入りの追加・フォルダ分けなど）をスマートフォンや他のPCと同期ができます。データの復元・インポートなしに共通で扱うことができます~~
+  - デスクトップアプリで編集した内容（お気に入りの追加・フォルダ分けなど）を、Google Driveを通じてスマートフォンや他のPCと同期できます。データの復元・インポートなしに共通で扱うことができます
 
 - **お気に入りワールドの追加と永続保存**
   - VRChat APIを使用して、お気に入り（Favorites）に入っているワールドを自動取得し、アプリ内に保存します。

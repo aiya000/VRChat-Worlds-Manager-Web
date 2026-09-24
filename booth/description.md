@@ -21,9 +21,19 @@ VRChat Worlds Manager Web（VRCWW）｜お気に入りワールド整理ツー�
 
 ## 説明文
 
-```text
-VRChat のお気に入りワールドを、フォルダで整理できる Web アプリです。
-ブラウザで開くだけで、PC でも、スマートフォンでも、VR のオーバーレイからでも使えます。
+（ブロックごとに段落を追加する）
+
+（商品紹介文）
+
+```
+VRChat のお気に入りワールドを、フォルダで整理できる Web アプリです！
+
+ブラウザで開くだけで
+
+PC でも
+スマートフォンでも
+VR のオーバーレイからでも…！！
+どこからでも使えます！
 
 ▼ アプリはこちら（無料）
 https://vrcww.com
@@ -31,9 +41,26 @@ https://vrcww.com
 ▼ はじめての方へ（使い方）
 https://vrcww.com/guide
 
-※ このアプリはブラウザで動く Web アプリです。ダウンロードするファイルは導入手順の PDF で、アプリ本体ではありません。
+※
+このアプリはブラウザで動く Web アプリです。ダウンロードするファイルは導入手順の PDF です。
+アプリ本体ではありません。
+迷う方用にPDFを作成しておりますが、案内が必要なければすぐに https://vrcww.com にアクセスしていただけます。
+```
+
+【ご利用の前に】
+
+```
+・このアプリは、有志が個人で開発している非公式のツールです。VRChat Inc. とは関係ありません。
+・お気に入りワールドを読み込むために、VRChat のアカウントでログインします。
+　ユーザー名、パスワード、認証コードは VRChat の公式 API との通信にだけ使い、保存はしません。
+　くわしくはプライバシーポリシーをご覧ください: https://vrcww.com/privacy
+・ワールドやフォルダのデータは、お使いのブラウザの中に保存されます。
+・ソースコードは GitHub で公開しています: https://github.com/aiya000/VRChat-Worlds-Manager-Web
+```
 
 【できること】
+
+```
 ・VRChat のお気に入りワールドを取り込んで、VRChat 側の枠に縛られずに残せます
 ・自分で作ったフォルダに整理できます（1 つのワールドを複数のフォルダに入れられます）
 ・名前、作者、タグ、フォルダで、手元のワールドをすぐに探せます
@@ -41,31 +68,42 @@ https://vrcww.com/guide
 ・アプリからインスタンスを作って、届いた招待からそのワールドへ入れます
 ・ホーム画面やデスクトップに追加して、ふつうのアプリのように開けます
 ・Google Drive に接続すると、複数の端末で同じデータを使えます（任意）
+```
 
 【VR の中で使う】
+
+```
 PC のブラウザでこのアプリを開き、そのウィンドウを XSOverlay などで VR 空間に映す使い方がおすすめです。
 ヘッドセットを外さずに、フォルダを見て、次のワールドへそのまま移動できます。
+```
 
-【ご利用の前に】
-・このアプリは、有志が個人で開発している非公式のツールです。VRChat Inc. とは関係ありません。
-・お気に入りワールドを読み込むために、VRChat のアカウントでログインします。
-　ユーザー名、パスワード、認証コードは VRChat の公式 API との通信にだけ使い、保存はしません。
-　くわしくはプライバシーポリシーをご覧ください: https://vrcww.com/privacy
-・ワールドやフォルダのデータは、お使いのブラウザの中に保存されます。
-・ソースコードは GitHub で公開しています: https://github.com/aiya000/VRChat-Worlds-Manager-Web
+【AndroidのVRChatアプリと使う】
+
+```
+Androidのフローティングウィンドウ（Galaxy端末では「ポップアップ表示」）を使うことで、デスクトップ環境のVRChatアプリと同じように、自己招待でのワールド遷移をすることができます。
+```
 
 【困ったときは】
+
+```
 不具合の報告や質問は、GitHub の Issues か Discord で受け付けています。
 ・GitHub Issues: https://github.com/aiya000/VRChat-Worlds-Manager-Web/issues
 ・Discord: https://discord.gg/g5nq5GuGPJ
+```
 
 【Special Thanks】
+
+```
 ・オリジナルアプリ: VRC Worlds Manager v2（https://github.com/Raifa21/VRC-Worlds-Manager-v2） by Raifa & siloneco
 ・VRChat および VRChat API コミュニティの皆様、API ドキュメントの提供に感謝します。
 ・旧サイドバーアイコンは、黒音キト様より CC-BY-NC-4.0 ライセンスで提供されていました。現在は未使用です。
 ・旧アプリケーションアイコンは Ciel-chan を使用していました。ArmoireLepus 様の許可を得ています。現在は未使用です。
 皆様、ありがとうございます。
+```
 
+【English】
+
+```
 ―――――――――――――――――――――
 
 VRChat Worlds Manager Web (VRCWW) is a web app for organising your VRChat favorite worlds into folders.

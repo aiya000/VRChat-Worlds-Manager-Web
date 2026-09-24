@@ -4,6 +4,8 @@
 
 \- **[bɯi aːɾɯ ɕiː waɾawaɾa]** \-
 
+<a href="https://booth.pm/en/items/8888398"><img src="docs/thumbnail.en.webp" alt="VRCWW — Your favorite worlds, in folders (free on BOOTH)" width="480"></a>
+
 [![Tests](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml/badge.svg)](https://github.com/aiya000/VRC-Worlds-Manager-Web/actions/workflows/test.yml)
 [![Web App](https://img.shields.io/badge/Web%20App-vrcww.com-blue?logo=cloudflarepages)](https://vrcww.com)
 [![Bun](https://img.shields.io/badge/Bun-%23000000.svg?logo=bun&logoColor=white)](https://bun.sh)
@@ -95,7 +97,7 @@ notification. No link opens the Android app straight into an instance, so this i
   - Responsive layout with a collapsible sidebar and touch/laser-friendly controls.
   - Can be installed to your home screen or desktop as a Progressive Web App (PWA).
   - Usable as a desktop application, just as the original VRC Worlds Manager v2 is.
-  - **(Under Google review)** ~~What you edit on the desktop -- adding favourites, sorting them into folders -- syncs to your phone and your other PCs. The same data everywhere, with no export or import step.~~
+  - What you edit on the desktop -- adding favourites, sorting them into folders -- syncs to your phone and your other PCs through Google Drive. The same data everywhere, with no export or import step.
 
 - **Add & Preserve Favourite Worlds**
   - Automatically fetch worlds marked as Favourites in VRChat via the API and store them in the app.
