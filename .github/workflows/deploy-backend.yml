@@ -25,9 +25,7 @@ jobs:
       - name: Install dependencies
         run: bun install
       - name: Create wrangler.toml
-        run: |
-          cp wrangler.sample.toml wrangler.toml
-          sed -i "s/INPUT_HERE_KV_NAMESPACE_ID/${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}/" wrangler.toml
+        run: cp wrangler.sample.toml wrangler.toml
       - name: Deploy
         run: bun run deploy
         env:

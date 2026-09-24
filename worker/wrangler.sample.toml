@@ -1,5 +1,6 @@
 name = "vrchat-worlds-manager-web-backend"
-main = "src/index.ts"
+# Not `index.ts`: see the comment at the top of `worker.ts`.
+main = "src/worker.ts"
 compatibility_date = "2025-01-01"
 
 [vars]
@@ -12,9 +13,30 @@ compatibility_date = "2025-01-01"
 ALLOWED_ORIGIN = "https://vrcww.com,https://develop.vrcww.com,https://vrchat-worlds-manager-web.pages.dev"
 VRCHAT_API_BASE = "https://api.vrchat.cloud/api/1"
 
-[[kv_namespaces]]
-binding = "QUOTA"
-id = "INPUT_HERE_KV_NAMESPACE_ID"
+# The limits (#171). This file is what production runs with -- the deploy
+# copies it to `wrangler.toml` -- so changing a number here and releasing is
+# how a limit is changed. Each must be a positive integer; anything else falls
+# back to `DEFAULT_LIMITS` in `src/index.ts`, with an error in the logs.
+#
+# Relays one IP address may make in a UTC day. Purging VRChat's favourites
+# sends one request per favourite, so keep this above the few hundred a person
+# with a full favourites list needs.
+IP_DAILY_LIMIT = "1000"
+# Sign-in attempts (password and two-factor code alike) per IP address per hour.
+LOGIN_HOURLY_LIMIT = "30"
+# Relays the whole Worker may make in a UTC day, everyone together.
+DAILY_QUOTA = "90000"
+
+# Every limit is counted here. SQLite-backed, which is what the free plan
+# offers: 100,000 written rows a day against KV's 1,000 writes, which the
+# counters used to use up at about 500 requests a day (#171).
+[[durable_objects.bindings]]
+name = "USAGE_COUNTER"
+class_name = "UsageCounter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["UsageCounter"]
 
 # Without this, the only way to learn that this Worker refused somebody is to
 # be watching `wrangler tail` at the moment it happened -- nothing is kept

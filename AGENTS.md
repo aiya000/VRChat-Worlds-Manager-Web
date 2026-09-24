@@ -794,10 +794,14 @@ production Worker with whatever is on it.
 goes live at the next release and not before, so plan for that rather than discovering it
 while trying to test on a phone.
 
-The Worker also caps itself: `IP_HOURLY_LIMIT` is 500 requests per IP per hour,
-`LOGIN_HOURLY_LIMIT` is 30 credential attempts per IP per hour, and `DAILY_QUOTA` is 90,000
-overall. Anything that walks a list has to page rather than fan out — favourites come from
-`/worlds/favorites`, 100 per request.
+The Worker also caps itself, with three `[vars]` in `worker/wrangler.sample.toml`:
+`IP_DAILY_LIMIT` (1,000 relays per IP per UTC day), `LOGIN_HOURLY_LIMIT` (30 credential attempts
+per IP per hour) and `DAILY_QUOTA` (90,000 relays overall per UTC day). **That file is what
+production runs with** -- the deploy copies it to `wrangler.toml` -- so a limit is changed by
+editing it there and releasing. Anything that walks a list has to page rather than fan out —
+favourites come from `/worlds/favorites`, 100 per request. Purging VRChat's favourites cannot
+page: it sends one `DELETE` per favourite, which is why the per-IP limit is daily and generous
+rather than tight.
 
 **The `Origin` check is not a defence against anything that is not a browser.** `curl` sends
 whatever `Origin` it likes, so the limits above, the route whitelist, and the header allowlist
@@ -807,10 +811,6 @@ Two things follow:
 - **`GET /auth/user` is both "log me in" and "who am I?"** — the `Authorization: Basic` header is
   the only thing that tells them apart, and `isCredentialAttempt()` is where that is decided. A
   new endpoint that accepts credentials has to be added there as well as to the route whitelist
-- **KV cannot count atomically.** `countAgainstHourlyLimit()` reads, compares and writes, so
-  simultaneous requests all read the same number and the limit can be overrun by however many
-  are in flight. That is a coarse cap on purpose; do not build anything finer on top of it
-  without moving to a Rate Limiting binding or a Durable Object
 - **A credential attempt has to bring a Cloudflare Turnstile token** (#61), sent by the
   frontend as `X-Turnstile-Token` from `src/lib/services/turnstile.ts` and checked by the
   Worker's `checkTurnstile()` against `siteverify` before the sign-in allowance is spent.
@@ -823,6 +823,35 @@ Two things follow:
   two. The e2e server is built with Cloudflare's "always passes, invisible" test key
   (`playwright.config.ts`), so a spec that signs in has to answer the challenge with
   `tests/e2e/stub-turnstile.ts`, or it waits on Cloudflare
+
+### The limits are counted in a Durable Object, not in KV
+
+They used to be counted in KV, two writes per request, against the free plan's 1,000 KV writes a
+day: about 500 requests a day used it up, and one person purging a long favourites list was enough
+(#171). `UsageCounter` (`worker/src/usage-counter.ts`) is a SQLite-backed Durable Object -- one per
+IP address plus one for the whole Worker -- whose free allowance is 100,000 written rows a day, and
+which counts atomically because it runs one request at a time.
+
+- **The entry point is `worker/src/worker.ts`, not `index.ts`.** Once a Durable Object class is
+  exported, the runtime reads every export of the main module as an entrypoint and refuses to start
+  if one is a string. `index.ts` exports its error codes, so it cannot be `main`. Tests, `tsc` and
+  `wrangler deploy --dry-run` all pass with the wrong `main`; only `wrangler dev` (or production)
+  shows the failure
+- **Run the Worker with `wrangler dev` before releasing a change to it**, since `develop` cannot.
+  This runs the Durable Object locally, with a limit of 3 and an upstream that goes nowhere so
+  nothing reaches VRChat:
+
+  ```sh
+  worker/node_modules/.bin/wrangler dev --cwd worker --config wrangler.sample.toml --port 8799 \
+    --var IP_DAILY_LIMIT:3 --var VRCHAT_API_BASE:http://127.0.0.1:9/api/1
+  ```
+
+  Four `curl`s to `http://localhost:8799/api/1/worlds/wrld_x` with `Origin: https://vrcww.com` and
+  the same `CF-Connecting-IP` give 502, 502, 502, 429. Delete `worker/.wrangler/` afterwards
+
+- **What is kept about an address is deleted at midnight UTC** by the object's alarm. The privacy
+  policy says so (`privacy-policy:vrchat-item-ip`); keep the two in step
+- `bun --cwd worker run <script>` prints help, but `bun run --cwd worker <script>` works
 
 ### Releases are announced through GitHub Releases
 
