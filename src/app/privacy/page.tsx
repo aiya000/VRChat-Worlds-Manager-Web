@@ -40,6 +40,23 @@ export default function PrivacyPolicyPage() {
         />
       </LegalSection>
 
+      {/* How long Cloudflare keeps its records is Cloudflare's to decide, so
+          no number of days is promised here -- only what the operator does
+          with them. */}
+      <LegalSection title={t('privacy-policy:hosting-title')}>
+        <p>{t('privacy-policy:hosting-body')}</p>
+        <LegalBullets
+          items={[
+            t('privacy-policy:hosting-item-purpose'),
+            t('privacy-policy:hosting-item-credentials'),
+          ]}
+        />
+        <p>
+          {t('privacy-policy:hosting-cloudflare-policy')}{' '}
+          <LegalLink href="https://www.cloudflare.com/privacypolicy/" />
+        </p>
+      </LegalSection>
+
       <LegalSection title={t('privacy-policy:google-drive-title')}>
         <p>{t('privacy-policy:google-drive-body')}</p>
         <LegalBullets
