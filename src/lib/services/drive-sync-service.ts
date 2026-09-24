@@ -10,19 +10,21 @@ import {
   createFile,
   DriveApiError,
   type DriveFile,
+  DriveTimeoutError,
   findFile,
   findOrCreateFolder,
   fileVersion,
   readFile,
+  replaceWithCopy,
   SYNC_BACKUP_FILE_NAME,
   SYNC_FILE_NAME,
   SYNC_FOLDER_NAME,
   updateFile,
-  writeFile,
 } from './google-drive'
 import { asRemoteWrite } from './local-changes'
 import { clearPendingSettingsOverride } from './setting-sync'
 import { applySnapshot, parseBackupFile, readSnapshot } from './snapshot'
+import { SyncAbortedError } from './sync-activity'
 import { deviceId } from './sync-meta'
 
 const LAST_SYNCED_AT_KEY = 'driveLastSyncedAt'
@@ -93,6 +95,10 @@ export type DriveSyncResult =
    * happens on the way back, from the page that was left.
    */
   | { kind: 'redirecting' }
+  /** Stop was pressed. Nothing on this device was changed. */
+  | { kind: 'aborted' }
+  /** Drive stopped answering (#220). Nothing on this device was changed. */
+  | { kind: 'timed-out' }
 
 export class SyncRaceLostError extends Error {}
 
@@ -102,6 +108,7 @@ export class DriveSyncService extends Context.Tag('DriveSyncService')<
     readonly syncNow: (
       accessToken: string,
       onProgress: SyncProgress,
+      signal: AbortSignal,
     ) => Effect.Effect<SyncOutcome, Error>
     readonly lastSyncedAt: () => Effect.Effect<number | null, Error>
   }
@@ -132,9 +139,10 @@ async function attemptSync(
   folderId: string,
   origin: string,
   onProgress: SyncProgress,
+  signal: AbortSignal,
 ): Promise<SyncOutcome | null> {
   onProgress('locating')
-  const remote = await findFile(token, folderId, SYNC_FILE_NAME)
+  const remote = await findFile(token, folderId, SYNC_FILE_NAME, signal)
 
   // Nothing up there yet: this device seeds the file, and there is nothing to
   // merge against or to keep a previous generation of.
@@ -145,6 +153,7 @@ async function attemptSync(
       folderId,
       SYNC_FILE_NAME,
       serialize(await readSnapshot()),
+      signal,
     )
     const syncedAt = Date.now()
     await rememberRemote(created)
@@ -154,7 +163,7 @@ async function attemptSync(
   }
 
   onProgress('downloading')
-  const remoteText = await readFile(token, remote.id)
+  const remoteText = await readFile(token, remote.id, signal)
 
   onProgress('merging')
   const { snapshot, memoConflicts } = mergeSnapshot(
@@ -162,7 +171,7 @@ async function attemptSync(
     parseBackupFile(remoteText, origin),
   )
 
-  if ((await fileVersion(token, remote.id)) !== remote.version) {
+  if ((await fileVersion(token, remote.id, signal)) !== remote.version) {
     return null
   }
 
@@ -170,10 +179,26 @@ async function attemptSync(
   // merge ever eats something, this is what it can be recovered from -- and
   // `drive.file` means the user can open and download it themselves.
   onProgress('backingUp')
-  await writeFile(token, folderId, SYNC_BACKUP_FILE_NAME, remoteText)
+  await replaceWithCopy(
+    token,
+    remote.id,
+    folderId,
+    SYNC_BACKUP_FILE_NAME,
+    signal,
+  )
 
   onProgress('uploading')
-  const written = await updateFile(token, remote.id, serialize(snapshot))
+  const written = await updateFile(
+    token,
+    remote.id,
+    serialize(snapshot),
+    signal,
+  )
+
+  // The last moment a stop still leaves this device as it was. Checked here
+  // as well as by every request: the upload may have finished in the same
+  // instant the stop was pressed.
+  signal.throwIfAborted()
 
   // Not a local change: without this, writing the merge back would look like
   // an edit and schedule a push of what was just pulled, over and over.
@@ -191,11 +216,15 @@ async function attemptSync(
 }
 
 export const DriveSyncServiceLive = Layer.succeed(DriveSyncService, {
-  syncNow: (accessToken, onProgress) =>
+  syncNow: (accessToken, onProgress, signal) =>
     Effect.tryPromise({
       try: async () => {
         onProgress('locating')
-        const folderId = await findOrCreateFolder(accessToken, SYNC_FOLDER_NAME)
+        const folderId = await findOrCreateFolder(
+          accessToken,
+          SYNC_FOLDER_NAME,
+          signal,
+        )
         const origin = await deviceId()
 
         for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -204,6 +233,7 @@ export const DriveSyncServiceLive = Layer.succeed(DriveSyncService, {
             folderId,
             origin,
             onProgress,
+            signal,
           )
           if (outcome !== null) {
             return outcome
@@ -222,7 +252,9 @@ export const DriveSyncServiceLive = Layer.succeed(DriveSyncService, {
           forgetAccessToken()
           return new GoogleAuthExpiredError('The Google access token expired')
         }
-        return e instanceof SyncRaceLostError
+        return e instanceof SyncRaceLostError ||
+          e instanceof SyncAbortedError ||
+          e instanceof DriveTimeoutError
           ? e
           : new Error(`Failed to sync with Google Drive: ${e}`)
       },

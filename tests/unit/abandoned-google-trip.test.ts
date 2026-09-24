@@ -43,12 +43,12 @@ describe('a departure for Google that the browser undid', () => {
     // A press leaves for Google holding the claim, and on purpose does not
     // give it back: the page is supposed to be gone. Back from the
     // back/forward cache, this is the state that is still there.
-    expect(tryBeginSync()).toBe(true)
-    expect(tryBeginSync()).toBe(false)
+    expect(tryBeginSync().kind).toBe('started')
+    expect(tryBeginSync()).toEqual({ kind: 'refused', because: 'syncing' })
 
     abandonGoogleTrip()
 
-    expect(tryBeginSync()).toBe(true)
+    expect(tryBeginSync().kind).toBe('started')
   })
 
   it('forgets where the trip was going', () => {
@@ -74,6 +74,8 @@ describe('a departure for Google that the browser undid', () => {
     expect(syncActivity()).toEqual({
       running: false,
       lastSyncedAt: 1_700_000_000_000,
+      step: null,
+      aborting: false,
     })
   })
 

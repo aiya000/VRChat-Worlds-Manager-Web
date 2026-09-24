@@ -17,7 +17,13 @@ import {
   type DriveSyncResult,
   type SyncProgress,
 } from './services/drive-sync-service'
+import { DriveTimeoutError } from './services/google-drive'
 import { requestSettingsOverride } from './services/setting-sync'
+import {
+  reportSyncStep,
+  SyncAbortedError,
+  withoutSyncing,
+} from './services/sync-activity'
 import { AppLayer } from '@/lib/services/layers'
 import { PreferencesService } from '@/lib/services/preferences'
 import { FolderService } from '@/lib/services/folder-service'
@@ -744,32 +750,35 @@ export const commands = {
   },
 
   async getFavoriteWorlds(): Promise<Result<null, string>> {
-    return runVoid(
-      Effect.gen(function* () {
-        const api = yield* VRChatApiService
-        const worlds = yield* WorldService
-        const favorites = yield* api.getFavoriteWorlds()
+    // It writes as its answers arrive, so a sync must not start under it.
+    return withoutSyncing(() =>
+      runVoid(
+        Effect.gen(function* () {
+          const api = yield* VRChatApiService
+          const worlds = yield* WorldService
+          const favorites = yield* api.getFavoriteWorlds()
 
-        // Refreshing must not look like a re-add: a world already known
-        // locally keeps the folders it was filed into and the date it first
-        // appeared, and only its VRChat-owned fields are updated.
-        const stored = yield* worlds.getAllWorlds()
-        const storedByWorldId = new Map(
-          stored.map((world) => [world.worldId, world]),
-        )
-        for (const favorite of favorites) {
-          const existing = storedByWorldId.get(favorite.worldId)
-          yield* worlds.putWorld(
-            existing === undefined
-              ? favorite
-              : {
-                  ...favorite,
-                  dateAdded: existing.dateAdded,
-                  folders: existing.folders,
-                },
+          // Refreshing must not look like a re-add: a world already known
+          // locally keeps the folders it was filed into and the date it first
+          // appeared, and only its VRChat-owned fields are updated.
+          const stored = yield* worlds.getAllWorlds()
+          const storedByWorldId = new Map(
+            stored.map((world) => [world.worldId, world]),
           )
-        }
-      }),
+          for (const favorite of favorites) {
+            const existing = storedByWorldId.get(favorite.worldId)
+            yield* worlds.putWorld(
+              existing === undefined
+                ? favorite
+                : {
+                    ...favorite,
+                    dateAdded: existing.dateAdded,
+                    folders: existing.folders,
+                  },
+            )
+          }
+        }),
+      ),
     )
   },
 
@@ -1077,21 +1086,28 @@ export const commands = {
    */
   async syncGoogleDriveNow(
     returnTo: string,
+    signal: AbortSignal,
     onProgress: SyncProgress = () => {},
   ): Promise<Result<DriveSyncResult, string>> {
+    // The "please wait" dialog follows the same steps as the button that
+    // was pressed.
+    const report: SyncProgress = (step) => {
+      reportSyncStep(step)
+      onProgress(step)
+    }
     return run(
       Effect.gen(function* () {
         const auth = yield* GoogleAuthService
         const sync = yield* DriveSyncService
 
-        onProgress('authorizing')
+        report('authorizing')
         const outcome = yield* auth.getAccessToken(returnTo)
         if (outcome.kind === 'redirecting') {
           return { kind: 'redirecting' } as DriveSyncResult
         }
 
         return yield* sync
-          .syncNow(outcome.token, onProgress)
+          .syncNow(outcome.token, report, signal)
           .pipe(
             Effect.map(
               (outcome): DriveSyncResult => ({ kind: 'synced', ...outcome }),
@@ -1103,6 +1119,12 @@ export const commands = {
         Effect.catchAll((e) => {
           if (e instanceof GoogleAuthExpiredError) {
             return Effect.succeed<DriveSyncResult>({ kind: 'reauth-needed' })
+          }
+          if (e instanceof SyncAbortedError) {
+            return Effect.succeed<DriveSyncResult>({ kind: 'aborted' })
+          }
+          if (e instanceof DriveTimeoutError) {
+            return Effect.succeed<DriveSyncResult>({ kind: 'timed-out' })
           }
           return Effect.fail(e)
         }),
@@ -1123,10 +1145,11 @@ export const commands = {
    */
   async pushSettingsToAllDevices(
     returnTo: string,
+    signal: AbortSignal,
     onProgress: SyncProgress = () => {},
   ): Promise<Result<DriveSyncResult, string>> {
     requestSettingsOverride()
-    return commands.syncGoogleDriveNow(returnTo, onProgress)
+    return commands.syncGoogleDriveNow(returnTo, signal, onProgress)
   },
 
   async googleDriveLastSyncedAt(): Promise<Result<number | null, string>> {

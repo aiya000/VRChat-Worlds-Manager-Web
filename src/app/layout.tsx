@@ -11,6 +11,7 @@ import { StaleBundleNotice } from '@/components/stale-bundle-notice'
 import { UiScaleEffect } from '@/components/ui-scale-effect'
 import { BackendLimitNotice } from '@/components/backend-limit-notice'
 import { ExitGuard } from '@/components/exit-guard'
+import { SyncProgressDialog } from '@/components/sync-progress-dialog'
 
 const siteName = 'VRChat Worlds Manager Web'
 const title = 'VRChat Worlds Manager Web｜VRChat のお気に入りワールドを整理する'
@@ -91,6 +92,7 @@ export default function RootLayout({
               <UiScaleEffect />
               <BackendLimitNotice />
               <ExitGuard />
+              <SyncProgressDialog />
             </LocalizationContextProvider>
           </ThemeProvider>
           <Toaster richColors />

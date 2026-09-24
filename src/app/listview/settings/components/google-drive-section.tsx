@@ -81,7 +81,11 @@ export const GoogleDriveSection: FC<{
     // Refused rather than queued: the list's button may already be doing
     // exactly this, and a second one would only merge against a file the
     // first is about to replace.
-    if (!tryBeginSync()) {
+    const claim = tryBeginSync()
+    if (claim.kind === 'refused') {
+      if (claim.because === 'fetching') {
+        toast(t('settings-page:google-drive-sync-refused-fetching'))
+      }
       return
     }
     setSyncing(true)
@@ -91,7 +95,11 @@ export const GoogleDriveSection: FC<{
     // button does not flash back to idle for the last frame before it goes.
     let leaving = false
     try {
-      const result = await commands.syncGoogleDriveNow(returnTo, setStep)
+      const result = await commands.syncGoogleDriveNow(
+        returnTo,
+        claim.signal,
+        setStep,
+      )
       if (result.status === 'error') {
         toast(t('general:error-title'), { description: result.error })
         return
@@ -102,6 +110,16 @@ export const GoogleDriveSection: FC<{
       }
       if (result.data.kind === 'reauth-needed') {
         toast(t('settings-page:google-drive-reauth-needed'))
+        return
+      }
+      if (result.data.kind === 'aborted') {
+        toast(t('settings-page:google-drive-sync-aborted'))
+        return
+      }
+      if (result.data.kind === 'timed-out') {
+        toast(t('general:error-title'), {
+          description: t('settings-page:google-drive-sync-timed-out'),
+        })
         return
       }
 
