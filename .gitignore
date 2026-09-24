@@ -22,6 +22,9 @@
 # production
 /build
 
+# What `wrangler dev` keeps of the local Worker (its Durable Objects included)
+/worker/.wrangler/
+
 # BOOTH PDFs, written by `bun run booth:pdf`
 /booth/dist/
 

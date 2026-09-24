@@ -3,16 +3,18 @@ import { describe, expect, it } from 'vitest'
 import {
   buildProxyHeaders,
   buildVRChatCookieHeader,
-  countAgainstHourlyLimit,
-  getQuotaRemaining,
-  incrementQuota,
+  countAgainst,
+  DEFAULT_LIMITS,
   isCredentialAttempt,
   isOriginAllowed,
   isRefusedBy,
   isRouteAllowed,
   parseSetCookieValue,
+  readLimits,
+  secondsUntilUtcMidnight,
   type Env,
 } from './index'
+import { countUse, nextUtcMidnight } from './usage-counter'
 
 describe('isRouteAllowed', () => {
   it('lets a self-invite through, instance id and all', () => {
@@ -314,126 +316,197 @@ describe('buildVRChatCookieHeader', () => {
   })
 })
 
-/**
- * A KV that answers from a map, or refuses everything. The counters read,
- * compare and write, so both halves have to be able to fail.
- */
-function fakeEnv(
-  store: Map<string, string>,
-  failing: 'none' | 'get' | 'put' = 'none',
-): Env {
-  const quota = {
-    get: async (key: string) => {
-      if (failing === 'get') {
-        throw new Error('KV is unwell')
-      }
-      return store.get(key) ?? null
-    },
-    put: async (key: string, value: string) => {
-      if (failing === 'put') {
-        throw new Error('KV is unwell')
-      }
-      store.set(key, value)
-    },
-  }
+/** Durable Object storage as a map, with the two calls `countUse` makes. */
+function fakeStorage(store: Map<string, number> = new Map()) {
   return {
-    ALLOWED_ORIGIN: 'https://example.invalid',
-    VRCHAT_API_BASE: 'https://api.invalid/api/1',
-    QUOTA: quota as unknown as Env['QUOTA'],
+    store,
+    get: async <T>(key: string) => store.get(key) as T | undefined,
+    put: async <T>(key: string, value: T) => {
+      store.set(key, value as number)
+    },
   }
 }
 
 /**
- * A counter that cannot be read used to leave the whole `fetch` handler
- * through the exception, so the response carried no CORS headers and the
- * browser reported a connection failure instead of an error (#170).
+ * A `USAGE_COUNTER` namespace whose objects count in maps, one per name, or
+ * one whose every object throws. `counters` is what each object holds.
  */
-describe('counting against an hourly bucket', () => {
-  it('counts a use and allows it while under the limit', async () => {
-    const store = new Map<string, string>()
+function fakeEnv(failing = false, vars: Partial<Env> = {}) {
+  const counters = new Map<string, Map<string, number>>()
+  const namespace = {
+    idFromName: (name: string) => name,
+    get: (name: string) => ({
+      count: async (bucket: string, limit: number) => {
+        if (failing) {
+          throw new Error('the Durable Object is unwell')
+        }
+        const store = counters.get(name) ?? new Map<string, number>()
+        counters.set(name, store)
+        return countUse(fakeStorage(store), bucket, limit)
+      },
+    }),
+  }
+  const env: Env = {
+    ALLOWED_ORIGIN: 'https://example.invalid',
+    VRCHAT_API_BASE: 'https://api.invalid/api/1',
+    USAGE_COUNTER: namespace as unknown as Env['USAGE_COUNTER'],
+    ...vars,
+  }
+  return { env, counters }
+}
 
-    const outcome = await countAgainstHourlyLimit(
-      fakeEnv(store),
-      'ip',
-      '198.51.100.7',
-      10,
-    )
+// KV read, compared and wrote in three steps, so two requests at once both
+// passed a bucket with one use left (#171). A Durable Object runs `countUse`
+// one event at a time; what is tested here is the counting itself.
+describe('counting a use', () => {
+  it('counts it and lets it through while under the limit', async () => {
+    const storage = fakeStorage()
 
-    expect(outcome).toBe('within-limit')
-    expect(isRefusedBy(outcome)).toBe(false)
-    expect([...store.values()]).toEqual(['1'])
+    const result = await countUse(storage, 'day:2026-09-24', 10)
+
+    expect(result).toEqual({ allowed: true, count: 1 })
+    expect([...storage.store.values()]).toEqual([1])
   })
 
-  it('refuses once the bucket is full, and does not count further', async () => {
-    const store = new Map<string, string>()
-    const env = fakeEnv(store)
+  it('refuses once the bucket is full, and writes nothing for the refusal', async () => {
+    // A caller who keeps knocking after the limit must not keep costing
+    // writes: those are what the free plan runs out of.
+    const storage = fakeStorage()
     for (let i = 0; i < 3; i++) {
-      await countAgainstHourlyLimit(env, 'ip', '198.51.100.7', 3)
+      await countUse(storage, 'day:2026-09-24', 3)
+    }
+    let writes = 0
+    const counting = {
+      ...storage,
+      put: async <T>(key: string, value: T) => {
+        writes += 1
+        await storage.put(key, value)
+      },
     }
 
-    const outcome = await countAgainstHourlyLimit(env, 'ip', '198.51.100.7', 3)
+    const result = await countUse(counting, 'day:2026-09-24', 3)
 
-    expect(outcome).toBe('over-limit')
-    expect(isRefusedBy(outcome)).toBe(true)
-    expect([...store.values()]).toEqual(['3'])
+    expect(result).toEqual({ allowed: false, count: 3 })
+    expect(writes).toBe(0)
   })
 
-  it('says the counter is unavailable when KV cannot be read, and does not refuse', async () => {
-    const outcome = await countAgainstHourlyLimit(
-      fakeEnv(new Map(), 'get'),
-      'ip',
-      '198.51.100.7',
-      10,
-    )
+  it('starts a new bucket for a new period', async () => {
+    const storage = fakeStorage()
+    await countUse(storage, 'day:2026-09-24', 1)
 
-    expect(outcome).toBe('counter-unavailable')
-    expect(isRefusedBy(outcome)).toBe(false)
-  })
+    const result = await countUse(storage, 'day:2026-09-25', 1)
 
-  it('says the same when KV cannot be written to', async () => {
-    const outcome = await countAgainstHourlyLimit(
-      fakeEnv(new Map(), 'put'),
-      'ip',
-      '198.51.100.7',
-      10,
-    )
-
-    expect(outcome).toBe('counter-unavailable')
-    expect(isRefusedBy(outcome)).toBe(false)
-  })
-
-  it('keeps sign-in attempts in a bucket of their own', async () => {
-    const store = new Map<string, string>()
-    const env = fakeEnv(store)
-
-    await countAgainstHourlyLimit(env, 'ip', '198.51.100.7', 10)
-    await countAgainstHourlyLimit(env, 'login', '198.51.100.7', 10)
-
-    expect([...store.values()]).toEqual(['1', '1'])
+    expect(result.allowed).toBe(true)
   })
 })
 
-describe('the daily quota', () => {
-  it('answers null rather than zero when KV cannot be read', async () => {
-    // Zero would read as "today's allowance is spent" and close the app for
-    // everyone over what may be a moment's trouble.
-    expect(await getQuotaRemaining(fakeEnv(new Map(), 'get'))).toBeNull()
+describe('the day boundary', () => {
+  it('is the next midnight UTC, whatever the hour', () => {
+    expect(nextUtcMidnight(new Date('2026-09-24T23:59:59Z'))).toBe(
+      Date.parse('2026-09-25T00:00:00Z'),
+    )
+    expect(nextUtcMidnight(new Date('2026-09-24T00:00:00Z'))).toBe(
+      Date.parse('2026-09-25T00:00:00Z'),
+    )
   })
 
-  it('counts a request, and reports what is left', async () => {
-    const store = new Map<string, string>()
-    const env = fakeEnv(store)
+  it('is what a refused caller is told to wait for', () => {
+    expect(secondsUntilUtcMidnight(new Date('2026-09-24T23:00:00Z'))).toBe(3600)
+  })
+})
 
-    const before = await getQuotaRemaining(env)
-    const after = await incrementQuota(env)
+/**
+ * A counter failure used to leave the whole `fetch` handler through the
+ * exception, so the response carried no CORS headers and the browser reported
+ * a connection failure instead of an error (#170).
+ */
+describe('counting against a named counter', () => {
+  it('lets a use through and says how many the bucket holds', async () => {
+    const { env } = fakeEnv()
 
-    expect(before).not.toBeNull()
-    expect(after).toBe((before as number) - 1)
+    const counted = await countAgainst(env, 'ip:198.51.100.7', 'day:d', 10)
+
+    expect(counted).toEqual({ outcome: 'within-limit', count: 1 })
+    expect(isRefusedBy(counted.outcome)).toBe(false)
   })
 
-  it('does not throw when it cannot count, so an answer already given survives', async () => {
-    // This runs after VRChat has replied. Throwing here reached the proxy's
-    // own `catch`, which reported a successful request as `502 Proxy error`.
-    expect(await incrementQuota(fakeEnv(new Map(), 'put'))).toBeNull()
+  it('refuses once the bucket is full', async () => {
+    const { env } = fakeEnv()
+    for (let i = 0; i < 3; i++) {
+      await countAgainst(env, 'ip:198.51.100.7', 'day:d', 3)
+    }
+
+    const counted = await countAgainst(env, 'ip:198.51.100.7', 'day:d', 3)
+
+    expect(counted.outcome).toBe('over-limit')
+    expect(isRefusedBy(counted.outcome)).toBe(true)
+  })
+
+  it('counts each address on its own', async () => {
+    const { env } = fakeEnv()
+    await countAgainst(env, 'ip:198.51.100.7', 'day:d', 1)
+
+    const counted = await countAgainst(env, 'ip:203.0.113.9', 'day:d', 1)
+
+    expect(counted.outcome).toBe('within-limit')
+  })
+
+  it('keeps sign-in attempts in a bucket of their own', async () => {
+    const { env, counters } = fakeEnv()
+
+    await countAgainst(env, 'ip:198.51.100.7', 'day:d', 10)
+    await countAgainst(env, 'ip:198.51.100.7', 'login:h', 10)
+
+    expect(counters.get('ip:198.51.100.7')).toEqual(
+      new Map([
+        ['day:d', 1],
+        ['login:h', 1],
+      ]),
+    )
+  })
+
+  it('says the counter is unavailable when it fails, and does not refuse', async () => {
+    // Refusing would close the app for everyone over what may be a moment's
+    // trouble with the counter.
+    const counted = await countAgainst(
+      fakeEnv(true).env,
+      'ip:198.51.100.7',
+      'day:d',
+      10,
+    )
+
+    expect(counted).toEqual({ outcome: 'counter-unavailable', count: null })
+    expect(isRefusedBy(counted.outcome)).toBe(false)
+  })
+})
+
+describe('the limits', () => {
+  it('come from the vars when they are positive integers', () => {
+    const { env } = fakeEnv(false, {
+      IP_DAILY_LIMIT: '100',
+      LOGIN_HOURLY_LIMIT: '5',
+      DAILY_QUOTA: '2000',
+    })
+
+    expect(readLimits(env)).toEqual({
+      ipDaily: 100,
+      loginHourly: 5,
+      daily: 2000,
+    })
+  })
+
+  it('fall back to the defaults when unset', () => {
+    expect(readLimits(fakeEnv().env)).toEqual(DEFAULT_LIMITS)
+  })
+
+  it('fall back to the defaults rather than refusing everyone over a typo', () => {
+    // `0`, a negative or a word would otherwise refuse every request, or none.
+    const { env } = fakeEnv(false, {
+      IP_DAILY_LIMIT: '0',
+      LOGIN_HOURLY_LIMIT: '-3',
+      DAILY_QUOTA: 'lots',
+    })
+
+    expect(readLimits(env)).toEqual(DEFAULT_LIMITS)
   })
 })

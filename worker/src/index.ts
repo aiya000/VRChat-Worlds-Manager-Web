@@ -3,8 +3,9 @@
  *
  * - Proxies requests to api.vrchat.cloud with CORS headers
  * - Relays authentication cookies/tokens
- * - Rate limits by IP (hourly), with a far tighter limit on credential
- *   attempts, and a daily quota, all in KV
+ * - Rate limits by IP (daily), with a far tighter hourly limit on credential
+ *   attempts, and a daily quota for the whole Worker, all counted in a
+ *   Durable Object (`UsageCounter`)
  * - Whitelists only API endpoints used by the app, and only the headers
  *   VRChat is meant to see
  * - Asks every credential attempt for a Cloudflare Turnstile token, once a
@@ -18,10 +19,16 @@
  * using it as a stepping stone. See #61.
  */
 
+import { nextUtcMidnight, type UsageCounter } from './usage-counter'
+
 export interface Env {
   ALLOWED_ORIGIN: string
   VRCHAT_API_BASE: string
-  QUOTA: KVNamespace
+  USAGE_COUNTER: DurableObjectNamespace<UsageCounter>
+  /** Each a positive integer as a string; see `DEFAULT_LIMITS`. */
+  IP_DAILY_LIMIT?: string
+  LOGIN_HOURLY_LIMIT?: string
+  DAILY_QUOTA?: string
   /**
    * The Turnstile widget's secret, set with `wrangler secret put` rather than
    * in `wrangler.toml`. Absent, credential attempts are asked for no bot
@@ -95,18 +102,65 @@ export async function checkTurnstile(
   }
 }
 
-const DAILY_QUOTA = 90_000
-const IP_HOURLY_LIMIT = 500
-
 /**
- * Credential attempts get their own, much smaller allowance.
+ * The limits, used when `wrangler.toml` does not set them.
  *
- * A password guess and a two-factor guess both come through here, and the
- * second is six digits -- a million codes, which 500 tries an hour would walk
- * in a few months. Thirty an hour turns that into millennia while leaving far
- * more room than a person mistyping a password needs.
+ * `wrangler.sample.toml` sets all three under `[vars]`, and the deploy copies
+ * it, so these are what a missing or mistyped value falls back to rather than
+ * what production runs with.
  */
-const LOGIN_HOURLY_LIMIT = 30
+export const DEFAULT_LIMITS = {
+  /**
+   * Relays one address may make in a UTC day (#171).
+   *
+   * Purging VRChat's favourites sends one request per favourite, so a person
+   * with a few hundred of them needs a few hundred here to finish in a day.
+   */
+  ipDaily: 1_000,
+  /**
+   * Credential attempts get their own, much smaller allowance.
+   *
+   * A password guess and a two-factor guess both come through here, and the
+   * second is six digits -- a million codes. Thirty an hour turns walking them
+   * into millennia while leaving far more room than a person mistyping a
+   * password needs.
+   */
+  loginHourly: 30,
+  /** Relays the whole Worker may make in a UTC day, everyone together. */
+  daily: 90_000,
+}
+
+export type Limits = typeof DEFAULT_LIMITS
+
+function parseLimit(raw: string | undefined, fallback: number, name: string) {
+  if (raw === undefined) {
+    return fallback
+  }
+  const value = Number(raw)
+  if (!Number.isInteger(value) || value <= 0) {
+    console.error(
+      `${name} is not a positive integer (${raw}); using ${fallback}`,
+    )
+    return fallback
+  }
+  return value
+}
+
+export function readLimits(env: Env): Limits {
+  return {
+    ipDaily: parseLimit(
+      env.IP_DAILY_LIMIT,
+      DEFAULT_LIMITS.ipDaily,
+      'IP_DAILY_LIMIT',
+    ),
+    loginHourly: parseLimit(
+      env.LOGIN_HOURLY_LIMIT,
+      DEFAULT_LIMITS.loginHourly,
+      'LOGIN_HOURLY_LIMIT',
+    ),
+    daily: parseLimit(env.DAILY_QUOTA, DEFAULT_LIMITS.daily, 'DAILY_QUOTA'),
+  }
+}
 
 interface AllowedRoute {
   method: string
@@ -371,9 +425,10 @@ export const UPSTREAM_UNREACHABLE = 'upstream-unreachable'
 export type CountOutcome = 'within-limit' | 'over-limit' | 'counter-unavailable'
 
 /**
- * A KV failure lets the request through, deliberately.
+ * A counter failure lets the request through, deliberately.
  *
- * The alternative is refusing everything for as long as KV is unwell, which
+ * The alternative is refusing everything for as long as the counter is
+ * unwell, which
  * turns a storage blip into an outage of the whole app. What it costs is that
  * the cap is not enforced while the counter is down -- acceptable here
  * because the free plan cannot be billed past its limits (Cloudflare simply
@@ -381,7 +436,7 @@ export type CountOutcome = 'within-limit' | 'over-limit' | 'counter-unavailable'
  * against a cap of ninety thousand a day.
  *
  * **On a paid plan this reasoning does not hold**: there is no spend limit
- * for Workers or KV, `DAILY_QUOTA` is the only lever, and failing open
+ * for Workers or Durable Objects, `DAILY_QUOTA` is the only lever, and failing open
  * removes it exactly when something is going wrong. Revisit this before
  * upgrading (#170).
  */
@@ -389,93 +444,59 @@ export function isRefusedBy(outcome: CountOutcome): boolean {
   return outcome === 'over-limit'
 }
 
-/**
- * Reads today's quota, or `null` when KV could not say.
- *
- * `null` is not zero: an unreadable counter must not read as "the day's
- * allowance is spent", which would turn a KV blip into a closed app.
- */
-export async function getQuotaRemaining(env: Env): Promise<number | null> {
-  const today = new Date().toISOString().slice(0, 10)
-  const key = `quota:${today}`
-  try {
-    const current = parseInt((await env.QUOTA.get(key)) || '0', 10)
-    return Math.max(0, DAILY_QUOTA - current)
-  } catch (err) {
-    console.error(`Daily quota unreadable (${key}): ${String(err)}`)
-    return null
-  }
+/** What `countAgainst` came to, and the bucket's count when it could say. */
+export interface Counted {
+  outcome: CountOutcome
+  count: number | null
 }
 
 /**
- * Counts one request against today's quota, and never throws.
+ * Counts one use against a bucket of the named counter, and never throws.
  *
- * This runs after the upstream answered, so an exception here used to be
- * caught by the proxy's own `catch` and reported as a proxy failure -- a
- * request VRChat had already answered came back as `502 Proxy error` (#170).
- */
-export async function incrementQuota(env: Env): Promise<number | null> {
-  const today = new Date().toISOString().slice(0, 10)
-  const key = `quota:${today}`
-  try {
-    const current = parseInt((await env.QUOTA.get(key)) || '0', 10)
-    const next = current + 1
-    await env.QUOTA.put(key, String(next), { expirationTtl: 172800 })
-    return Math.max(0, DAILY_QUOTA - next)
-  } catch (err) {
-    console.error(`Daily quota not counted (${key}): ${String(err)}`)
-    return null
-  }
-}
-
-/**
- * Counts one use against an hourly bucket and says how it went.
+ * `counter` names the Durable Object -- one per address, `ip:<address>`, and
+ * one for the Worker as a whole -- and `bucket` the period inside it.
  *
- * KV cannot count atomically -- this reads, compares and writes, so requests
- * that arrive together all read the same number and the limit can be overrun
- * by however many are in flight at once. That bounds the overrun by
- * concurrency rather than removing it, which is enough for a coarse cap and
- * is not enough for anything finer. Moving these counters to a Rate Limiting
- * binding or a Durable Object is the fix, and is listed in #61.
- *
- * A KV failure used to leave the whole `fetch` handler through the exception,
+ * A failure used to leave the whole `fetch` handler through the exception,
  * which meant the response carried no CORS headers and the browser saw a
  * connection failure rather than an error (#170). See `isRefusedBy` for why
- * it now lets the request through instead.
+ * it lets the request through instead.
  */
-export async function countAgainstHourlyLimit(
+export async function countAgainst(
   env: Env,
-  keyPrefix: string,
-  ip: string,
+  counter: string,
+  bucket: string,
   limit: number,
-): Promise<CountOutcome> {
-  const hour = new Date().toISOString().slice(0, 13) // "2025-05-03T12"
-  const key = `${keyPrefix}:${ip}:${hour}`
+): Promise<Counted> {
   try {
-    const current = parseInt((await env.QUOTA.get(key)) || '0', 10)
-    if (current >= limit) {
-      return 'over-limit'
-    }
-    await env.QUOTA.put(key, String(current + 1), { expirationTtl: 7200 })
-    return 'within-limit'
+    const stub = env.USAGE_COUNTER.get(env.USAGE_COUNTER.idFromName(counter))
+    const { allowed, count } = await stub.count(bucket, limit)
+    return { outcome: allowed ? 'within-limit' : 'over-limit', count }
   } catch (err) {
-    console.error(`Hourly counter unavailable (${key}): ${String(err)}`)
-    return 'counter-unavailable'
+    // The bucket and not the counter: the counter's name is an address.
+    console.error(`Usage counter unavailable (${bucket}): ${String(err)}`)
+    return { outcome: 'counter-unavailable', count: null }
   }
+}
+
+/** Seconds from `now` until the daily buckets start again. */
+export function secondsUntilUtcMidnight(now: Date): number {
+  return Math.ceil((nextUtcMidnight(now) - now.getTime()) / 1000)
 }
 
 function tooManyRequests(
   origin: string,
   allowedOrigin: string,
   error: string,
+  retryAfterSeconds: number,
+  extraHeaders: Record<string, string> = {},
 ): Response {
   return new Response(JSON.stringify({ error }), {
     status: 429,
     headers: {
       ...corsHeaders(origin, allowedOrigin),
       'Content-Type': 'application/json',
-      // The buckets are hourly, so the next one is at most an hour away.
-      'Retry-After': '3600',
+      'Retry-After': String(retryAfterSeconds),
+      ...extraHeaders,
     },
   })
 }
@@ -518,10 +539,22 @@ export default {
     // counted, and never a way round the count.
     const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown'
 
+    const limits = readLimits(env)
+    const now = new Date()
+    const day = `day:${now.toISOString().slice(0, 10)}` // "day:2026-09-24"
+    const addressCounter = `ip:${ip}`
+
     if (
-      isRefusedBy(await countAgainstHourlyLimit(env, 'ip', ip, IP_HOURLY_LIMIT))
+      isRefusedBy(
+        (await countAgainst(env, addressCounter, day, limits.ipDaily)).outcome,
+      )
     ) {
-      return tooManyRequests(origin, env.ALLOWED_ORIGIN, RATE_LIMIT_EXCEEDED)
+      return tooManyRequests(
+        origin,
+        env.ALLOWED_ORIGIN,
+        RATE_LIMIT_EXCEEDED,
+        secondsUntilUtcMidnight(now),
+      )
     }
 
     if (
@@ -556,35 +589,39 @@ export default {
         )
       }
 
+      const hour = `login:${now.toISOString().slice(0, 13)}` // "login:2026-09-24T02"
       if (
         isRefusedBy(
-          await countAgainstHourlyLimit(env, 'login', ip, LOGIN_HOURLY_LIMIT),
+          (await countAgainst(env, addressCounter, hour, limits.loginHourly))
+            .outcome,
         )
       ) {
         return tooManyRequests(
           origin,
           env.ALLOWED_ORIGIN,
           SIGN_IN_LIMIT_EXCEEDED,
+          // The sign-in buckets are hourly, so the next is at most an hour away.
+          3600,
         )
       }
     }
 
-    // Daily quota check. `null` means KV could not say, which is not the same
-    // as "none left" -- see `getQuotaRemaining`.
-    const remaining = await getQuotaRemaining(env)
-    if (remaining !== null && remaining <= 0) {
-      return new Response(JSON.stringify({ error: DAILY_QUOTA_EXCEEDED }), {
-        status: 429,
-        headers: {
-          ...corsHeaders(origin, env.ALLOWED_ORIGIN),
-          'Content-Type': 'application/json',
-          'X-Quota-Remaining': '0',
-          // The quota is daily, but it is spent by everyone together, so the
-          // hour is what is worth waiting rather than the day.
-          'Retry-After': '3600',
-        },
-      })
+    // Counted before VRChat is asked rather than after it answers: one call
+    // both checks and spends, where KV needed a read before and a write after.
+    // A `null` count means the counter could not say, which is not the same
+    // as "none left".
+    const quota = await countAgainst(env, 'worker', day, limits.daily)
+    if (isRefusedBy(quota.outcome)) {
+      return tooManyRequests(
+        origin,
+        env.ALLOWED_ORIGIN,
+        DAILY_QUOTA_EXCEEDED,
+        secondsUntilUtcMidnight(now),
+        { 'X-Quota-Remaining': '0' },
+      )
     }
+    const quotaRemaining =
+      quota.count === null ? null : Math.max(0, limits.daily - quota.count)
 
     const targetUrl = `${env.VRCHAT_API_BASE}${apiPath}${url.search}`
 
@@ -607,8 +644,6 @@ export default {
 
     try {
       const response = await fetch(proxyRequest)
-
-      const quotaRemaining = await incrementQuota(env)
 
       const responseHeaders = new Headers(response.headers)
       const cors = corsHeaders(origin, env.ALLOWED_ORIGIN)
@@ -643,9 +678,9 @@ export default {
         headers: responseHeaders,
       })
     } catch (err) {
-      // Only the request to VRChat can land here now. Counting the quota is
-      // inside its own `try`, so a KV failure no longer turns an answer
-      // VRChat already gave into a proxy failure (#170).
+      // Only the request to VRChat can land here: the quota is counted before
+      // it, and `countAgainst` never throws, so a counter failure cannot turn
+      // an answer VRChat already gave into a proxy failure (#170).
       console.error(`Upstream request failed (${targetUrl}): ${String(err)}`)
       return new Response(
         JSON.stringify({ error: UPSTREAM_UNREACHABLE, details: String(err) }),
