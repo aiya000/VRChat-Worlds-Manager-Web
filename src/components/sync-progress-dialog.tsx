@@ -48,11 +48,14 @@ export function SyncProgressDialog() {
     <AlertDialog open={running}>
       <AlertDialogContent data-testid="sync-progress-dialog">
         <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2">
+          <AlertDialogTitle className="flex items-center justify-center gap-2">
             <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />
             {t('sync-dialog:title')}
           </AlertDialogTitle>
-          <AlertDialogDescription>
+          {/* Read out, not shown: on screen the spinner and the steps say
+              enough, but a screen reader would otherwise be told only that
+              something is syncing, not why everything else stopped. */}
+          <AlertDialogDescription className="sr-only">
             {t('sync-dialog:description')}
           </AlertDialogDescription>
         </AlertDialogHeader>
