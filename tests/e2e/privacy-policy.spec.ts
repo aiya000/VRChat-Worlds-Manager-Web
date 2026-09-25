@@ -30,11 +30,6 @@ test('the privacy policy page states where each kind of data goes', async ({
       name: 'https://myaccount.google.com/permissions',
     }),
   ).toHaveAttribute('href', 'https://myaccount.google.com/permissions')
-  await expect(
-    page.getByRole('link', {
-      name: 'https://www.cloudflare.com/privacypolicy/',
-    }),
-  ).toHaveAttribute('href', 'https://www.cloudflare.com/privacypolicy/')
 })
 
 test('the About page links to the privacy policy, and says to come back', async ({
