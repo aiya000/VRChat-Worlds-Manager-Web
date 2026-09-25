@@ -40,6 +40,19 @@ export default function PrivacyPolicyPage() {
         />
       </LegalSection>
 
+      {/* How long the host keeps its records is the host's to decide, so no
+          number of days is promised here -- only what the operator does with
+          them. The host is not named on purpose. */}
+      <LegalSection title={t('privacy-policy:hosting-title')}>
+        <p>{t('privacy-policy:hosting-body')}</p>
+        <LegalBullets
+          items={[
+            t('privacy-policy:hosting-item-purpose'),
+            t('privacy-policy:hosting-item-credentials'),
+          ]}
+        />
+      </LegalSection>
+
       <LegalSection title={t('privacy-policy:google-drive-title')}>
         <p>{t('privacy-policy:google-drive-body')}</p>
         <LegalBullets

@@ -195,6 +195,6 @@ test.describe('agreeing by signing in', () => {
       .click()
 
     await page.waitForURL(/\/listview/)
-    expect(await acceptedVersion(page)).toBe('2026-09-12')
+    expect(await acceptedVersion(page)).toBe('2026-09-25')
   })
 })

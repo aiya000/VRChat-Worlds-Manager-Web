@@ -16,6 +16,7 @@ test('the privacy policy page states where each kind of data goes', async ({
   for (const section of [
     'privacy-policy:local-data-title',
     'privacy-policy:vrchat-title',
+    'privacy-policy:hosting-title',
     'privacy-policy:google-drive-title',
     'privacy-policy:analytics-title',
     'privacy-policy:third-party-title',

@@ -13,7 +13,7 @@
  */
 
 /** Keep in step with `terms:last-updated` in the locales. */
-export const TERMS_VERSION = '2026-09-12'
+export const TERMS_VERSION = '2026-09-25'
 
 const ACCEPTED_KEY = 'termsAcceptedVersion'
 
