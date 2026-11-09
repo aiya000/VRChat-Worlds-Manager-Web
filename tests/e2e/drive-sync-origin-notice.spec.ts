@@ -18,6 +18,10 @@ test.use({ serviceWorkers: 'block' })
  * makes to that host is answered by the local dev server, so the page runs
  * with `location.hostname` set to the address in question and nothing else
  * changed.
+ *
+ * The dev server's HMR socket has to be carried across as well. `page.route()`
+ * does not see WebSockets, and since Next.js 16.4 the page does not hydrate
+ * until that socket has delivered its first (partly binary) messages.
  */
 async function serveAsPagesDev(page: Page) {
   await page.route(`${PAGES_DEV}/**`, async (route) => {
@@ -26,6 +30,35 @@ async function serveAsPagesDev(page: Page) {
       url: `${LOCAL}${asked.pathname}${asked.search}`,
     })
     await route.fulfill({ response })
+  })
+  await page.routeWebSocket(`${PAGES_DEV.replace('https', 'wss')}/**`, (ws) => {
+    const asked = new URL(ws.url())
+    const upstream = new WebSocket(
+      `${LOCAL.replace('http', 'ws')}${asked.pathname}${asked.search}`,
+    )
+    upstream.binaryType = 'arraybuffer'
+    const waiting: (string | Buffer)[] = []
+    upstream.addEventListener('open', () => {
+      for (const message of waiting.splice(0)) {
+        upstream.send(message)
+      }
+    })
+    upstream.addEventListener('message', (event) => {
+      ws.send(
+        typeof event.data === 'string'
+          ? event.data
+          : Buffer.from(event.data as ArrayBuffer),
+      )
+    })
+    upstream.addEventListener('close', () => ws.close())
+    ws.onMessage((message) => {
+      if (upstream.readyState === WebSocket.OPEN) {
+        upstream.send(message)
+      } else {
+        waiting.push(message)
+      }
+    })
+    ws.onClose(() => upstream.close())
   })
 }
 

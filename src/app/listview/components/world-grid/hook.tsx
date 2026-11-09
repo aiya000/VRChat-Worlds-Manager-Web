@@ -40,37 +40,37 @@ export function useWorldGrid(
       favorites: true,
     })
 
-  const loadCardSize = async () => {
-    try {
-      const result = await commands.getCardSize()
-      if (result.status === 'ok') {
-        setCardSize(result.data)
-      }
-    } catch (e) {
-      console.error(`Failed to load card size: ${e}`)
-      toast(t('general:error-title'), {
-        description: t('listview-page:error-load-card-size'),
-      })
-    }
-  }
-
-  const loadFieldVisibility = async () => {
-    try {
-      const result = await commands.getWorldCardFieldVisibility()
-      if (result.status === 'ok') {
-        setFieldVisibility(result.data)
-      }
-    } catch (e) {
-      console.error(`Failed to load world card field visibility: ${e}`)
-    }
-  }
-
   // A sync can replace these under the grid, and nothing here watches local
   // storage, so without the second effect a card size pulled from another
   // device only showed up after a reload.
   const [preferencesRevision, setPreferencesRevision] = useState(0)
 
   useEffect(() => {
+    const loadCardSize = async () => {
+      try {
+        const result = await commands.getCardSize()
+        if (result.status === 'ok') {
+          setCardSize(result.data)
+        }
+      } catch (e) {
+        console.error(`Failed to load card size: ${e}`)
+        toast(t('general:error-title'), {
+          description: t('listview-page:error-load-card-size'),
+        })
+      }
+    }
+
+    const loadFieldVisibility = async () => {
+      try {
+        const result = await commands.getWorldCardFieldVisibility()
+        if (result.status === 'ok') {
+          setFieldVisibility(result.data)
+        }
+      } catch (e) {
+        console.error(`Failed to load world card field visibility: ${e}`)
+      }
+    }
+
     loadCardSize()
     loadFieldVisibility()
   }, [preferencesRevision]) // eslint-disable-line react-hooks/exhaustive-deps

@@ -19,7 +19,9 @@ export default function RecentlyVisitedWorldsPage() {
   // dependency is rebuilt on every render too, and every effect that depends
   // on it runs again. The fetch below reads the latest `t` from here instead.
   const tRef = useRef(t)
-  tRef.current = t
+  useEffect(() => {
+    tRef.current = t
+  })
   // `null` until the first answer arrives. An empty answer and "not asked
   // yet" used to be the same value, so the effect that fetches on first load
   // could not tell them apart and asked again as soon as it finished.

@@ -34,13 +34,7 @@ interface ImportFavoritesFromAccountDialogProps {
 }
 
 type Step =
-  | 'warn'
-  | 'credentials'
-  | '2fa'
-  | 'fetching'
-  | 'select'
-  | 'importing'
-  | 'done'
+  'warn' | 'credentials' | '2fa' | 'fetching' | 'select' | 'importing' | 'done'
 
 export function ImportFavoritesFromAccountDialog({
   open,

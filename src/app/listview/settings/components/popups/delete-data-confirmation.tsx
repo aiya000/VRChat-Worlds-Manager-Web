@@ -55,16 +55,9 @@ export function DeleteDataConfirmationDialog({
           return newProgress
         })
       }, stepInterval)
-    } else {
-      // Reset progress when not holding
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-      // Only reset progress if we haven't completed
-      if (progress < 100) {
-        setProgress(0)
-      }
+    } else if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
     }
 
     return () => {
@@ -75,27 +68,30 @@ export function DeleteDataConfirmationDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHolding])
 
-  useEffect(() => {
+  // Stopping `isHolding` is enough to stop the interval: the effect above
+  // clears it on the way out.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
     if (!open) {
       setProgress(0)
       setIsHolding(false)
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
     }
-  }, [open])
+  }
 
   const handleMouseDown = () => {
     setIsHolding(true)
   }
 
-  const handleMouseUp = () => {
+  const releaseHold = () => {
     setIsHolding(false)
+    // A completed hold keeps its full bar.
+    setProgress((current) => (current < 100 ? 0 : current))
   }
 
-  const handleMouseLeave = () => {
-    setIsHolding(false)
-  }
+  const handleMouseUp = releaseHold
+
+  const handleMouseLeave = releaseHold
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

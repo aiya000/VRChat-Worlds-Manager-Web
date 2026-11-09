@@ -176,10 +176,7 @@ export class BackendLimitError extends VRChatApiError {
 
 /** Why a world could not be fetched, sorted by what the user can do about it. */
 export type WorldFetchFailureKind =
-  | 'not-found'
-  | 'not-public'
-  | 'network'
-  | 'other'
+  'not-found' | 'not-public' | 'network' | 'other'
 
 export class WorldFetchError extends Error {
   constructor(

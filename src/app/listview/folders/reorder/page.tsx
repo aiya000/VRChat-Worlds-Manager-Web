@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -17,10 +17,14 @@ export default function ReorderFoldersPage() {
   const { t } = useLocalization()
   const { folders, isLoading, moveFolder } = useFolders()
   const [order, setOrder] = useState<FolderData[]>(folders)
-
-  useEffect(() => {
+  // Compared by content: `folders` is a fresh `[]` on every render while it
+  // loads, and comparing by identity re-rendered forever.
+  const foldersKey = JSON.stringify(folders)
+  const [orderedFrom, setOrderedFrom] = useState(foldersKey)
+  if (foldersKey !== orderedFrom) {
+    setOrderedFrom(foldersKey)
     setOrder(folders)
-  }, [folders])
+  }
 
   const move = (index: number, direction: -1 | 1) => {
     const destination = index + direction

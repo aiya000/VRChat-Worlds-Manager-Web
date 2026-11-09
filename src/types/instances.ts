@@ -1,12 +1,7 @@
 export type GroupInstanceType = 'public' | 'group+' | 'group'
 
 export type InstanceType =
-  | 'public'
-  | 'group'
-  | 'friends+'
-  | 'friends'
-  | 'invite+'
-  | 'invite'
+  'public' | 'group' | 'friends+' | 'friends' | 'invite+' | 'invite'
 
 export interface GroupInstanceTypeOption {
   type: GroupInstanceType

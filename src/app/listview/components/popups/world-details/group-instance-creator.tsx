@@ -106,7 +106,8 @@ export function GroupInstanceCreator({
   const [currentStep, setCurrentStep] = useState<CreationStep>(
     initialGroupId ? 'type' : 'group',
   )
-  const [isLoading, setIsLoading] = useState(true) // Add internal loading state
+  const [isSelectingGroup, setIsSelectingGroup] = useState(false)
+  const isLoading = (externalLoading ?? false) || isSelectingGroup
   const [stepInfo, setStepInfo] = useState<StepInfo>({
     groupId: initialGroupId || null,
     instanceType: null,
@@ -116,15 +117,6 @@ export function GroupInstanceCreator({
   })
 
   const [selectingEveryoneRole, setSelectingEveryoneRole] = useState(true)
-
-  // Add useEffect to update loading state based on groups
-  useEffect(() => {
-    if (externalLoading) {
-      setIsLoading(true)
-    } else {
-      setIsLoading(false)
-    }
-  }, [groups]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Add useEffect to load the saved region preference
   useEffect(() => {
@@ -335,7 +327,7 @@ export function GroupInstanceCreator({
 
     // Reset state after creation
     setCurrentStep('group')
-    setIsLoading(false)
+    setIsSelectingGroup(false)
     setStepInfo({
       groupId: null,
       instanceType: null,
@@ -361,7 +353,7 @@ export function GroupInstanceCreator({
 
   const handleGroupSelect = async (groupId: string) => {
     try {
-      setIsLoading(true)
+      setIsSelectingGroup(true)
       setStepInfo((prev) => ({
         ...prev,
         groupId,
@@ -372,7 +364,7 @@ export function GroupInstanceCreator({
       await onGroupSelect(groupId)
       setCurrentStep('type')
     } finally {
-      setIsLoading(false)
+      setIsSelectingGroup(false)
     }
   }
 
@@ -434,7 +426,7 @@ export function GroupInstanceCreator({
     </Button>
   )
 
-  const GroupSelectionPage = () => {
+  const renderGroupSelectionPage = () => {
     if (isLoading || !groups) {
       return (
         <div className="flex items-center justify-center min-h-[300px]">
@@ -480,7 +472,7 @@ export function GroupInstanceCreator({
     )
   }
 
-  const InstanceTypeSelectionPage = () => {
+  const renderInstanceTypeSelectionPage = () => {
     if (isLoading || !permission) {
       return (
         <div className="flex items-center justify-center min-h-[300px]">
@@ -544,7 +536,7 @@ export function GroupInstanceCreator({
     )
   }
 
-  const RoleSelectionPage = () => {
+  const renderRoleSelectionPage = () => {
     if (isLoading || !roles) {
       return (
         <div className="flex items-center justify-center p-4">
@@ -614,7 +606,7 @@ export function GroupInstanceCreator({
     )
   }
 
-  const ConfigurationPage = () => (
+  const renderConfigurationPage = () => (
     <div className="space-y-1">
       <NavigationItem
         label={t('group-instance-creator:group-label')}
@@ -763,16 +755,16 @@ export function GroupInstanceCreator({
   // Render pages
   switch (currentStep) {
     case 'group':
-      return <GroupSelectionPage />
+      return renderGroupSelectionPage()
     case 'type':
-      return <InstanceTypeSelectionPage />
+      return renderInstanceTypeSelectionPage()
     case 'roles':
-      return stepInfo.instanceType === 'group' && canGateRoles() ? (
-        <RoleSelectionPage />
-      ) : null
+      return stepInfo.instanceType === 'group' && canGateRoles()
+        ? renderRoleSelectionPage()
+        : null
     case 'config':
-      return <ConfigurationPage />
+      return renderConfigurationPage()
     default:
-      return <GroupSelectionPage />
+      return renderGroupSelectionPage()
   }
 }

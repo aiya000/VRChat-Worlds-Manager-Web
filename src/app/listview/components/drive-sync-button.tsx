@@ -58,7 +58,9 @@ export const DriveSyncButton: FC = () => {
   const { t } = useLocalization()
   const [connected, setConnected] = useState<boolean | null>(null)
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
-  const [localChangedAt, setLocalChangedAt] = useState<number | null>(null)
+  // Read up front: nothing is rendered until `connected` is known, so the
+  // server's `null` and the stored value are never compared on hydration.
+  const [localChangedAt, setLocalChangedAt] = useState(lastLocalChangeAt)
   const [syncing, setSyncing] = useState(() => syncActivity().running)
   const [step, setStep] = useState<SyncStep | null>(null)
   const [now, setNow] = useState(() => Date.now())
@@ -200,7 +202,6 @@ export const DriveSyncButton: FC = () => {
     commands.googleDriveLastSyncedAt().then((result) => {
       setLastSyncedAt(result.status === 'ok' ? result.data : null)
     })
-    setLocalChangedAt(lastLocalChangeAt())
   }, [])
 
   const press = () => {

@@ -135,24 +135,24 @@ export const useAddToFolderPopup = ({
     setCreatedFolder(name)
   }
 
-  // whenever `folders` changes after we created one, scroll it into view
+  // The folder list is refreshed without being awaited, so the new row may
+  // appear a render or two after `createdFolder` is set. Scroll once it does.
+  const scrolledToFolderRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!createdFolder) {
+    if (!createdFolder || scrolledToFolderRef.current === createdFolder) {
+      return
+    }
+    const el = listRef.current?.querySelector<HTMLElement>(
+      `[data-folder="${createdFolder.replace(/"/g, '\\"')}"]`,
+    )
+    if (!el) {
       return
     }
     console.info(
       `[AddToFolder] New folder created, scrolling into view: ${createdFolder}`,
     )
-    const container = listRef.current
-    if (container) {
-      const el = container.querySelector<HTMLElement>(
-        `[data-folder="${createdFolder.replace(/"/g, '\\"')}"]`,
-      )
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
-    }
-    setCreatedFolder(null)
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    scrolledToFolderRef.current = createdFolder
   }, [folders, createdFolder])
 
   const getInitialState = (folder: string) => {
