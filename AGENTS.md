@@ -635,6 +635,10 @@ read the file.
 - **Playwright reports `Executable doesn't exist`**, including in a Claude Code cloud session
   whose browsers belong to another Playwright version:
   [playwright-browser-missing.md](./agents/knowledge/playwright-browser-missing.md)
+- **Nearly every E2E spec fails after a Next.js upgrade, and the pages show in English** while the
+  specs look for Japanese -- the dev server is refusing Playwright's `127.0.0.1` origin, so nothing
+  hydrates:
+  [e2e-dev-origin-blocked.md](./agents/knowledge/e2e-dev-origin-blocked.md)
 
 When a new trouble is worked out, add a file there and a line here: the symptom as it is first
 seen, then the link.
@@ -965,3 +969,25 @@ accuracy without saying so is the failure, not the length of the session.
 3. **Test with `bun run typecheck` and `bun run build` before committing**
 4. **This is a static site - ensure all changes work with `output: "export"`**
 5. **Develop on `develop`; never merge to `main` without explicit user instruction**
+
+## From Next.js: "This is NOT the Next.js you know"
+
+**This section was written by `next dev` (Next.js 16.4.5), not by this project.** Since 16.4,
+`next dev` appends it to `AGENTS.md` on every start when it detects an AI agent. It is kept here
+by hand, and `agentRules: false` in `next.config.ts` stops `next dev` from writing it again.
+
+The block is copied without its `BEGIN:nextjs-agent-rules` / `END:nextjs-agent-rules` HTML-comment
+markers on purpose: with `agentRules: false`, `next dev` deletes whatever sits between them, and
+**that includes the markers written out in prose** -- do not quote them whole in this file. Its
+last paragraph ("This block is written and re-added by `next dev` ...") is left out, since that is
+no longer true here.
+
+What it said, verbatim:
+
+> This version has breaking changes — APIs, conventions, and file structure may all differ from
+> your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this
+> file's directory; in monorepos the `next` package may not be visible from the repo root) before
+> writing any code. Heed deprecation notices.
+
+After upgrading Next.js, compare this with `buildAgentRulesBlock()` in
+`node_modules/next/dist/server/lib/generate-agent-files.js` and update the copy if it changed.
