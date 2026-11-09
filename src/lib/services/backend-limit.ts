@@ -14,9 +14,7 @@
 
 /** Which limit was reached. The strings match what the Worker sends. */
 export type BackendLimitKind =
-  | 'rate-limit-exceeded'
-  | 'sign-in-limit-exceeded'
-  | 'daily-quota-exceeded'
+  'rate-limit-exceeded' | 'sign-in-limit-exceeded' | 'daily-quota-exceeded'
 
 const kinds: readonly BackendLimitKind[] = [
   'rate-limit-exceeded',

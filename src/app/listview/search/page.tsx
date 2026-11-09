@@ -74,18 +74,27 @@ export default function SearchWorldsPage() {
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const searchGridRef = useRef<HTMLDivElement>(null)
 
-  // Keep selectedSort in sync: when a search query is present, force sort to
-  // 'relevance'. Only VRChat decides relevance, so the collection's own order
-  // is left alone.
-  useEffect(() => {
-    if (searchSavedOnly) {
-      return
+  // Keep selectedSort in sync: when the search query changes to something,
+  // force sort to 'relevance'. Only VRChat decides relevance, so the
+  // collection's own order is left alone. Checked only when the query or the
+  // source changes, so a sort chosen afterwards is kept.
+  const [sortCheckedFor, setSortCheckedFor] = useState({
+    query: searchQuery,
+    savedOnly: searchSavedOnly,
+  })
+  if (
+    searchQuery !== sortCheckedFor.query ||
+    searchSavedOnly !== sortCheckedFor.savedOnly
+  ) {
+    setSortCheckedFor({ query: searchQuery, savedOnly: searchSavedOnly })
+    if (
+      !searchSavedOnly &&
+      searchQuery.trim() !== '' &&
+      selectedSort !== 'relevance'
+    ) {
+      setSelectedSort('relevance')
     }
-    if (searchQuery.trim() !== '') {
-      // Only update when it's not already 'relevance' to avoid unnecessary state updates
-      setSelectedSort((prev) => (prev === 'relevance' ? prev : 'relevance'))
-    }
-  }, [searchQuery, searchSavedOnly])
+  }
 
   useEffect(() => {
     const loadTags = async () => {

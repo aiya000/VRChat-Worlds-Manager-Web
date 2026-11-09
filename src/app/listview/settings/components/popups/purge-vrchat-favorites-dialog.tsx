@@ -40,7 +40,11 @@ export function PurgeVrchatFavoritesDialog({
   const holdDuration = 3000
   const stepInterval = 50
 
-  useEffect(() => {
+  // Stopping `isHolding` is enough to stop the interval: the effect below
+  // clears it on the way out.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
     if (!open) {
       setStep('warn')
       setHoldProgress(0)
@@ -48,11 +52,8 @@ export function PurgeVrchatFavoritesDialog({
       setDeleteProgress({ done: 0, total: 0 })
       setResult(null)
       setErrorMessage(null)
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
     }
-  }, [open])
+  }
 
   const runPurge = async () => {
     setStep('progress')
@@ -90,14 +91,9 @@ export function PurgeVrchatFavoritesDialog({
           return next
         })
       }, stepInterval)
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-      if (holdProgress < 100) {
-        setHoldProgress(0)
-      }
+    } else if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
     }
 
     return () => {
@@ -105,11 +101,14 @@ export function PurgeVrchatFavoritesDialog({
         clearInterval(intervalRef.current)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHolding])
 
   const handleHoldStart = () => setIsHolding(true)
-  const handleHoldEnd = () => setIsHolding(false)
+  const handleHoldEnd = () => {
+    setIsHolding(false)
+    // A completed hold keeps its full bar.
+    setHoldProgress((current) => (current < 100 ? 0 : current))
+  }
 
   const handleContinueWithoutBackup = () => setStep('confirm')
 

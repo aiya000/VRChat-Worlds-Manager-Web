@@ -1,6 +1,5 @@
 export type Result<T, E> =
-  | { status: 'ok'; data: T }
-  | { status: 'error'; error: E }
+  { status: 'ok'; data: T } | { status: 'error'; error: E }
 
 export type BackupMetaData = {
   date: string
@@ -12,10 +11,7 @@ export type BackupMetaData = {
 export type CardSize = 'Compact' | 'Normal' | 'Expanded' | 'Original'
 
 export type FilterItemSelectorStarredType =
-  | 'Author'
-  | 'Tag'
-  | 'ExcludeTag'
-  | 'Folder'
+  'Author' | 'Tag' | 'ExcludeTag' | 'Folder'
 
 export type FolderData = { name: string; world_count: number }
 
@@ -45,8 +41,7 @@ export type GroupInstanceCreateAllowedType = {
 }
 
 export type GroupInstanceCreatePermission =
-  | { Allowed: GroupInstanceCreateAllowedType }
-  | 'NotAllowed'
+  { Allowed: GroupInstanceCreateAllowedType } | 'NotAllowed'
 
 export type GroupInstancePermissionInfo = {
   permission: GroupInstanceCreatePermission
@@ -114,10 +109,7 @@ export type PatreonVRChatNames = {
 }
 
 export type Platform =
-  | 'standalonewindows'
-  | 'android'
-  | 'ios'
-  | 'unknownplatform'
+  'standalonewindows' | 'android' | 'ios' | 'unknownplatform'
 
 export type PreviousMetadata = {
   number_of_folders: number
@@ -154,11 +146,7 @@ export type WorldBlacklist = { worlds: string[] }
  * being public, and only `private` should be shown as private.
  */
 export type WorldReleaseStatus =
-  | 'public'
-  | 'private'
-  | 'hidden'
-  | 'all'
-  | 'unknown'
+  'public' | 'private' | 'hidden' | 'all' | 'unknown'
 
 export type WorldDetails = {
   worldId: string

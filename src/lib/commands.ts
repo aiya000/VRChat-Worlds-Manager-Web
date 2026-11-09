@@ -1133,13 +1133,12 @@ export const commands = {
           return { kind: 'redirecting' } as DriveSyncResult
         }
 
-        return yield* sync
-          .syncNow(outcome.token, report, signal)
-          .pipe(
-            Effect.map(
-              (outcome): DriveSyncResult => ({ kind: 'synced', ...outcome }),
-            ),
-          )
+        return yield* sync.syncNow(outcome.token, report, signal).pipe(
+          Effect.map((outcome): DriveSyncResult => ({
+            kind: 'synced',
+            ...outcome,
+          })),
+        )
       }).pipe(
         // Not an error to report as one: the hour ran out under a token that
         // looked fine, and the next press simply leaves for a fresh one.

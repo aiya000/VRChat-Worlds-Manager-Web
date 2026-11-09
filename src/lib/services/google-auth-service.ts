@@ -200,8 +200,7 @@ export function forgetAccessToken(): void {
  * idle button for the last frame before it disappears.
  */
 export type AccessTokenOutcome =
-  | { kind: 'token'; token: string }
-  | { kind: 'redirecting' }
+  { kind: 'token'; token: string } | { kind: 'redirecting' }
 
 export type DriveConnectResult = { kind: 'connected' } | { kind: 'redirecting' }
 

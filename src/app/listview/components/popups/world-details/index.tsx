@@ -109,26 +109,6 @@ export function WorldDetailPopup({
   currentFolder,
   dontSaveToLocal,
 }: WorldDetailDialogProps) {
-  const {
-    createInstance,
-    createGroupInstance,
-    isCreatingInstance,
-    getGroups,
-    getGroupPermissions,
-    deleteWorld,
-    hideWorld,
-    selectAuthor,
-    selectTag,
-  } = useWorldDetailsActions(
-    onOpenChange,
-    () => setInstanceReloadKey((key) => key + 1),
-    // An instance is about to outlive the world it was made in. What is known
-    // of the world now is what will be left to find it by.
-    () =>
-      worldDetails === null
-        ? null
-        : { ...worldForCollection(worldDetails), keptForInstance: true },
-  )
   const { t, language } = useLocalization()
   const { folders } = useFolders()
   const { supporters } = usePatreonContext()
@@ -201,7 +181,38 @@ export function WorldDetailPopup({
   // there, so once that has happened this popup is looking at a saved world
   // and the rest of it applies again.
   const [addedFromHere, setAddedFromHere] = useState(false)
+  // Whatever the last world's filing did, a newly opened one is a different
+  // world.
+  const openedWorldId = open ? worldId : null
+  const [filedWorldId, setFiledWorldId] = useState(openedWorldId)
+  if (openedWorldId !== filedWorldId) {
+    setFiledWorldId(openedWorldId)
+    if (openedWorldId !== null) {
+      setAddedFromHere(false)
+    }
+  }
   const notInCollection = (dontSaveToLocal ?? false) && !addedFromHere
+
+  const {
+    createInstance,
+    createGroupInstance,
+    isCreatingInstance,
+    getGroups,
+    getGroupPermissions,
+    deleteWorld,
+    hideWorld,
+    selectAuthor,
+    selectTag,
+  } = useWorldDetailsActions(
+    onOpenChange,
+    () => setInstanceReloadKey((key) => key + 1),
+    // An instance is about to outlive the world it was made in. What is known
+    // of the world now is what will be left to find it by.
+    () =>
+      worldDetails === null
+        ? null
+        : { ...worldForCollection(worldDetails), keptForInstance: true },
+  )
 
   const { refresh } = useWorlds(currentFolder)
 
@@ -231,25 +242,6 @@ export function WorldDetailPopup({
     }
     return `custom:${cleaned}`
   }, [])
-
-  const loadCustomTags = useCallback(async () => {
-    try {
-      const result = await commands.getCustomTags(worldId)
-      if (result.status === 'ok') {
-        setCustomTags(result.data)
-        setWorldDetails((prev) =>
-          prev
-            ? {
-                ...prev,
-                tags: mergeCustomTagsIntoTags(prev.tags, result.data),
-              }
-            : prev,
-        )
-      }
-    } catch (e) {
-      console.error(`Unable to load custom tags for ${worldId}: ${e}`)
-    }
-  }, [mergeCustomTagsIntoTags, worldId])
 
   const persistCustomTags = useCallback(
     async (next: string[]) => {
@@ -467,12 +459,29 @@ export function WorldDetailPopup({
       }
     }
 
+    const loadCustomTags = async () => {
+      try {
+        const result = await commands.getCustomTags(worldId)
+        if (result.status === 'ok') {
+          setCustomTags(result.data)
+          setWorldDetails((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  tags: mergeCustomTagsIntoTags(prev.tags, result.data),
+                }
+              : prev,
+          )
+        }
+      } catch (e) {
+        console.error(`Unable to load custom tags for ${worldId}: ${e}`)
+      }
+    }
+
     if (!open) {
       return
     }
 
-    // Whatever the last world's filing did, this is a different world.
-    setAddedFromHere(false)
     fetchWorldDetails()
     // A world not in the collection has no memo, but it can already be in a
     // folder -- it may have been filed and then found again through the
@@ -482,7 +491,7 @@ export function WorldDetailPopup({
       fetchMemo()
     }
     loadCustomTags()
-  }, [dontSaveToLocal, loadCustomTags, open, worldId])
+  }, [dontSaveToLocal, mergeCustomTagsIntoTags, open, worldId])
 
   // Keyed on `open` rather than running once on mount: the popup stays mounted,
   // and the group instance creator writes the region preference too, so a

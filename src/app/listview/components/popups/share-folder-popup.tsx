@@ -40,21 +40,27 @@ export function ShareFolderPopup({
   const [shareLoading, setShareLoading] = useState(false)
   const [shareId, setShareId] = useState<string | null>(null)
 
+  // Reset while rendering rather than from the effect below, so the dialog
+  // never paints a frame with the previous folder's state.
+  const requestedFolder = open ? folderName : null
+  const [shownFolder, setShownFolder] = useState<string | null>(null)
+  if (requestedFolder !== shownFolder) {
+    setShownFolder(requestedFolder)
+    setShareId(null)
+    setErrorMessage(null)
+    setShareLoading(false)
+    setInfoLoading(requestedFolder !== null)
+    if (requestedFolder !== null) {
+      setFolderInfo(null)
+    }
+  }
+
   useEffect(() => {
     if (!open) {
-      // Reset state when dialog closes
-      setShareId(null)
-      setErrorMessage(null)
-      setShareLoading(false)
-      setInfoLoading(false)
       return
     }
 
     // 1) Fetch folder info FIRST
-    setErrorMessage(null)
-    setFolderInfo(null)
-    setInfoLoading(true)
-
     const fetchFolderInfo = async () => {
       console.info(`Fetching folder info for: ${folderName}`)
       try {
