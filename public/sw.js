@@ -121,6 +121,15 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  // What the router fetches for a client-side navigation (the `RSC` header,
+  // with `_rsc=` in the URL) is not a static asset: the dev server answers it
+  // per session, and replaying an earlier answer made Next 16.4 drop the
+  // navigation without a word -- `/google-auth` never left for the page that
+  // had asked (#226).
+  if (request.headers.get('RSC') === '1') {
+    return
+  }
+
   // Cache-first for static assets
   event.respondWith(
     caches.match(request).then((cached) => {
