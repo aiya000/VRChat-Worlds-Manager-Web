@@ -246,6 +246,14 @@ That is worth remembering when adding anything that loads an external script: it
 defeated Playwright's `page.route()` mocks, because the request the mock was waiting
 for was being made by the service worker instead, and the test hung with no clue why.
 
+**It also leaves the router's own fetches alone** -- a same-origin request with the `RSC: 1`
+header, which a client-side navigation makes. Those once fell into the cache-first branch, and
+the dev server's answers are per session: the second trip back from Google was given the first
+trip's answer, and Next 16.4 dropped the navigation without an error, leaving the screen on
+`/google-auth` (#226). Only `next dev` showed it, and only with the worker registered, so a spec
+that blocks service workers will not catch a regression here; `service-worker-skips-rsc.spec.ts`
+does.
+
 ### Nothing on screen redraws by itself
 
 This app does not use `useLiveQuery`. **Writing to Dexie refreshes no screen** — whatever

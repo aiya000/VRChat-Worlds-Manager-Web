@@ -305,13 +305,7 @@ test.describe('when Google never grants the token', () => {
 
   // The failure that started all of this: a consent screen that was cancelled
   // once left the screen on "syncing" forever.
-  //
-  // Fails only against the Next 16.4 dev server, which is what `test:e2e` runs:
-  // the screen stays on "returning" after /google-auth replaces the route. The
-  // exported build in out/ passes. Remove the fixme when #226 is fixed.
-  test.fixme('says Google refused rather than syncing forever', async ({
-    page,
-  }) => {
+  test('says Google refused rather than syncing forever', async ({ page }) => {
     await stubGoogleAuth(page, { token: 'test-access-token' })
     await stubGoogleDrive(page)
     await connect(page)
